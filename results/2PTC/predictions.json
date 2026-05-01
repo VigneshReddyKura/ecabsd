@@ -1,0 +1,1796 @@
+{
+  "pdb_file": "2PTC.pdb",
+  "chain_a": "E",
+  "chain_b": null,
+  "threshold": 0.75,
+  "total_residues": 223,
+  "binding_residues_count": 84,
+  "binding_ratio": 0.37668161434977576,
+  "prediction_quality": "Broad interface prediction",
+  "residues": [
+    {
+      "index": 0,
+      "resname": "ILE",
+      "resid": 16,
+      "chain": "E",
+      "probability": 0.8398001194000244,
+      "is_binding": true
+    },
+    {
+      "index": 1,
+      "resname": "VAL",
+      "resid": 17,
+      "chain": "E",
+      "probability": 0.8429499268531799,
+      "is_binding": true
+    },
+    {
+      "index": 2,
+      "resname": "GLY",
+      "resid": 18,
+      "chain": "E",
+      "probability": 0.8334310054779053,
+      "is_binding": true
+    },
+    {
+      "index": 3,
+      "resname": "GLY",
+      "resid": 19,
+      "chain": "E",
+      "probability": 0.8308398127555847,
+      "is_binding": true
+    },
+    {
+      "index": 4,
+      "resname": "TYR",
+      "resid": 20,
+      "chain": "E",
+      "probability": 0.8132670521736145,
+      "is_binding": true
+    },
+    {
+      "index": 5,
+      "resname": "THR",
+      "resid": 21,
+      "chain": "E",
+      "probability": 0.808393120765686,
+      "is_binding": true
+    },
+    {
+      "index": 6,
+      "resname": "CYS",
+      "resid": 22,
+      "chain": "E",
+      "probability": 0.8025853633880615,
+      "is_binding": true
+    },
+    {
+      "index": 7,
+      "resname": "GLY",
+      "resid": 23,
+      "chain": "E",
+      "probability": 0.7814743518829346,
+      "is_binding": true
+    },
+    {
+      "index": 8,
+      "resname": "ALA",
+      "resid": 24,
+      "chain": "E",
+      "probability": 0.7679797410964966,
+      "is_binding": true
+    },
+    {
+      "index": 9,
+      "resname": "ASN",
+      "resid": 25,
+      "chain": "E",
+      "probability": 0.6898635029792786,
+      "is_binding": false
+    },
+    {
+      "index": 10,
+      "resname": "THR",
+      "resid": 26,
+      "chain": "E",
+      "probability": 0.7440876960754395,
+      "is_binding": false
+    },
+    {
+      "index": 11,
+      "resname": "VAL",
+      "resid": 27,
+      "chain": "E",
+      "probability": 0.7165415287017822,
+      "is_binding": false
+    },
+    {
+      "index": 12,
+      "resname": "PRO",
+      "resid": 28,
+      "chain": "E",
+      "probability": 0.5808032155036926,
+      "is_binding": false
+    },
+    {
+      "index": 13,
+      "resname": "TYR",
+      "resid": 29,
+      "chain": "E",
+      "probability": 0.4967806339263916,
+      "is_binding": false
+    },
+    {
+      "index": 14,
+      "resname": "GLN",
+      "resid": 30,
+      "chain": "E",
+      "probability": 0.6416115760803223,
+      "is_binding": false
+    },
+    {
+      "index": 15,
+      "resname": "VAL",
+      "resid": 31,
+      "chain": "E",
+      "probability": 0.6185310482978821,
+      "is_binding": false
+    },
+    {
+      "index": 16,
+      "resname": "SER",
+      "resid": 32,
+      "chain": "E",
+      "probability": 0.7788476943969727,
+      "is_binding": true
+    },
+    {
+      "index": 17,
+      "resname": "LEU",
+      "resid": 33,
+      "chain": "E",
+      "probability": 0.7977008819580078,
+      "is_binding": true
+    },
+    {
+      "index": 18,
+      "resname": "ASN",
+      "resid": 34,
+      "chain": "E",
+      "probability": 0.8197770714759827,
+      "is_binding": true
+    },
+    {
+      "index": 19,
+      "resname": "SER",
+      "resid": 37,
+      "chain": "E",
+      "probability": 0.821744978427887,
+      "is_binding": true
+    },
+    {
+      "index": 20,
+      "resname": "GLY",
+      "resid": 38,
+      "chain": "E",
+      "probability": 0.825386106967926,
+      "is_binding": true
+    },
+    {
+      "index": 21,
+      "resname": "TYR",
+      "resid": 39,
+      "chain": "E",
+      "probability": 0.8276543617248535,
+      "is_binding": true
+    },
+    {
+      "index": 22,
+      "resname": "HIS",
+      "resid": 40,
+      "chain": "E",
+      "probability": 0.8272138833999634,
+      "is_binding": true
+    },
+    {
+      "index": 23,
+      "resname": "PHE",
+      "resid": 41,
+      "chain": "E",
+      "probability": 0.8239555954933167,
+      "is_binding": true
+    },
+    {
+      "index": 24,
+      "resname": "CYS",
+      "resid": 42,
+      "chain": "E",
+      "probability": 0.813586950302124,
+      "is_binding": true
+    },
+    {
+      "index": 25,
+      "resname": "GLY",
+      "resid": 43,
+      "chain": "E",
+      "probability": 0.7957838773727417,
+      "is_binding": true
+    },
+    {
+      "index": 26,
+      "resname": "GLY",
+      "resid": 44,
+      "chain": "E",
+      "probability": 0.6387989521026611,
+      "is_binding": false
+    },
+    {
+      "index": 27,
+      "resname": "SER",
+      "resid": 45,
+      "chain": "E",
+      "probability": 0.5062142610549927,
+      "is_binding": false
+    },
+    {
+      "index": 28,
+      "resname": "LEU",
+      "resid": 46,
+      "chain": "E",
+      "probability": 0.42774930596351624,
+      "is_binding": false
+    },
+    {
+      "index": 29,
+      "resname": "ILE",
+      "resid": 47,
+      "chain": "E",
+      "probability": 0.36001864075660706,
+      "is_binding": false
+    },
+    {
+      "index": 30,
+      "resname": "ASN",
+      "resid": 48,
+      "chain": "E",
+      "probability": 0.4220946729183197,
+      "is_binding": false
+    },
+    {
+      "index": 31,
+      "resname": "SER",
+      "resid": 49,
+      "chain": "E",
+      "probability": 0.35842105746269226,
+      "is_binding": false
+    },
+    {
+      "index": 32,
+      "resname": "GLN",
+      "resid": 50,
+      "chain": "E",
+      "probability": 0.3425886929035187,
+      "is_binding": false
+    },
+    {
+      "index": 33,
+      "resname": "TRP",
+      "resid": 51,
+      "chain": "E",
+      "probability": 0.3191336691379547,
+      "is_binding": false
+    },
+    {
+      "index": 34,
+      "resname": "VAL",
+      "resid": 52,
+      "chain": "E",
+      "probability": 0.4069509208202362,
+      "is_binding": false
+    },
+    {
+      "index": 35,
+      "resname": "VAL",
+      "resid": 53,
+      "chain": "E",
+      "probability": 0.467383474111557,
+      "is_binding": false
+    },
+    {
+      "index": 36,
+      "resname": "SER",
+      "resid": 54,
+      "chain": "E",
+      "probability": 0.572323203086853,
+      "is_binding": false
+    },
+    {
+      "index": 37,
+      "resname": "ALA",
+      "resid": 55,
+      "chain": "E",
+      "probability": 0.6325909495353699,
+      "is_binding": false
+    },
+    {
+      "index": 38,
+      "resname": "ALA",
+      "resid": 56,
+      "chain": "E",
+      "probability": 0.6822513341903687,
+      "is_binding": false
+    },
+    {
+      "index": 39,
+      "resname": "HIS",
+      "resid": 57,
+      "chain": "E",
+      "probability": 0.7359434366226196,
+      "is_binding": false
+    },
+    {
+      "index": 40,
+      "resname": "CYS",
+      "resid": 58,
+      "chain": "E",
+      "probability": 0.7535911798477173,
+      "is_binding": true
+    },
+    {
+      "index": 41,
+      "resname": "TYR",
+      "resid": 59,
+      "chain": "E",
+      "probability": 0.6486543416976929,
+      "is_binding": false
+    },
+    {
+      "index": 42,
+      "resname": "LYS",
+      "resid": 60,
+      "chain": "E",
+      "probability": 0.7604778409004211,
+      "is_binding": true
+    },
+    {
+      "index": 43,
+      "resname": "SER",
+      "resid": 61,
+      "chain": "E",
+      "probability": 0.7167673110961914,
+      "is_binding": false
+    },
+    {
+      "index": 44,
+      "resname": "GLY",
+      "resid": 62,
+      "chain": "E",
+      "probability": 0.7194063663482666,
+      "is_binding": false
+    },
+    {
+      "index": 45,
+      "resname": "ILE",
+      "resid": 63,
+      "chain": "E",
+      "probability": 0.7507025599479675,
+      "is_binding": true
+    },
+    {
+      "index": 46,
+      "resname": "GLN",
+      "resid": 64,
+      "chain": "E",
+      "probability": 0.6984044909477234,
+      "is_binding": false
+    },
+    {
+      "index": 47,
+      "resname": "VAL",
+      "resid": 65,
+      "chain": "E",
+      "probability": 0.6290100812911987,
+      "is_binding": false
+    },
+    {
+      "index": 48,
+      "resname": "ARG",
+      "resid": 66,
+      "chain": "E",
+      "probability": 0.6486957669258118,
+      "is_binding": false
+    },
+    {
+      "index": 49,
+      "resname": "LEU",
+      "resid": 67,
+      "chain": "E",
+      "probability": 0.5893436670303345,
+      "is_binding": false
+    },
+    {
+      "index": 50,
+      "resname": "GLY",
+      "resid": 69,
+      "chain": "E",
+      "probability": 0.5981760621070862,
+      "is_binding": false
+    },
+    {
+      "index": 51,
+      "resname": "GLU",
+      "resid": 70,
+      "chain": "E",
+      "probability": 0.6259766817092896,
+      "is_binding": false
+    },
+    {
+      "index": 52,
+      "resname": "ASP",
+      "resid": 71,
+      "chain": "E",
+      "probability": 0.7197710871696472,
+      "is_binding": false
+    },
+    {
+      "index": 53,
+      "resname": "ASN",
+      "resid": 72,
+      "chain": "E",
+      "probability": 0.6056082248687744,
+      "is_binding": false
+    },
+    {
+      "index": 54,
+      "resname": "ILE",
+      "resid": 73,
+      "chain": "E",
+      "probability": 0.640795886516571,
+      "is_binding": false
+    },
+    {
+      "index": 55,
+      "resname": "ASN",
+      "resid": 74,
+      "chain": "E",
+      "probability": 0.5609806180000305,
+      "is_binding": false
+    },
+    {
+      "index": 56,
+      "resname": "VAL",
+      "resid": 75,
+      "chain": "E",
+      "probability": 0.5292542576789856,
+      "is_binding": false
+    },
+    {
+      "index": 57,
+      "resname": "VAL",
+      "resid": 76,
+      "chain": "E",
+      "probability": 0.5409384965896606,
+      "is_binding": false
+    },
+    {
+      "index": 58,
+      "resname": "GLU",
+      "resid": 77,
+      "chain": "E",
+      "probability": 0.5687534809112549,
+      "is_binding": false
+    },
+    {
+      "index": 59,
+      "resname": "GLY",
+      "resid": 78,
+      "chain": "E",
+      "probability": 0.6042446494102478,
+      "is_binding": false
+    },
+    {
+      "index": 60,
+      "resname": "ASN",
+      "resid": 79,
+      "chain": "E",
+      "probability": 0.5935046076774597,
+      "is_binding": false
+    },
+    {
+      "index": 61,
+      "resname": "GLU",
+      "resid": 80,
+      "chain": "E",
+      "probability": 0.584413468837738,
+      "is_binding": false
+    },
+    {
+      "index": 62,
+      "resname": "GLN",
+      "resid": 81,
+      "chain": "E",
+      "probability": 0.5642798542976379,
+      "is_binding": false
+    },
+    {
+      "index": 63,
+      "resname": "PHE",
+      "resid": 82,
+      "chain": "E",
+      "probability": 0.5766796469688416,
+      "is_binding": false
+    },
+    {
+      "index": 64,
+      "resname": "ILE",
+      "resid": 83,
+      "chain": "E",
+      "probability": 0.4835013449192047,
+      "is_binding": false
+    },
+    {
+      "index": 65,
+      "resname": "SER",
+      "resid": 84,
+      "chain": "E",
+      "probability": 0.5169281363487244,
+      "is_binding": false
+    },
+    {
+      "index": 66,
+      "resname": "ALA",
+      "resid": 85,
+      "chain": "E",
+      "probability": 0.48809319734573364,
+      "is_binding": false
+    },
+    {
+      "index": 67,
+      "resname": "SER",
+      "resid": 86,
+      "chain": "E",
+      "probability": 0.4653705656528473,
+      "is_binding": false
+    },
+    {
+      "index": 68,
+      "resname": "LYS",
+      "resid": 87,
+      "chain": "E",
+      "probability": 0.4647905230522156,
+      "is_binding": false
+    },
+    {
+      "index": 69,
+      "resname": "SER",
+      "resid": 88,
+      "chain": "E",
+      "probability": 0.48057690262794495,
+      "is_binding": false
+    },
+    {
+      "index": 70,
+      "resname": "ILE",
+      "resid": 89,
+      "chain": "E",
+      "probability": 0.5311744213104248,
+      "is_binding": false
+    },
+    {
+      "index": 71,
+      "resname": "VAL",
+      "resid": 90,
+      "chain": "E",
+      "probability": 0.617843747138977,
+      "is_binding": false
+    },
+    {
+      "index": 72,
+      "resname": "HIS",
+      "resid": 91,
+      "chain": "E",
+      "probability": 0.7321189045906067,
+      "is_binding": false
+    },
+    {
+      "index": 73,
+      "resname": "PRO",
+      "resid": 92,
+      "chain": "E",
+      "probability": 0.7645750641822815,
+      "is_binding": true
+    },
+    {
+      "index": 74,
+      "resname": "SER",
+      "resid": 93,
+      "chain": "E",
+      "probability": 0.8067545294761658,
+      "is_binding": true
+    },
+    {
+      "index": 75,
+      "resname": "TYR",
+      "resid": 94,
+      "chain": "E",
+      "probability": 0.8120419979095459,
+      "is_binding": true
+    },
+    {
+      "index": 76,
+      "resname": "ASN",
+      "resid": 95,
+      "chain": "E",
+      "probability": 0.8299424648284912,
+      "is_binding": true
+    },
+    {
+      "index": 77,
+      "resname": "SER",
+      "resid": 96,
+      "chain": "E",
+      "probability": 0.8283177018165588,
+      "is_binding": true
+    },
+    {
+      "index": 78,
+      "resname": "ASN",
+      "resid": 97,
+      "chain": "E",
+      "probability": 0.829424262046814,
+      "is_binding": true
+    },
+    {
+      "index": 79,
+      "resname": "THR",
+      "resid": 98,
+      "chain": "E",
+      "probability": 0.8285690546035767,
+      "is_binding": true
+    },
+    {
+      "index": 80,
+      "resname": "LEU",
+      "resid": 99,
+      "chain": "E",
+      "probability": 0.8287508487701416,
+      "is_binding": true
+    },
+    {
+      "index": 81,
+      "resname": "ASN",
+      "resid": 100,
+      "chain": "E",
+      "probability": 0.8174659013748169,
+      "is_binding": true
+    },
+    {
+      "index": 82,
+      "resname": "ASN",
+      "resid": 101,
+      "chain": "E",
+      "probability": 0.7961865067481995,
+      "is_binding": true
+    },
+    {
+      "index": 83,
+      "resname": "ASP",
+      "resid": 102,
+      "chain": "E",
+      "probability": 0.7802123427391052,
+      "is_binding": true
+    },
+    {
+      "index": 84,
+      "resname": "ILE",
+      "resid": 103,
+      "chain": "E",
+      "probability": 0.6165214776992798,
+      "is_binding": false
+    },
+    {
+      "index": 85,
+      "resname": "MET",
+      "resid": 104,
+      "chain": "E",
+      "probability": 0.5459595322608948,
+      "is_binding": false
+    },
+    {
+      "index": 86,
+      "resname": "LEU",
+      "resid": 105,
+      "chain": "E",
+      "probability": 0.4349278211593628,
+      "is_binding": false
+    },
+    {
+      "index": 87,
+      "resname": "ILE",
+      "resid": 106,
+      "chain": "E",
+      "probability": 0.42551907896995544,
+      "is_binding": false
+    },
+    {
+      "index": 88,
+      "resname": "LYS",
+      "resid": 107,
+      "chain": "E",
+      "probability": 0.41154342889785767,
+      "is_binding": false
+    },
+    {
+      "index": 89,
+      "resname": "LEU",
+      "resid": 108,
+      "chain": "E",
+      "probability": 0.3512670397758484,
+      "is_binding": false
+    },
+    {
+      "index": 90,
+      "resname": "LYS",
+      "resid": 109,
+      "chain": "E",
+      "probability": 0.4192742705345154,
+      "is_binding": false
+    },
+    {
+      "index": 91,
+      "resname": "SER",
+      "resid": 110,
+      "chain": "E",
+      "probability": 0.44562259316444397,
+      "is_binding": false
+    },
+    {
+      "index": 92,
+      "resname": "ALA",
+      "resid": 111,
+      "chain": "E",
+      "probability": 0.40934649109840393,
+      "is_binding": false
+    },
+    {
+      "index": 93,
+      "resname": "ALA",
+      "resid": 112,
+      "chain": "E",
+      "probability": 0.40634527802467346,
+      "is_binding": false
+    },
+    {
+      "index": 94,
+      "resname": "SER",
+      "resid": 113,
+      "chain": "E",
+      "probability": 0.4566252529621124,
+      "is_binding": false
+    },
+    {
+      "index": 95,
+      "resname": "LEU",
+      "resid": 114,
+      "chain": "E",
+      "probability": 0.45561617612838745,
+      "is_binding": false
+    },
+    {
+      "index": 96,
+      "resname": "ASN",
+      "resid": 115,
+      "chain": "E",
+      "probability": 0.50392746925354,
+      "is_binding": false
+    },
+    {
+      "index": 97,
+      "resname": "SER",
+      "resid": 116,
+      "chain": "E",
+      "probability": 0.5334048867225647,
+      "is_binding": false
+    },
+    {
+      "index": 98,
+      "resname": "ARG",
+      "resid": 117,
+      "chain": "E",
+      "probability": 0.5706124305725098,
+      "is_binding": false
+    },
+    {
+      "index": 99,
+      "resname": "VAL",
+      "resid": 118,
+      "chain": "E",
+      "probability": 0.49057310819625854,
+      "is_binding": false
+    },
+    {
+      "index": 100,
+      "resname": "ALA",
+      "resid": 119,
+      "chain": "E",
+      "probability": 0.4729337692260742,
+      "is_binding": false
+    },
+    {
+      "index": 101,
+      "resname": "SER",
+      "resid": 120,
+      "chain": "E",
+      "probability": 0.42424824833869934,
+      "is_binding": false
+    },
+    {
+      "index": 102,
+      "resname": "ILE",
+      "resid": 121,
+      "chain": "E",
+      "probability": 0.40571528673171997,
+      "is_binding": false
+    },
+    {
+      "index": 103,
+      "resname": "SER",
+      "resid": 122,
+      "chain": "E",
+      "probability": 0.44904521107673645,
+      "is_binding": false
+    },
+    {
+      "index": 104,
+      "resname": "LEU",
+      "resid": 123,
+      "chain": "E",
+      "probability": 0.39903905987739563,
+      "is_binding": false
+    },
+    {
+      "index": 105,
+      "resname": "PRO",
+      "resid": 124,
+      "chain": "E",
+      "probability": 0.38430944085121155,
+      "is_binding": false
+    },
+    {
+      "index": 106,
+      "resname": "THR",
+      "resid": 125,
+      "chain": "E",
+      "probability": 0.4747028946876526,
+      "is_binding": false
+    },
+    {
+      "index": 107,
+      "resname": "SER",
+      "resid": 127,
+      "chain": "E",
+      "probability": 0.47893890738487244,
+      "is_binding": false
+    },
+    {
+      "index": 108,
+      "resname": "CYS",
+      "resid": 128,
+      "chain": "E",
+      "probability": 0.4362916350364685,
+      "is_binding": false
+    },
+    {
+      "index": 109,
+      "resname": "ALA",
+      "resid": 129,
+      "chain": "E",
+      "probability": 0.46992096304893494,
+      "is_binding": false
+    },
+    {
+      "index": 110,
+      "resname": "SER",
+      "resid": 130,
+      "chain": "E",
+      "probability": 0.4840584397315979,
+      "is_binding": false
+    },
+    {
+      "index": 111,
+      "resname": "ALA",
+      "resid": 132,
+      "chain": "E",
+      "probability": 0.49762144684791565,
+      "is_binding": false
+    },
+    {
+      "index": 112,
+      "resname": "GLY",
+      "resid": 133,
+      "chain": "E",
+      "probability": 0.5127370953559875,
+      "is_binding": false
+    },
+    {
+      "index": 113,
+      "resname": "THR",
+      "resid": 134,
+      "chain": "E",
+      "probability": 0.5021953582763672,
+      "is_binding": false
+    },
+    {
+      "index": 114,
+      "resname": "GLN",
+      "resid": 135,
+      "chain": "E",
+      "probability": 0.5890753865242004,
+      "is_binding": false
+    },
+    {
+      "index": 115,
+      "resname": "CYS",
+      "resid": 136,
+      "chain": "E",
+      "probability": 0.6017675995826721,
+      "is_binding": false
+    },
+    {
+      "index": 116,
+      "resname": "LEU",
+      "resid": 137,
+      "chain": "E",
+      "probability": 0.6688868999481201,
+      "is_binding": false
+    },
+    {
+      "index": 117,
+      "resname": "ILE",
+      "resid": 138,
+      "chain": "E",
+      "probability": 0.7532229423522949,
+      "is_binding": true
+    },
+    {
+      "index": 118,
+      "resname": "SER",
+      "resid": 139,
+      "chain": "E",
+      "probability": 0.7976139783859253,
+      "is_binding": true
+    },
+    {
+      "index": 119,
+      "resname": "GLY",
+      "resid": 140,
+      "chain": "E",
+      "probability": 0.8224341869354248,
+      "is_binding": true
+    },
+    {
+      "index": 120,
+      "resname": "TRP",
+      "resid": 141,
+      "chain": "E",
+      "probability": 0.8324029445648193,
+      "is_binding": true
+    },
+    {
+      "index": 121,
+      "resname": "GLY",
+      "resid": 142,
+      "chain": "E",
+      "probability": 0.8405329585075378,
+      "is_binding": true
+    },
+    {
+      "index": 122,
+      "resname": "ASN",
+      "resid": 143,
+      "chain": "E",
+      "probability": 0.8437419533729553,
+      "is_binding": true
+    },
+    {
+      "index": 123,
+      "resname": "THR",
+      "resid": 144,
+      "chain": "E",
+      "probability": 0.8433830142021179,
+      "is_binding": true
+    },
+    {
+      "index": 124,
+      "resname": "LYS",
+      "resid": 145,
+      "chain": "E",
+      "probability": 0.8435792922973633,
+      "is_binding": true
+    },
+    {
+      "index": 125,
+      "resname": "SER",
+      "resid": 146,
+      "chain": "E",
+      "probability": 0.8441128134727478,
+      "is_binding": true
+    },
+    {
+      "index": 126,
+      "resname": "SER",
+      "resid": 147,
+      "chain": "E",
+      "probability": 0.8419864773750305,
+      "is_binding": true
+    },
+    {
+      "index": 127,
+      "resname": "GLY",
+      "resid": 148,
+      "chain": "E",
+      "probability": 0.8427852988243103,
+      "is_binding": true
+    },
+    {
+      "index": 128,
+      "resname": "THR",
+      "resid": 149,
+      "chain": "E",
+      "probability": 0.8435865044593811,
+      "is_binding": true
+    },
+    {
+      "index": 129,
+      "resname": "SER",
+      "resid": 150,
+      "chain": "E",
+      "probability": 0.8424648642539978,
+      "is_binding": true
+    },
+    {
+      "index": 130,
+      "resname": "TYR",
+      "resid": 151,
+      "chain": "E",
+      "probability": 0.8392945528030396,
+      "is_binding": true
+    },
+    {
+      "index": 131,
+      "resname": "PRO",
+      "resid": 152,
+      "chain": "E",
+      "probability": 0.8350582122802734,
+      "is_binding": true
+    },
+    {
+      "index": 132,
+      "resname": "ASP",
+      "resid": 153,
+      "chain": "E",
+      "probability": 0.7855244874954224,
+      "is_binding": true
+    },
+    {
+      "index": 133,
+      "resname": "VAL",
+      "resid": 154,
+      "chain": "E",
+      "probability": 0.7922553420066833,
+      "is_binding": true
+    },
+    {
+      "index": 134,
+      "resname": "LEU",
+      "resid": 155,
+      "chain": "E",
+      "probability": 0.810245931148529,
+      "is_binding": true
+    },
+    {
+      "index": 135,
+      "resname": "LYS",
+      "resid": 156,
+      "chain": "E",
+      "probability": 0.8222517371177673,
+      "is_binding": true
+    },
+    {
+      "index": 136,
+      "resname": "CYS",
+      "resid": 157,
+      "chain": "E",
+      "probability": 0.8125916719436646,
+      "is_binding": true
+    },
+    {
+      "index": 137,
+      "resname": "LEU",
+      "resid": 158,
+      "chain": "E",
+      "probability": 0.8156877756118774,
+      "is_binding": true
+    },
+    {
+      "index": 138,
+      "resname": "LYS",
+      "resid": 159,
+      "chain": "E",
+      "probability": 0.7415494918823242,
+      "is_binding": false
+    },
+    {
+      "index": 139,
+      "resname": "ALA",
+      "resid": 160,
+      "chain": "E",
+      "probability": 0.7780758738517761,
+      "is_binding": true
+    },
+    {
+      "index": 140,
+      "resname": "PRO",
+      "resid": 161,
+      "chain": "E",
+      "probability": 0.639970600605011,
+      "is_binding": false
+    },
+    {
+      "index": 141,
+      "resname": "ILE",
+      "resid": 162,
+      "chain": "E",
+      "probability": 0.5426828265190125,
+      "is_binding": false
+    },
+    {
+      "index": 142,
+      "resname": "LEU",
+      "resid": 163,
+      "chain": "E",
+      "probability": 0.561923086643219,
+      "is_binding": false
+    },
+    {
+      "index": 143,
+      "resname": "SER",
+      "resid": 164,
+      "chain": "E",
+      "probability": 0.5003235936164856,
+      "is_binding": false
+    },
+    {
+      "index": 144,
+      "resname": "ASP",
+      "resid": 165,
+      "chain": "E",
+      "probability": 0.5552935004234314,
+      "is_binding": false
+    },
+    {
+      "index": 145,
+      "resname": "SER",
+      "resid": 166,
+      "chain": "E",
+      "probability": 0.5699120163917542,
+      "is_binding": false
+    },
+    {
+      "index": 146,
+      "resname": "SER",
+      "resid": 167,
+      "chain": "E",
+      "probability": 0.5801724791526794,
+      "is_binding": false
+    },
+    {
+      "index": 147,
+      "resname": "CYS",
+      "resid": 168,
+      "chain": "E",
+      "probability": 0.6080458760261536,
+      "is_binding": false
+    },
+    {
+      "index": 148,
+      "resname": "LYS",
+      "resid": 169,
+      "chain": "E",
+      "probability": 0.6141542196273804,
+      "is_binding": false
+    },
+    {
+      "index": 149,
+      "resname": "SER",
+      "resid": 170,
+      "chain": "E",
+      "probability": 0.6170299649238586,
+      "is_binding": false
+    },
+    {
+      "index": 150,
+      "resname": "ALA",
+      "resid": 171,
+      "chain": "E",
+      "probability": 0.7693690061569214,
+      "is_binding": true
+    },
+    {
+      "index": 151,
+      "resname": "TYR",
+      "resid": 172,
+      "chain": "E",
+      "probability": 0.7078959345817566,
+      "is_binding": false
+    },
+    {
+      "index": 152,
+      "resname": "PRO",
+      "resid": 173,
+      "chain": "E",
+      "probability": 0.6577956676483154,
+      "is_binding": false
+    },
+    {
+      "index": 153,
+      "resname": "GLY",
+      "resid": 174,
+      "chain": "E",
+      "probability": 0.6517994403839111,
+      "is_binding": false
+    },
+    {
+      "index": 154,
+      "resname": "GLN",
+      "resid": 175,
+      "chain": "E",
+      "probability": 0.7243066430091858,
+      "is_binding": false
+    },
+    {
+      "index": 155,
+      "resname": "ILE",
+      "resid": 176,
+      "chain": "E",
+      "probability": 0.5995106101036072,
+      "is_binding": false
+    },
+    {
+      "index": 156,
+      "resname": "THR",
+      "resid": 177,
+      "chain": "E",
+      "probability": 0.65949547290802,
+      "is_binding": false
+    },
+    {
+      "index": 157,
+      "resname": "SER",
+      "resid": 178,
+      "chain": "E",
+      "probability": 0.5647505521774292,
+      "is_binding": false
+    },
+    {
+      "index": 158,
+      "resname": "ASN",
+      "resid": 179,
+      "chain": "E",
+      "probability": 0.583742082118988,
+      "is_binding": false
+    },
+    {
+      "index": 159,
+      "resname": "MET",
+      "resid": 180,
+      "chain": "E",
+      "probability": 0.6020960211753845,
+      "is_binding": false
+    },
+    {
+      "index": 160,
+      "resname": "PHE",
+      "resid": 181,
+      "chain": "E",
+      "probability": 0.5361790657043457,
+      "is_binding": false
+    },
+    {
+      "index": 161,
+      "resname": "CYS",
+      "resid": 182,
+      "chain": "E",
+      "probability": 0.6668070554733276,
+      "is_binding": false
+    },
+    {
+      "index": 162,
+      "resname": "ALA",
+      "resid": 183,
+      "chain": "E",
+      "probability": 0.7483083009719849,
+      "is_binding": false
+    },
+    {
+      "index": 163,
+      "resname": "GLY",
+      "resid": 184,
+      "chain": "E",
+      "probability": 0.812555193901062,
+      "is_binding": true
+    },
+    {
+      "index": 164,
+      "resname": "TYR",
+      "resid": 184,
+      "chain": "E",
+      "probability": 0.8323667049407959,
+      "is_binding": true
+    },
+    {
+      "index": 165,
+      "resname": "LEU",
+      "resid": 185,
+      "chain": "E",
+      "probability": 0.8354220390319824,
+      "is_binding": true
+    },
+    {
+      "index": 166,
+      "resname": "GLU",
+      "resid": 186,
+      "chain": "E",
+      "probability": 0.8355705142021179,
+      "is_binding": true
+    },
+    {
+      "index": 167,
+      "resname": "GLY",
+      "resid": 187,
+      "chain": "E",
+      "probability": 0.8401566743850708,
+      "is_binding": true
+    },
+    {
+      "index": 168,
+      "resname": "GLY",
+      "resid": 188,
+      "chain": "E",
+      "probability": 0.841050922870636,
+      "is_binding": true
+    },
+    {
+      "index": 169,
+      "resname": "LYS",
+      "resid": 188,
+      "chain": "E",
+      "probability": 0.8359613418579102,
+      "is_binding": true
+    },
+    {
+      "index": 170,
+      "resname": "ASP",
+      "resid": 189,
+      "chain": "E",
+      "probability": 0.8400331735610962,
+      "is_binding": true
+    },
+    {
+      "index": 171,
+      "resname": "SER",
+      "resid": 190,
+      "chain": "E",
+      "probability": 0.8396915197372437,
+      "is_binding": true
+    },
+    {
+      "index": 172,
+      "resname": "CYS",
+      "resid": 191,
+      "chain": "E",
+      "probability": 0.8424819707870483,
+      "is_binding": true
+    },
+    {
+      "index": 173,
+      "resname": "GLN",
+      "resid": 192,
+      "chain": "E",
+      "probability": 0.8335064649581909,
+      "is_binding": true
+    },
+    {
+      "index": 174,
+      "resname": "GLY",
+      "resid": 193,
+      "chain": "E",
+      "probability": 0.8358320593833923,
+      "is_binding": true
+    },
+    {
+      "index": 175,
+      "resname": "ASP",
+      "resid": 194,
+      "chain": "E",
+      "probability": 0.8322974443435669,
+      "is_binding": true
+    },
+    {
+      "index": 176,
+      "resname": "SER",
+      "resid": 195,
+      "chain": "E",
+      "probability": 0.8044507503509521,
+      "is_binding": true
+    },
+    {
+      "index": 177,
+      "resname": "GLY",
+      "resid": 196,
+      "chain": "E",
+      "probability": 0.6933563351631165,
+      "is_binding": false
+    },
+    {
+      "index": 178,
+      "resname": "GLY",
+      "resid": 197,
+      "chain": "E",
+      "probability": 0.7156441807746887,
+      "is_binding": false
+    },
+    {
+      "index": 179,
+      "resname": "PRO",
+      "resid": 198,
+      "chain": "E",
+      "probability": 0.5835803747177124,
+      "is_binding": false
+    },
+    {
+      "index": 180,
+      "resname": "VAL",
+      "resid": 199,
+      "chain": "E",
+      "probability": 0.5635066628456116,
+      "is_binding": false
+    },
+    {
+      "index": 181,
+      "resname": "VAL",
+      "resid": 200,
+      "chain": "E",
+      "probability": 0.5006791353225708,
+      "is_binding": false
+    },
+    {
+      "index": 182,
+      "resname": "CYS",
+      "resid": 201,
+      "chain": "E",
+      "probability": 0.4787834584712982,
+      "is_binding": false
+    },
+    {
+      "index": 183,
+      "resname": "SER",
+      "resid": 202,
+      "chain": "E",
+      "probability": 0.5376471281051636,
+      "is_binding": false
+    },
+    {
+      "index": 184,
+      "resname": "GLY",
+      "resid": 203,
+      "chain": "E",
+      "probability": 0.4818102717399597,
+      "is_binding": false
+    },
+    {
+      "index": 185,
+      "resname": "LYS",
+      "resid": 204,
+      "chain": "E",
+      "probability": 0.4500619173049927,
+      "is_binding": false
+    },
+    {
+      "index": 186,
+      "resname": "LEU",
+      "resid": 209,
+      "chain": "E",
+      "probability": 0.4300994575023651,
+      "is_binding": false
+    },
+    {
+      "index": 187,
+      "resname": "GLN",
+      "resid": 210,
+      "chain": "E",
+      "probability": 0.4096115231513977,
+      "is_binding": false
+    },
+    {
+      "index": 188,
+      "resname": "GLY",
+      "resid": 211,
+      "chain": "E",
+      "probability": 0.4814791977405548,
+      "is_binding": false
+    },
+    {
+      "index": 189,
+      "resname": "ILE",
+      "resid": 212,
+      "chain": "E",
+      "probability": 0.5513200759887695,
+      "is_binding": false
+    },
+    {
+      "index": 190,
+      "resname": "VAL",
+      "resid": 213,
+      "chain": "E",
+      "probability": 0.738923192024231,
+      "is_binding": false
+    },
+    {
+      "index": 191,
+      "resname": "SER",
+      "resid": 214,
+      "chain": "E",
+      "probability": 0.753650426864624,
+      "is_binding": true
+    },
+    {
+      "index": 192,
+      "resname": "TRP",
+      "resid": 215,
+      "chain": "E",
+      "probability": 0.8005874156951904,
+      "is_binding": true
+    },
+    {
+      "index": 193,
+      "resname": "GLY",
+      "resid": 216,
+      "chain": "E",
+      "probability": 0.8297089338302612,
+      "is_binding": true
+    },
+    {
+      "index": 194,
+      "resname": "SER",
+      "resid": 217,
+      "chain": "E",
+      "probability": 0.8356284499168396,
+      "is_binding": true
+    },
+    {
+      "index": 195,
+      "resname": "GLY",
+      "resid": 219,
+      "chain": "E",
+      "probability": 0.8403917551040649,
+      "is_binding": true
+    },
+    {
+      "index": 196,
+      "resname": "CYS",
+      "resid": 220,
+      "chain": "E",
+      "probability": 0.8420913815498352,
+      "is_binding": true
+    },
+    {
+      "index": 197,
+      "resname": "ALA",
+      "resid": 221,
+      "chain": "E",
+      "probability": 0.8428953289985657,
+      "is_binding": true
+    },
+    {
+      "index": 198,
+      "resname": "GLN",
+      "resid": 221,
+      "chain": "E",
+      "probability": 0.8428025245666504,
+      "is_binding": true
+    },
+    {
+      "index": 199,
+      "resname": "LYS",
+      "resid": 222,
+      "chain": "E",
+      "probability": 0.839139461517334,
+      "is_binding": true
+    },
+    {
+      "index": 200,
+      "resname": "ASN",
+      "resid": 223,
+      "chain": "E",
+      "probability": 0.8347498178482056,
+      "is_binding": true
+    },
+    {
+      "index": 201,
+      "resname": "LYS",
+      "resid": 224,
+      "chain": "E",
+      "probability": 0.8368510007858276,
+      "is_binding": true
+    },
+    {
+      "index": 202,
+      "resname": "PRO",
+      "resid": 225,
+      "chain": "E",
+      "probability": 0.8377951383590698,
+      "is_binding": true
+    },
+    {
+      "index": 203,
+      "resname": "GLY",
+      "resid": 226,
+      "chain": "E",
+      "probability": 0.8273045420646667,
+      "is_binding": true
+    },
+    {
+      "index": 204,
+      "resname": "VAL",
+      "resid": 227,
+      "chain": "E",
+      "probability": 0.7579241394996643,
+      "is_binding": true
+    },
+    {
+      "index": 205,
+      "resname": "TYR",
+      "resid": 228,
+      "chain": "E",
+      "probability": 0.634658694267273,
+      "is_binding": false
+    },
+    {
+      "index": 206,
+      "resname": "THR",
+      "resid": 229,
+      "chain": "E",
+      "probability": 0.5859758257865906,
+      "is_binding": false
+    },
+    {
+      "index": 207,
+      "resname": "LYS",
+      "resid": 230,
+      "chain": "E",
+      "probability": 0.4371342957019806,
+      "is_binding": false
+    },
+    {
+      "index": 208,
+      "resname": "VAL",
+      "resid": 231,
+      "chain": "E",
+      "probability": 0.40113532543182373,
+      "is_binding": false
+    },
+    {
+      "index": 209,
+      "resname": "CYS",
+      "resid": 232,
+      "chain": "E",
+      "probability": 0.3527325987815857,
+      "is_binding": false
+    },
+    {
+      "index": 210,
+      "resname": "ASN",
+      "resid": 233,
+      "chain": "E",
+      "probability": 0.3954324722290039,
+      "is_binding": false
+    },
+    {
+      "index": 211,
+      "resname": "TYR",
+      "resid": 234,
+      "chain": "E",
+      "probability": 0.3013661801815033,
+      "is_binding": false
+    },
+    {
+      "index": 212,
+      "resname": "VAL",
+      "resid": 235,
+      "chain": "E",
+      "probability": 0.2657391428947449,
+      "is_binding": false
+    },
+    {
+      "index": 213,
+      "resname": "SER",
+      "resid": 236,
+      "chain": "E",
+      "probability": 0.25564348697662354,
+      "is_binding": false
+    },
+    {
+      "index": 214,
+      "resname": "TRP",
+      "resid": 237,
+      "chain": "E",
+      "probability": 0.2455553561449051,
+      "is_binding": false
+    },
+    {
+      "index": 215,
+      "resname": "ILE",
+      "resid": 238,
+      "chain": "E",
+      "probability": 0.2381548434495926,
+      "is_binding": false
+    },
+    {
+      "index": 216,
+      "resname": "LYS",
+      "resid": 239,
+      "chain": "E",
+      "probability": 0.23337402939796448,
+      "is_binding": false
+    },
+    {
+      "index": 217,
+      "resname": "GLN",
+      "resid": 240,
+      "chain": "E",
+      "probability": 0.23078064620494843,
+      "is_binding": false
+    },
+    {
+      "index": 218,
+      "resname": "THR",
+      "resid": 241,
+      "chain": "E",
+      "probability": 0.22944308817386627,
+      "is_binding": false
+    },
+    {
+      "index": 219,
+      "resname": "ILE",
+      "resid": 242,
+      "chain": "E",
+      "probability": 0.23056660592556,
+      "is_binding": false
+    },
+    {
+      "index": 220,
+      "resname": "ALA",
+      "resid": 243,
+      "chain": "E",
+      "probability": 0.23182150721549988,
+      "is_binding": false
+    },
+    {
+      "index": 221,
+      "resname": "SER",
+      "resid": 244,
+      "chain": "E",
+      "probability": 0.23456840217113495,
+      "is_binding": false
+    },
+    {
+      "index": 222,
+      "resname": "ASN",
+      "resid": 245,
+      "chain": "E",
+      "probability": 0.24087296426296234,
+      "is_binding": false
+    }
+  ]
+}

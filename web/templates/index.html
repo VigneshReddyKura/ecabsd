@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ECABSD — Binding Site Detection</title>
+  <meta name="description" content="Equivariant Cross-Attention for Protein-Protein Binding Site Detection. Upload a PDB file and predict per-residue binding sites using deep learning." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- Background blobs -->
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <circle cx="18" cy="18" r="17" stroke="url(#grad)" stroke-width="2"/>
+          <path d="M10 18 Q14 10 18 18 Q22 26 26 18" stroke="url(#grad)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <circle cx="18" cy="18" r="3" fill="url(#grad)"/>
+          <defs>
+            <linearGradient id="grad" x1="0" y1="0" x2="36" y2="36">
+              <stop offset="0%" stop-color="#6366f1"/>
+              <stop offset="100%" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo-text">ECABSD</span>
+      </div>
+      <nav class="header-nav">
+        <a href="#predict-section">Predict</a>
+        <a href="#results-section">Results</a>
+        <a href="https://github.com/VigneshReddyKura/ecabsd" target="_blank" class="nav-github">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">Deep Learning · Structural Biology</div>
+      <h1 class="hero-title">
+        Protein Binding Site<br/>
+        <span class="gradient-text">Detection</span>
+      </h1>
+      <p class="hero-subtitle">
+        Equivariant Cross-Attention Graph Neural Network for per-residue
+        binding site prediction from 3D protein structure.
+      </p>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-val">23</span><span class="stat-lbl">Node Features</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-val">8Å</span><span class="stat-lbl">Graph Cutoff</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-val">128</span><span class="stat-lbl">Hidden Dim</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-val">8</span><span class="stat-lbl">Attn Heads</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Predict Section -->
+  <main>
+    <section id="predict-section" class="container">
+      <div class="section-grid">
+
+        <!-- Upload Card -->
+        <div class="card" id="upload-card">
+          <div class="card-header">
+            <div class="card-icon upload-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <h2 class="card-title">Upload PDB Structure</h2>
+          </div>
+
+          <!-- Dropzone -->
+          <div class="dropzone" id="dropzone">
+            <div class="dropzone-inner" id="dropzone-inner">
+              <div class="drop-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              </div>
+              <p class="drop-text">Drag & drop your <strong>.pdb</strong> file here</p>
+              <p class="drop-sub">or</p>
+              <label class="btn btn-outline" for="file-input">Browse File</label>
+              <input type="file" id="file-input" accept=".pdb" hidden />
+              <p class="drop-hint" id="file-name-display">No file selected</p>
+            </div>
+          </div>
+
+          <!-- Options -->
+          <div class="options-grid">
+            <div class="form-group">
+              <label class="form-label" for="chain-a">Target Chain</label>
+              <input type="text" id="chain-a" class="form-input" value="A" maxlength="2" placeholder="A" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="chain-b">Partner Chain <span class="optional">(optional)</span></label>
+              <input type="text" id="chain-b" class="form-input" value="" maxlength="2" placeholder="B" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="threshold">Threshold: <span id="threshold-val">0.50</span></label>
+              <input type="range" id="threshold" class="form-range" min="0.1" max="0.9" step="0.05" value="0.5" />
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="predict-btn" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run Prediction
+          </button>
+        </div>
+
+        <!-- Architecture Card -->
+        <div class="card arch-card">
+          <div class="card-header">
+            <div class="card-icon arch-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            </div>
+            <h2 class="card-title">Model Architecture</h2>
+          </div>
+          <div class="arch-flow">
+            <div class="arch-node pdb-node">
+              <div class="arch-node-icon">🧬</div>
+              <div class="arch-node-label">PDB Structure</div>
+            </div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-node">
+              <div class="arch-node-icon">🔗</div>
+              <div class="arch-node-label">Graph Construction<br/><small>8Å cutoff · 23 features</small></div>
+            </div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-node">
+              <div class="arch-node-icon">🌐</div>
+              <div class="arch-node-label">GCN Encoder<br/><small>4 layers · 128-dim</small></div>
+            </div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-node">
+              <div class="arch-node-icon">✨</div>
+              <div class="arch-node-label">SE(3) Refinement<br/><small>Equivariant</small></div>
+            </div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-node attn-node">
+              <div class="arch-node-icon">🎯</div>
+              <div class="arch-node-label">Cross-Attention<br/><small>8 heads</small></div>
+            </div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-node output-node">
+              <div class="arch-node-icon">📊</div>
+              <div class="arch-node-label">Per-residue Classifier<br/><small>Binding Probability</small></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Loading -->
+    <div class="loading-overlay" id="loading-overlay" hidden>
+      <div class="loading-card">
+        <div class="spinner"></div>
+        <p class="loading-text">Running ECABSD prediction…</p>
+        <p class="loading-sub" id="loading-step">Building residue graph</p>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <section id="results-section" class="container" hidden>
+      <div class="results-header">
+        <h2 class="results-title">Prediction Results</h2>
+        <div class="results-meta" id="results-meta"></div>
+        <div class="export-buttons">
+          <button class="btn btn-sm btn-outline" id="export-csv-btn">⬇ CSV</button>
+          <button class="btn btn-sm btn-outline" id="export-json-btn">⬇ JSON</button>
+          <button class="btn btn-sm btn-outline" id="export-pymol-btn">⬇ PyMOL</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-grid" id="summary-grid"></div>
+
+      <!-- Probability Chart -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div class="card-icon">📈</div>
+          <h3 class="card-title">Per-Residue Binding Probability</h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="prob-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      <div class="card table-card">
+        <div class="card-header">
+          <div class="card-icon">📋</div>
+          <h3 class="card-title">Binding Site Residues</h3>
+          <div class="table-filter">
+            <button class="filter-btn active" data-filter="binding" id="filter-binding">Binding Only</button>
+            <button class="filter-btn" data-filter="all" id="filter-all">All Residues</button>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="results-table" id="results-table">
+            <thead>
+              <tr>
+                <th>Idx</th>
+                <th>Residue</th>
+                <th>Res ID</th>
+                <th>Chain</th>
+                <th>Probability</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="results-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error Toast -->
+    <div class="toast" id="error-toast" hidden>
+      <div class="toast-icon">⚠</div>
+      <div class="toast-msg" id="toast-msg"></div>
+      <button class="toast-close" id="toast-close">✕</button>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>ECABSD &mdash; Equivariant Cross-Attention for Binding Site Detection &copy; 2025</p>
+  </footer>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

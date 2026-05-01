@@ -1,6 +1,6 @@
 import torch
-from gcn_model import GCNEncoder
-from se3_model import SE3Transformer
+from .gcn_model import GCNEncoder
+from .se3_model import SE3Transformer
 
 class Encoder(torch.nn.Module):
     def __init__(self):

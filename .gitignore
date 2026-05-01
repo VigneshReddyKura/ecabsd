@@ -1,4 +1,12 @@
-__pycache__/ 
-*.pyc 
-.pytest_cache/ 
-*.egg-info/ 
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.env
+.venv/
+env/
+venv/
+.vscode/
+.idea/
+*.swp
+*.bak
