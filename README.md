@@ -1,4 +1,4 @@
-# ECABSD — Equivariant Cross-Attention for Binding Site Detection
+# ECABSD — Explainable Cross Attention Model for Binding Site Discovery
 
 <div align="center">
 
@@ -7,7 +7,7 @@
 ![PyG](https://img.shields.io/badge/PyG-2.7-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-**Deep learning model for per-residue protein–protein binding site detection using graph neural networks and equivariant cross-attention.**
+**Deep learning model for per-residue protein–protein binding site discovery using graph neural networks and explainable cross-attention.**
 
 </div>
 
