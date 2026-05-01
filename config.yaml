@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────
+# ECABSD — Equivariant Cross-Attention for Binding Site Detection
+# Central configuration file
+# ─────────────────────────────────────────────────────────────
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  pdb_dir: "data/raw/pdbs"
+  splits_csv: "data/splits.csv"
+  ligand_distance_cutoff: 4.5        # Å — residue within this distance of ligand = binding site
+
+model:
+  input_dim: 23                       # 20 AA one-hot + 3 SS one-hot
+  hidden_dim: 128
+  num_gcn_layers: 4
+  num_heads: 8                        # cross-attention heads
+  edge_feature_dim: 4                 # distance + 3D unit vector
+  graph_cutoff: 8.0                   # Å — edge distance cutoff
+  dropout: 0.1
+  residue_min: 50
+  residue_max: 512
+
+training:
+  epochs: 50
+  batch_size: 16
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  lr_scheduler: "plateau"             # plateau | step | cosine
+  lr_patience: 5
+  lr_factor: 0.5
+  early_stopping_patience: 15
+  pos_weight: 5.0                     # BCE pos_weight for class imbalance
+  gradient_clip: 1.0
+  seed: 42
+  num_workers: 0
+
+prediction:
+  threshold: 0.5
+  output_format: "csv"                # csv | json | pymol
+
+paths:
+  checkpoints_dir: "checkpoints"
+  logs_dir: "logs"
+  results_dir: "results"
+
+web:
+  host: "0.0.0.0"
+  port: 8000
+  checkpoint: "checkpoints/best_model.pt"
+
+docking:
+  vina_executable: "vina"
+  exhaustiveness: 8
+  num_modes: 9
+  energy_range: 3
+  box_padding: 5.0                    # Å padding around predicted site
