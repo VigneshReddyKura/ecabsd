@@ -17,20 +17,20 @@ model:
   num_heads: 8                        # cross-attention heads
   edge_feature_dim: 4                 # distance + 3D unit vector
   graph_cutoff: 8.0                   # Å — edge distance cutoff
-  dropout: 0.1
+  dropout: 0.2
   residue_min: 50
   residue_max: 512
 
 training:
-  epochs: 50
+  epochs: 100
   batch_size: 16
   learning_rate: 0.001
   weight_decay: 0.0001
   lr_scheduler: "plateau"             # plateau | step | cosine
   lr_patience: 5
   lr_factor: 0.5
-  early_stopping_patience: 15
-  pos_weight: 5.0                     # BCE pos_weight for class imbalance
+  early_stopping_patience: 20
+  pos_weight: 7.0                     # BCE pos_weight for class imbalance
   gradient_clip: 1.0
   seed: 42
   num_workers: 0
