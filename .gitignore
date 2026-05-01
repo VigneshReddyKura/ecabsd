@@ -10,3 +10,7 @@ venv/
 .idea/
 *.swp
 *.bak
+venv310/ 
+data/processed/ 
+data/raw/ 
+checkpoints/ 
