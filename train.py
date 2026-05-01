@@ -90,7 +90,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip, 
         optimizer.step()
 
         total_loss += loss.item() * labels.size(0)
-        binary_preds = (pred >= 0.3).long().cpu().numpy()
+        binary_preds = (pred >= 0.5).long().cpu().numpy()
         all_labels.extend(labels.cpu().numpy().tolist())
         all_preds.extend(binary_preds.tolist())
 
@@ -125,7 +125,7 @@ def validate(model, loader, criterion, device, pos_weight):
         loss = (raw_loss * weights).mean()
         total_loss += loss.item() * labels.size(0)
 
-        binary_preds = (pred >= 0.3).long().cpu().numpy()
+        binary_preds = (pred >= 0.5).long().cpu().numpy()
         all_labels.extend(labels.cpu().numpy().tolist())
         all_preds.extend(binary_preds.tolist())
 
