@@ -5,7 +5,7 @@ Handles:
 - Config loading
 - Dataset construction
 - Model initialization
-- Training loop with Focal Loss, early stopping
+- Training loop with Weighted BCE Loss, early stopping
 - Checkpoint saving
 - Metric logging
 """
@@ -33,23 +33,26 @@ from models.ecabsd_model import ECABSDModel
 from data.dataset import BindingSiteDataset, collate_fn
 
 
-# ── Focal Loss ────────────────────────────────────────────────────────────────
-class FocalLoss(nn.Module):
+# ── Weighted BCE Loss ─────────────────────────────────────────────────────────
+class WeightedBCELoss(nn.Module):
     """
-    Focal Loss for binary classification with class imbalance.
-    alpha=0.75 upweights the binding (minority) class.
-    gamma=2.0 down-weights easy negatives.
+    Weighted Binary Cross Entropy Loss for class imbalance.
+    pos_weight=4.67 matches the dataset ratio (non-binding:binding).
     """
-    def __init__(self, alpha=0.75, gamma=2.0):
+    def __init__(self, pos_weight=4.67):
         super().__init__()
-        self.alpha = alpha
-        self.gamma = gamma
+        self.pos_weight = pos_weight
 
     def forward(self, pred, target):
-        bce = nn.functional.binary_cross_entropy(pred, target, reduction='none')
-        pt = torch.exp(-bce)
-        focal = self.alpha * (1 - pt) ** self.gamma * bce
-        return focal.mean()
+        loss = nn.functional.binary_cross_entropy(
+            pred, target, reduction='none'
+        )
+        weights = torch.where(
+            target == 1,
+            torch.tensor(self.pos_weight, device=pred.device),
+            torch.tensor(1.0, device=pred.device)
+        )
+        return (loss * weights).mean()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -104,7 +107,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip):
         optimizer.step()
 
         total_loss += loss.item() * labels.size(0)
-        binary_preds = (pred >= 0.3).long().cpu().numpy()
+        binary_preds = (pred >= 0.5).long().cpu().numpy()
         all_labels.extend(labels.cpu().numpy().tolist())
         all_preds.extend(binary_preds.tolist())
 
@@ -133,7 +136,7 @@ def validate(model, loader, criterion, device):
         loss = criterion(pred, labels.float())
         total_loss += loss.item() * labels.size(0)
 
-        binary_preds = (pred >= 0.3).long().cpu().numpy()
+        binary_preds = (pred >= 0.5).long().cpu().numpy()
         all_labels.extend(labels.cpu().numpy().tolist())
         all_preds.extend(binary_preds.tolist())
 
@@ -191,8 +194,8 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     else:
         scheduler = None
 
-    # Loss function — Focal Loss for class imbalance
-    criterion = FocalLoss(alpha=0.75, gamma=2.0)
+    # Loss function — Weighted BCE for class imbalance
+    criterion = WeightedBCELoss(pos_weight=4.67)
 
     # Dataset & loaders
     processed_dir = cfg["data"]["processed_dir"]
