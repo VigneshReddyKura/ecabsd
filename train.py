@@ -5,7 +5,7 @@ Handles:
 - Config loading
 - Dataset construction
 - Model initialization
-- Training loop with BCE loss, class weighting, early stopping
+- Training loop with Focal Loss, early stopping
 - Checkpoint saving
 - Metric logging
 """
@@ -33,6 +33,26 @@ from models.ecabsd_model import ECABSDModel
 from data.dataset import BindingSiteDataset, collate_fn
 
 
+# ── Focal Loss ────────────────────────────────────────────────────────────────
+class FocalLoss(nn.Module):
+    """
+    Focal Loss for binary classification with class imbalance.
+    alpha=0.75 upweights the binding (minority) class.
+    gamma=2.0 down-weights easy negatives.
+    """
+    def __init__(self, alpha=0.75, gamma=2.0):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, pred, target):
+        bce = nn.functional.binary_cross_entropy(pred, target, reduction='none')
+        pt = torch.exp(-bce)
+        focal = self.alpha * (1 - pt) ** self.gamma * bce
+        return focal.mean()
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def load_config(config_path: str) -> dict:
     """Load YAML configuration."""
     with open(config_path, "r") as f:
@@ -58,8 +78,9 @@ def compute_metrics(all_labels, all_preds):
     return {"accuracy": acc, "precision": prec, "recall": rec, "f1": f1, "mcc": mcc}
 
 
-def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip, pos_weight):
-    """Run one training epoch (processes one graph per step)."""
+# ── Train / Validate ──────────────────────────────────────────────────────────
+def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip):
+    """Run one training epoch."""
     model.train()
     total_loss = 0.0
     all_labels = []
@@ -74,16 +95,9 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip, 
         pred, _ = model(data_a, data_b)
         pred = pred.squeeze(-1)
 
-        raw_loss = criterion(pred, labels.float())
-        weights = torch.where(
-            labels == 1,
-            torch.tensor(pos_weight, device=device),
-            torch.tensor(1.0, device=device)
-        )
-        loss = (raw_loss * weights).mean()
+        loss = criterion(pred, labels.float())
         loss.backward()
 
-        # Gradient clipping
         if gradient_clip > 0:
             nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
 
@@ -101,7 +115,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip, 
 
 
 @torch.no_grad()
-def validate(model, loader, criterion, device, pos_weight):
+def validate(model, loader, criterion, device):
     """Run validation."""
     model.eval()
     total_loss = 0.0
@@ -116,13 +130,7 @@ def validate(model, loader, criterion, device, pos_weight):
         pred, _ = model(data_a, data_b)
         pred = pred.squeeze(-1)
 
-        raw_loss = criterion(pred, labels.float())
-        weights = torch.where(
-            labels == 1,
-            torch.tensor(pos_weight, device=device),
-            torch.tensor(1.0, device=device)
-        )
-        loss = (raw_loss * weights).mean()
+        loss = criterion(pred, labels.float())
         total_loss += loss.item() * labels.size(0)
 
         binary_preds = (pred >= 0.5).long().cpu().numpy()
@@ -135,6 +143,7 @@ def validate(model, loader, criterion, device, pos_weight):
     return metrics
 
 
+# ── Main Training Function ────────────────────────────────────────────────────
 def run_training(config_path: str = "config.yaml", resume_from: str = None):
     """Main training function."""
     cfg = load_config(config_path)
@@ -182,11 +191,10 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     else:
         scheduler = None
 
-    # Loss function — classifier outputs probabilities (sigmoid), so use BCELoss
-    criterion = nn.BCELoss(reduction="none")
-    pos_weight = 7.74
+    # Loss function — Focal Loss for class imbalance
+    criterion = FocalLoss(alpha=0.75, gamma=2.0)
 
-    # Dataset & loaders — use batch_size=1 with custom collate to handle variable-size graphs
+    # Dataset & loaders
     processed_dir = cfg["data"]["processed_dir"]
     splits_csv = cfg["data"]["splits_csv"]
 
@@ -207,16 +215,13 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         print(f"[ECABSD] Run 'python scripts/prepare_dataset.py' first.")
         print(f"[ECABSD] Using dummy data for demonstration...")
 
-        # Create minimal dummy data for demonstration
         from models.graph_construction import build_residue_graph
         sample_pdb = "1AY7.pdb"
         if os.path.exists(sample_pdb):
             data_a = build_residue_graph(sample_pdb, "A")
-            # Create dummy labels
             data_a.y = torch.zeros(data_a.num_residues)
-            data_a.y[:10] = 1.0  # First 10 residues as dummy binding sites
+            data_a.y[:10] = 1.0
 
-            # Wrap in simple list-based loader
             class DummyBatch:
                 def __init__(self, data):
                     self.data = data
@@ -258,9 +263,9 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         t0 = time.time()
 
         train_metrics = train_one_epoch(
-            model, train_loader, optimizer, criterion, device, tcfg["gradient_clip"], pos_weight
+            model, train_loader, optimizer, criterion, device, tcfg["gradient_clip"]
         )
-        val_metrics = validate(model, val_loader, criterion, device, pos_weight)
+        val_metrics = validate(model, val_loader, criterion, device)
 
         elapsed = time.time() - t0
 
@@ -308,7 +313,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         else:
             patience_counter += 1
 
-        # Save periodic checkpoint
+        # Save periodic checkpoint every 10 epochs
         if (epoch + 1) % 10 == 0:
             ckpt_path = os.path.join(pcfg["checkpoints_dir"], f"epoch_{epoch+1}.pt")
             torch.save(
