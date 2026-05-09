@@ -38,6 +38,9 @@ training:
   label_smoothing: 0.05
   learning_rate: 0.001
   loss: focal
+  lr_scheduler: plateau
+  lr_patience: 5
+  lr_factor: 0.5
   num_workers: 0
   seed: 42
   threshold: 0.3
