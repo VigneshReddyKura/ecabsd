@@ -1,68 +1,49 @@
 """
-ECABSD Training Pipeline — v3 "Best Model"
-
-Handles:
-- Config loading
-- Dataset construction
-- Model initialization
-- Training loop with Weighted BCE Loss, early stopping
-- Checkpoint saving
-- Metric logging
+ECABSD Training Pipeline - v3 Architecture
+Dataset returns dicts with keys: data_a, data_b, labels, pdb_id
+Model takes two PyG graphs (chain A and chain B) as input.
 """
 
 import os
 import json
 import time
 import random
+
 import yaml
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    matthews_corrcoef,
-)
 
 from models.ecabsd_model import ECABSDModel
-from data.dataset import BindingSiteDataset, collate_fn
+from data.dataset import BindingSiteDataset
 
 
-# ── Weighted BCE Loss ─────────────────────────────────────────────────────────
-class WeightedBCELoss(nn.Module):
-    """
-    Weighted Binary Cross Entropy Loss for class imbalance.
-    pos_weight=4.67 matches the dataset ratio (non-binding:binding).
-    """
-    def __init__(self, pos_weight=4.67):
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.75, gamma=2.0):
         super().__init__()
-        self.pos_weight = pos_weight
+        self.alpha = alpha
+        self.gamma = gamma
 
     def forward(self, pred, target):
-        loss = nn.functional.binary_cross_entropy(
-            pred, target, reduction='none'
-        )
-        weights = torch.where(
-            target == 1,
-            torch.tensor(self.pos_weight, device=pred.device),
-            torch.tensor(1.0, device=pred.device)
-        )
-        return (loss * weights).mean()
+        pred = pred.squeeze(-1)
+        target = target.squeeze(-1)
+        bce = F.binary_cross_entropy_with_logits(pred, target, reduction='none')
+        pt = torch.exp(-bce)
+        focal = self.alpha * (1.0 - pt) ** self.gamma * bce
+        return focal.mean()
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def load_config(config_path: str) -> dict:
-    with open(config_path, "r") as f:
+def load_config(path="config.yaml"):
+    with open(path, encoding="utf-8", errors="ignore") as f:
         return yaml.safe_load(f)
 
 
-def set_seed(seed: int):
+def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -70,308 +51,191 @@ def set_seed(seed: int):
         torch.cuda.manual_seed_all(seed)
 
 
-def compute_pos_weight(dataset) -> float:
-    total_pos = total_neg = 0
-    for sample in dataset:
-        labels = sample["labels"]
-        total_pos += int(labels.sum().item())
-        total_neg += int((labels == 0).sum().item())
-    return (total_neg / total_pos) if total_pos > 0 else 7.0
+def collate_fn(batch):
+    """Keep samples as a list — each item is a dict with data_a, data_b, labels."""
+    return batch
 
 
-# ── Train / Validate ──────────────────────────────────────────────────────────
-def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip):
+def move_to_device(data, device):
+    """Move a PyG Data object to device."""
+    return data.to(device)
+
+
+def train_one_epoch(model, loader, optimizer, criterion, device, threshold=0.3):
     model.train()
     total_loss = 0.0
-    all_labels, all_preds = [], []
-    total_gnorm = 0.0
-    n_batches   = 0
+    all_preds, all_labels = [], []
 
-    for sample in loader:
-        data_a = sample["data_a"].to(device)
-        data_b = sample["data_b"].to(device) if sample["data_b"] is not None else None
-        labels = sample["labels"].to(device)
+    for batch in loader:
+        for sample in batch:
+            data_a  = sample['data_a'].to(device)
+            data_b  = sample['data_b'].to(device)
+            labels  = sample['labels'].float().to(device)
 
-        optimizer.zero_grad()
-        logits, _ = model(data_a, data_b)
-        logits    = logits.squeeze(-1)
+            optimizer.zero_grad()
+            pred, _ = model(data_a, data_b)
+            pred = pred.squeeze(-1)
 
-        loss = criterion(pred, labels.float())
-        loss.backward()
+            loss = criterion(pred, labels)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
 
-        if gradient_clip > 0:
-            gnorm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-            total_gnorm += gnorm.item()
+            total_loss += loss.item()
 
-        optimizer.step()
+            probs = torch.sigmoid(pred.detach())
+            binary_preds = (probs >= threshold).long().cpu().numpy()
+            all_preds.extend(binary_preds.tolist())
+            all_labels.extend(labels.long().cpu().numpy().tolist())
 
-        total_loss   += loss.item() * labels.size(0)
-        probs         = torch.sigmoid(logits)
-        binary_preds  = (probs >= 0.5).long().cpu().numpy()
-        all_labels.extend(labels.cpu().numpy().tolist())
-        all_preds.extend(binary_preds.tolist())
-        n_batches += 1
-
-    avg_loss        = total_loss / max(len(all_labels), 1)
-    metrics         = compute_metrics(all_labels, all_preds)
-    metrics["loss"] = avg_loss
-    metrics["grad_norm"] = total_gnorm / max(n_batches, 1)
-    return metrics
+    avg_loss = total_loss / max(len(loader), 1)
+    f1 = f1_score(all_labels, all_preds, zero_division=0)
+    return avg_loss, f1
 
 
 @torch.no_grad()
-def validate(model, loader, criterion, device):
-    """Run validation."""
+def validate(model, loader, criterion, device, threshold=0.3):
     model.eval()
     total_loss = 0.0
-    all_labels, all_preds, all_probs = [], [], []
+    all_preds, all_labels = [], []
 
-    for sample in loader:
-        data_a = sample["data_a"].to(device)
-        data_b = sample["data_b"].to(device) if sample["data_b"] is not None else None
-        labels = sample["labels"].to(device)
+    for batch in loader:
+        for sample in batch:
+            data_a  = sample['data_a'].to(device)
+            data_b  = sample['data_b'].to(device)
+            labels  = sample['labels'].float().to(device)
 
-        logits, _ = model(data_a, data_b)
-        logits    = logits.squeeze(-1)
+            pred, _ = model(data_a, data_b)
+            pred = pred.squeeze(-1)
 
-        loss = criterion(pred, labels.float())
-        total_loss += loss.item() * labels.size(0)
+            loss = criterion(pred, labels)
+            total_loss += loss.item()
 
-        probs        = torch.sigmoid(logits)
-        binary_preds = (probs >= 0.5).long().cpu().numpy()
-        all_labels.extend(labels.cpu().numpy().tolist())
-        all_preds.extend(binary_preds.tolist())
-        all_probs.extend(probs.cpu().numpy().tolist())
+            probs = torch.sigmoid(pred)
+            binary_preds = (probs >= threshold).long().cpu().numpy()
+            all_preds.extend(binary_preds.tolist())
+            all_labels.extend(labels.long().cpu().numpy().tolist())
 
-    avg_loss        = total_loss / max(len(all_labels), 1)
-    metrics         = compute_metrics(all_labels, all_preds)
-    metrics["loss"] = avg_loss
-    return metrics, np.array(all_labels), np.array(all_probs)
+    avg_loss = total_loss / max(len(loader), 1)
+    f1 = f1_score(all_labels, all_preds, zero_division=0)
+    return avg_loss, f1
 
 
-# ── Main Training Function ────────────────────────────────────────────────────
-def run_training(config_path: str = "config.yaml", resume_from: str = None):
-    cfg  = load_config(config_path)
-    tcfg = cfg["training"]
-    mcfg = cfg["model"]
-    pcfg = cfg["paths"]
+def run_training(config):
+    set_seed(config.get("seed", 42))
 
-    set_seed(tcfg["seed"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[ECABSD] Training on device: {device}")
+    print(f"[ECABSD] Using device: {device}")
 
-    os.makedirs(pcfg["checkpoints_dir"], exist_ok=True)
-    os.makedirs(pcfg["logs_dir"],        exist_ok=True)
+    dcfg = config.get("data", {})
+    tcfg = config.get("training", {})
+    mcfg = config.get("model", {})
 
-    # ── Build model ────────────────────────────────────────────────────────────
-    model = ECABSDModel(
-        input_dim=mcfg["input_dim"],
-        hidden_dim=mcfg["hidden_dim"],
-        num_heads=mcfg["num_heads"],
-        dropout=mcfg["dropout"],
-        edge_dim=mcfg["edge_feature_dim"],
-        num_ca_layers=mcfg.get("num_ca_layers", 4),
-    ).to(device)
-
-    print(f"[ECABSD] Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-
-    # ── Optimizer — AdamW with decoupled weight decay ─────────────────────────
-    optimizer = AdamW(
-        model.parameters(),
-        lr=tcfg["learning_rate"],
-        weight_decay=tcfg["weight_decay"],
-        betas=(0.9, 0.999),
-        eps=1e-8,
+    train_dataset = BindingSiteDataset(
+        processed_dir=dcfg.get("processed_dir", "data/processed"),
+        splits_csv=dcfg.get("splits_csv", "data/splits.csv"),
+        split="train",
+    )
+    val_dataset = BindingSiteDataset(
+        processed_dir=dcfg.get("processed_dir", "data/processed"),
+        splits_csv=dcfg.get("splits_csv", "data/splits.csv"),
+        split="val",
     )
 
-    # LR scheduler
-    if tcfg["lr_scheduler"] == "plateau":
-        scheduler = ReduceLROnPlateau(
-            optimizer,
-            mode="min",
-            patience=tcfg["lr_patience"],
-            factor=tcfg["lr_factor"],
-        )
-    elif tcfg["lr_scheduler"] == "step":
-        scheduler = StepLR(optimizer, step_size=tcfg["lr_patience"], gamma=tcfg["lr_factor"])
-    elif tcfg["lr_scheduler"] == "cosine":
-        scheduler = CosineAnnealingLR(optimizer, T_max=tcfg["epochs"])
-    else:
-        scheduler = None
+    batch_size = tcfg.get("batch_size", 1)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,  num_workers=0, collate_fn=collate_fn)
+    val_loader   = DataLoader(val_dataset,   batch_size=batch_size, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
-    # Loss function — Weighted BCE for class imbalance
-    criterion = WeightedBCELoss(pos_weight=4.67)
+    model = ECABSDModel(
+        input_dim=mcfg.get("input_dim", 23),
+        hidden_dim=mcfg.get("hidden_dim", 256),
+        num_heads=mcfg.get("num_heads", 8),
+        dropout=mcfg.get("dropout", 0.3),
+    ).to(device)
 
-    # Dataset & loaders
-    processed_dir = cfg["data"]["processed_dir"]
-    splits_csv    = cfg["data"]["splits_csv"]
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"[ECABSD] Model parameters: {total_params:,}")
 
-    if os.path.exists(processed_dir) and os.path.exists(splits_csv):
-        train_dataset = BindingSiteDataset(processed_dir, splits_csv, split="train")
-        val_dataset   = BindingSiteDataset(processed_dir, splits_csv, split="val")
+    epochs    = tcfg.get("epochs", 100)
+    patience  = tcfg.get("early_stopping_patience", 20)
+    lr        = tcfg.get("learning_rate", 1e-3)
+    threshold = tcfg.get("threshold", 0.3)
 
-        train_loader = DataLoader(
-            train_dataset, batch_size=1, shuffle=True,
-            num_workers=0, collate_fn=collate_fn,
-        )
-        val_loader = DataLoader(
-            val_dataset, batch_size=1, shuffle=False,
-            num_workers=0, collate_fn=collate_fn,
-        )
-    else:
-        print(f"[ECABSD] WARNING: Processed data not found at '{processed_dir}'.")
-        print(f"[ECABSD] Run 'python scripts/prepare_dataset.py' first.")
-        from models.graph_construction import build_residue_graph
-        sample_pdb = "1AY7.pdb"
-        if os.path.exists(sample_pdb):
-            data_a = build_residue_graph(sample_pdb, "A")
-            data_a.y = torch.zeros(data_a.num_residues)
-            data_a.y[:10] = 1.0
+    criterion = FocalLoss(
+        alpha=tcfg.get("focal_alpha", 0.75),
+        gamma=tcfg.get("focal_gamma", 2.0),
+    )
 
-            class DummyBatch:
-                def __init__(self, data):
-                    self.data = data
-                def __iter__(self):
-                    yield {"data_a": self.data, "data_b": None, "labels": self.data.y}
-                def __len__(self):
-                    return 1
+    optimizer = AdamW(model.parameters(), lr=lr, weight_decay=tcfg.get("weight_decay", 1e-4))
+    scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=7, min_lr=1e-5)
 
-            train_loader = DummyBatch(data_a)
-            val_loader   = DummyBatch(data_a)
-            pos_weight_val = 7.0
-        else:
-            print("[ECABSD] ERROR: No PDB file found. Cannot train.")
-            return
-        data_a    = build_residue_graph(sample_pdb, "A")
-        data_a.y  = torch.zeros(data_a.num_residues)
-        data_a.y[:10] = 1.0
+    os.makedirs("checkpoints", exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
 
-        class DummyBatch:
-            def __iter__(self):
-                yield {"data_a": data_a, "data_b": None, "labels": data_a.y}
-            def __len__(self):
-                return 1
-
-        train_loader = val_loader = DummyBatch()
-        train_dataset = list(train_loader)
-
-    # ── Loss ──────────────────────────────────────────────────────────────────
-    criterion = build_criterion(tcfg, device)
-
-    # ── LR scheduler: warmup → cosine ─────────────────────────────────────────
-    scheduler = build_scheduler(optimizer, tcfg, steps_per_epoch=len(train_loader))
-
-    # ── Resume ────────────────────────────────────────────────────────────────
-    start_epoch   = 0
-    best_val_f1   = 0.0
-    best_threshold = 0.5
-
-    if resume_from and os.path.exists(resume_from):
-        ckpt = torch.load(resume_from, map_location=device)
-        model.load_state_dict(ckpt["model_state_dict"])
-        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
-        start_epoch    = ckpt.get("epoch", 0) + 1
-        best_val_f1    = ckpt.get("best_val_f1", 0.0)
-        best_threshold = ckpt.get("best_threshold", 0.5)
-        print(f"[ECABSD] Resumed from epoch {start_epoch}  best_val_f1={best_val_f1:.4f}")
-
-    # ── Training loop ─────────────────────────────────────────────────────────
+    best_val_loss = float("inf")
     patience_counter = 0
-    history          = []
+    history = []
 
-    print(f"\n{'='*60}")
-    print(f"  ECABSD Training v3 — {tcfg['epochs']} epochs")
-    print(f"{'='*60}\n")
+    print("=" * 60)
+    print(f"  ECABSD Training - {epochs} epochs")
+    print("=" * 60)
 
-    for epoch in range(start_epoch, tcfg["epochs"]):
+    for epoch in range(1, epochs + 1):
         t0 = time.time()
 
-        train_metrics = train_one_epoch(
-            model, train_loader, optimizer, criterion, device, tcfg["gradient_clip"]
-        )
-        val_metrics = validate(model, val_loader, criterion, device)
+        train_loss, train_f1 = train_one_epoch(model, train_loader, optimizer, criterion, device, threshold)
+        val_loss,   val_f1   = validate(model, val_loader, criterion, device, threshold)
 
-        scheduler.step()
+        scheduler.step(val_loss)
+        current_lr = optimizer.param_groups[0]["lr"]
         elapsed = time.time() - t0
 
-        # Threshold sweep every 5 epochs after epoch 5
-        if (epoch + 1) >= 5 and (epoch + 1) % 5 == 0 and len(np.unique(val_labels)) > 1:
-            best_threshold, best_t_f1 = find_best_threshold(val_labels, val_probs)
-            print(
-                f"  [Threshold] Best val threshold: {best_threshold:.2f}"
-                f"  F1={best_t_f1:.4f}"
-            )
-
-        lr = optimizer.param_groups[0]["lr"]
         print(
-            f"Epoch {epoch+1:03d}/{tcfg['epochs']} | "
-            f"Train Loss: {train_metrics['loss']:.4f} F1: {train_metrics['f1']:.4f} "
-            f"GNorm: {train_metrics['grad_norm']:.2f} | "
-            f"Val Loss: {val_metrics['loss']:.4f} F1: {val_metrics['f1']:.4f} "
-            f"MCC: {val_metrics['mcc']:.4f} | "
-            f"LR: {lr:.2e} | {elapsed:.1f}s"
+            f"Epoch {epoch:03d}/{epochs} | "
+            f"Train Loss: {train_loss:.4f} F1: {train_f1:.4f} | "
+            f"Val Loss: {val_loss:.4f} F1: {val_f1:.4f} | "
+            f"LR: {current_lr:.6f} | {elapsed:.1f}s"
         )
 
         history.append({
-            "epoch":     epoch + 1,
-            "train":     train_metrics,
-            "val":       val_metrics,
-            "lr":        lr,
-            "time":      elapsed,
-            "threshold": best_threshold,
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "train_f1": train_f1,
+            "val_loss": val_loss,
+            "val_f1": val_f1,
+            "lr": current_lr,
         })
 
-        # ── Save best model by val F1 ─────────────────────────────────────────
-        val_f1 = val_metrics["f1"]
-        if val_f1 > best_val_f1:
-            best_val_f1      = val_f1
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
             patience_counter = 0
-            ckpt_path        = os.path.join(pcfg["checkpoints_dir"], "best_model.pt")
-            torch.save({
-                "epoch":                epoch,
-                "model_state_dict":     model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "best_val_f1":          best_val_f1,
-                "best_threshold":       best_threshold,
-                "config":               cfg,
-            }, ckpt_path)
-            print(f"  -> Saved best model (val_F1={best_val_f1:.4f}  threshold={best_threshold:.2f})")
+            torch.save(
+                {
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "val_loss": val_loss,
+                    "val_f1": val_f1,
+                    "config": config,
+                },
+                "checkpoints/best_model.pt",
+            )
+            print(f"  -> Saved best model (val_loss={val_loss:.4f})")
         else:
             patience_counter += 1
+            if patience_counter >= patience:
+                print(f"[ECABSD] Early stopping at epoch {epoch}")
+                break
 
-        # Save periodic checkpoint every 10 epochs
-        if (epoch + 1) % 10 == 0:
-            torch.save({
-                "epoch":                epoch,
-                "model_state_dict":     model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "best_val_f1":          best_val_f1,
-                "best_threshold":       best_threshold,
-                "config":               cfg,
-            }, os.path.join(pcfg["checkpoints_dir"], f"epoch_{epoch+1}.pt"))
-
-        # Early stopping
-        if patience_counter >= tcfg["early_stopping_patience"]:
-            print(f"\n[ECABSD] Early stopping at epoch {epoch+1}")
-            break
-
-    # ── Save history ──────────────────────────────────────────────────────────
-    history_path = os.path.join(pcfg["logs_dir"], "training_history.json")
-    with open(history_path, "w") as f:
+    with open("logs/training_history.json", "w") as f:
         json.dump(history, f, indent=2)
 
-    # Write best threshold to config
-    cfg_out = load_config(config_path)
-    cfg_out["prediction"]["threshold"] = round(best_threshold, 4)
-    with open(config_path, "w") as f:
-        yaml.dump(cfg_out, f, default_flow_style=False, sort_keys=False)
-
-    print(f"\n{'='*60}")
-    print(f"  Training complete. Best val F1:  {best_val_f1:.4f}")
-    print(f"  Best threshold:                  {best_threshold:.4f}")
-    print(f"  History saved to:                {history_path}")
-    print(f"{'='*60}")
+    print("=" * 60)
+    print(f"  Training complete. Best val loss: {best_val_loss:.4f}")
+    print(f"  History saved to: logs/training_history.json")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
-    run_training()
+    cfg = load_config("config.yaml")
+    run_training(cfg)

@@ -1,59 +1,49 @@
-# ─────────────────────────────────────────────────────────────
-# ECABSD — Equivariant Cross-Attention for Binding Site Detection
-# Central configuration file — v3 "Best Model"
-# ─────────────────────────────────────────────────────────────
-
 data:
-  raw_dir: "data/raw"
-  processed_dir: "data/processed"
-  pdb_dir: "data/raw/pdbs"
-  splits_csv: "data/splits.csv"
-  ligand_distance_cutoff: 4.5        # Å — residue within this distance of ligand = binding site
-
-model:
-  input_dim: 23                       # 23 with current data; change to 26 after dataset reprocess
-  hidden_dim: 256                     # increased from 128 for richer representations
-  num_gcn_layers: 4
-  num_heads: 8                        # attention heads (GATv2 + cross-attention)
-  num_ca_layers: 4                    # cross-attention Transformer blocks (new in v3)
-  edge_feature_dim: 4                 # distance + 3D unit vector
-  graph_cutoff: 8.0                   # Å — edge distance cutoff
-  dropout: 0.3
-  residue_min: 50
-  residue_max: 512
-
-training:
-  epochs: 200                         # more headroom; early stopping will terminate
-  batch_size: 16
-  learning_rate: 0.0003               # peak LR after warmup
-  weight_decay: 0.01                  # AdamW decoupled weight decay (stronger than Adam)
-  warmup_epochs: 8                    # linear warmup before cosine annealing
-  early_stopping_patience: 35         # patience on val F1 (increased from 30)
-  loss: "focal"
-  focal_alpha: 0.75
-  focal_gamma: 2.0
-  label_smoothing: 0.05               # gentle label smoothing to reduce overconfidence
-  gradient_clip: 1.0
-  seed: 42
-  num_workers: 0
-
-prediction:
-  threshold: 0.5                      # updated automatically after training
-  output_format: "csv"                # csv | json | pymol
-
-paths:
-  checkpoints_dir: "checkpoints"
-  logs_dir: "logs"
-  results_dir: "results"
-
-web:
-  host: "0.0.0.0"
-  port: 8000
-  checkpoint: "checkpoints/best_model.pt"
-
+  ligand_distance_cutoff: 4.5
+  pdb_dir: data/raw/pdbs
+  processed_dir: data/processed
+  raw_dir: data/raw
+  splits_csv: data/splits.csv
 docking:
-  vina_executable: "vina"
+  box_padding: 5.0
+  energy_range: 3
   exhaustiveness: 8
   num_modes: 9
-  energy_range: 3
-  box_padding: 5.0                    # Å padding around predicted site
+  vina_executable: vina
+model:
+  dropout: 0.3
+  edge_feature_dim: 4
+  graph_cutoff: 8.0
+  hidden_dim: 256
+  input_dim: 23
+  num_ca_layers: 4
+  num_gcn_layers: 4
+  num_heads: 8
+  residue_max: 512
+  residue_min: 50
+paths:
+  checkpoints_dir: checkpoints
+  logs_dir: logs
+  results_dir: results
+prediction:
+  output_format: csv
+  threshold: 0.5
+training:
+  batch_size: 1
+  early_stopping_patience: 20
+  epochs: 100
+  focal_alpha: 0.75
+  focal_gamma: 2.0
+  gradient_clip: 1.0
+  label_smoothing: 0.05
+  learning_rate: 0.001
+  loss: focal
+  num_workers: 0
+  seed: 42
+  threshold: 0.3
+  warmup_epochs: 8
+  weight_decay: 0.0001
+web:
+  checkpoint: checkpoints/best_model.pt
+  host: 0.0.0.0
+  port: 8000
