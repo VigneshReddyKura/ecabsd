@@ -1,0 +1,14 @@
+import yaml
+with open('config.yaml', encoding='utf-8', errors='ignore') as f:
+    cfg = yaml.safe_load(f)
+cfg['model']['hidden_dim'] = 256
+cfg['model']['dropout'] = 0.3
+cfg['model']['num_heads'] = 8
+cfg['model']['input_dim'] = 23
+cfg['training']['epochs'] = 2
+cfg['training']['early_stopping_patience'] = 20
+cfg['training']['learning_rate'] = 0.001
+cfg['training']['threshold'] = 0.3
+with open('config.yaml', 'w', encoding='utf-8') as f:
+    yaml.dump(cfg, f, default_flow_style=False)
+print('config.yaml cleaned and saved')

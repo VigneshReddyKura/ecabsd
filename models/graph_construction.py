@@ -89,7 +89,7 @@ def get_node_features(residues, ss_labels) -> torch.Tensor:
         charge  = [float(CHARGE.get(resname, 0.0))]
         rel_pos = [i / max(n - 1, 1)]                 # 0..1
 
-        features.append(one_hot + ss + hydro + charge + rel_pos)  # 26 total
+        features.append(one_hot + ss)  # 23 total
 
     return torch.tensor(features, dtype=torch.float)
 
@@ -160,6 +160,6 @@ def build_residue_graph(pdb_path: str, chain_id: str) -> Data:
 
 if __name__ == "__main__":
     graph = build_residue_graph("1AY7.pdb", "A")
-    print("Node features:", graph.x.shape)         # expect (N, 26)
+    print("Node features:", graph.x.shape)         # expect (N, 23)
     print("Edge index:   ", graph.edge_index.shape)
     print("Edge features:", graph.edge_attr.shape)  # expect (E, 4)

@@ -28,7 +28,7 @@ class GCNEncoder(torch.nn.Module):
 
     def __init__(
         self,
-        input_dim: int = 26,
+        input_dim: int = 23,
         hidden_dim: int = 256,
         edge_dim: int = 4,
         num_heads: int = 8,
