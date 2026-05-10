@@ -14,3 +14,4 @@ venv310/
 data/processed/ 
 data/raw/ 
 checkpoints/ 
+checkpoints/best_model.pt 
