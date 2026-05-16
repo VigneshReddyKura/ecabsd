@@ -50,10 +50,12 @@ def get_model(config_path: str = "config.yaml"):
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         _model = ECABSDModel(
-            input_dim=mcfg["input_dim"],
+            esm_dim=mcfg.get("esm_dim", 1280),
             hidden_dim=mcfg["hidden_dim"],
             num_heads=mcfg["num_heads"],
             dropout=0.0,
+            num_layers=mcfg.get("num_gcn_layers", 3),
+            cross_attention=True
         ).to(_device)
 
         checkpoint_path = wcfg.get("checkpoint", "checkpoints/best_model.pt")

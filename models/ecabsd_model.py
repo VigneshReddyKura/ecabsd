@@ -1,154 +1,120 @@
-"""
-ECABSDModel — End-to-end Equivariant Cross-Attention Binding Site Detection.
-
-Architecture (v3 — "best model"):
-    Protein A  →  GATv2 Encoder (4L, edge-aware, residual)
-               →  SE3 Refinement (3× residual MLP blocks)
-               →  LayerNorm
-               ─┐
-                ├──→  CrossAttentionStack (4× cross-attn + 1× self-attn)
-               ─┘                        ↑ Protein B (same pipeline)
-               →  Classifier (5-layer residual MLP) → logit
-
-Notes
------
-- Outputs RAW LOGITS. Apply torch.sigmoid() at inference.
-- Use BCEWithLogitsLoss or FocalLoss during training.
-- Edge features (distance + 3D unit vector) are consumed by GATv2Conv.
-- CrossAttentionStack stacks 4 cross-attention Transformer blocks + 1 self-attention
-  so chain A integrates both partner context and its own sequence context.
-"""
-
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.utils import unbatch
+from torch_geometric.nn import GATConv
 
-from .gcn_model       import GCNEncoder
-from .se3_model       import SE3Transformer
-from .cross_attention import CrossAttention
-from .classifier      import BindingSiteClassifier
+class GraphEncoder(nn.Module):
+    def __init__(self, in_dim, hidden_dim, num_heads=4, num_layers=3, dropout=0.1):
+        super().__init__()
+        self.layers = nn.ModuleList()
+        self.proj = nn.Linear(in_dim, hidden_dim)
+        for _ in range(num_layers):
+            self.layers.append(GATConv(hidden_dim, hidden_dim // num_heads, heads=num_heads, dropout=dropout))
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x, edge_index):
+        x = self.proj(x)
+        for layer in self.layers:
+            x_res = x
+            x = layer(x, edge_index)
+            x = F.elu(x)
+            x = self.dropout(x)
+            x = x + x_res
+        return x
 
+class CrossAttention(nn.Module):
+    def __init__(self, dim, num_heads=4, dropout=0.1):
+        super().__init__()
+        self.mha = nn.MultiheadAttention(embed_dim=dim, num_heads=num_heads, dropout=dropout, batch_first=True)
+        self.norm = nn.LayerNorm(dim)
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, query, key_value):
+        attn_out, attn_weights = self.mha(query, key_value, key_value)
+        out = self.norm(query + self.dropout(attn_out))
+        return out, attn_weights
 
 class ECABSDModel(nn.Module):
     """
-    Full ECABSD v3 pipeline.
-
-    Parameters
-    ----------
-    input_dim   : int   — Node feature dimension (23 with current data; 26 after reprocess)
-    hidden_dim  : int   — Hidden representation dimension
-    num_heads   : int   — Attention heads in GATv2 and cross-attention
-    dropout     : float — Dropout probability
-    edge_dim    : int   — Edge feature dimension (4: distance + 3D unit vector)
-    num_ca_layers : int — Number of cross-attention Transformer blocks
+    Upgraded ECABSD Model integrating ESM2 Embeddings, PyG GAT, and Cross Attention.
     """
-
     def __init__(
         self,
-        input_dim:    int   = 23,
-        hidden_dim:   int   = 256,
-        num_heads:    int   = 8,
-        dropout:      float = 0.3,
-        edge_dim:     int   = 4,
-        num_ca_layers: int  = 4,
+        esm_dim: int = 1280, # Defaults to ESM2 650M
+        hidden_dim: int = 256,
+        num_heads: int = 4,
+        num_layers: int = 3,
+        dropout: float = 0.1,
+        cross_attention: bool = True
     ):
         super().__init__()
-
-        # ── Shared encoder (weight-sharing across both chains) ───────────────
-        self.gcn_encoder = GCNEncoder(
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
-            edge_dim=edge_dim,
+        
+        self.encoder = GraphEncoder(
+            in_dim=esm_dim, 
+            hidden_dim=hidden_dim, 
             num_heads=num_heads,
-            dropout=dropout,
+            num_layers=num_layers,
+            dropout=dropout
         )
-        self.se3_refine = SE3Transformer(
-            input_dim=hidden_dim,
-            hidden_dim=hidden_dim,
-            num_blocks=3,
-            dropout=dropout,
+        
+        self.use_cross_attention = cross_attention
+        if self.use_cross_attention:
+            self.cross_attn_a_to_b = CrossAttention(hidden_dim, num_heads, dropout)
+            self.cross_attn_b_to_a = CrossAttention(hidden_dim, num_heads, dropout)
+            
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_dim * 2 if self.use_cross_attention else hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1)
         )
-
-        # ── Per-chain norms ───────────────────────────────────────────────────
-        self.norm_a = nn.LayerNorm(hidden_dim)
-        self.norm_b = nn.LayerNorm(hidden_dim)
-
-        # ── Cross-attention stack ─────────────────────────────────────────────
-        self.cross_attention = CrossAttention(
-            embed_dim=hidden_dim,
-            num_heads=num_heads,
-            num_layers=num_ca_layers,
-            ffn_mult=4,
-            dropout=dropout,
-        )
-
-        # ── Fusion residual + norm ────────────────────────────────────────────
-        self.dropout    = nn.Dropout(dropout)
-        self.norm_cross = nn.LayerNorm(hidden_dim)
-
-        # ── Binding site classifier (outputs raw logits) ──────────────────────
-        self.classifier = BindingSiteClassifier(
-            input_dim=hidden_dim,
-            dropout=dropout,
-        )
-
-    # ── Helpers ───────────────────────────────────────────────────────────────
-
-    def encode_chain(
-        self,
-        x:          torch.Tensor,
-        edge_index: torch.Tensor,
-        edge_attr:  torch.Tensor,
-    ) -> torch.Tensor:
-        """GATv2 encoding + SE3 residual refinement."""
-        h = self.gcn_encoder(x, edge_index, edge_attr)
-        h = self.se3_refine(h)
-        return h
-
-    # ── Forward ───────────────────────────────────────────────────────────────
 
     def forward(self, data_a, data_b=None):
-        """
-        Parameters
-        ----------
-        data_a : torch_geometric.data.Data — target chain (binding site predicted here)
-        data_b : torch_geometric.data.Data | None — partner chain; uses self-attn if None
-
-        Returns
-        -------
-        logits       : (N_a, 1) — raw logits; sigmoid → probabilities
-        attn_weights : (N_a, N_b) — last cross-attention layer weights
-        """
-        # Encode chain A
-        h_a = self.encode_chain(data_a.x, data_a.edge_index, data_a.edge_attr)
-        h_a = self.norm_a(h_a)
-
-        # Encode chain B (or reuse A for self-attention)
+        # We assume data_a.x contains the ESM2 embeddings
+        h_a = self.encoder(data_a.x, data_a.edge_index)
+        
         if data_b is not None:
-            h_b = self.encode_chain(data_b.x, data_b.edge_index, data_b.edge_attr)
-            h_b = self.norm_b(h_b)
+            h_b = self.encoder(data_b.x, data_b.edge_index)
         else:
             h_b = h_a
+            data_b = data_a
 
-        # Cross-attention stack — add batch dim: (1, N, D)
-        cross_out, attn_weights = self.cross_attention(
-            h_a.unsqueeze(0),
-            h_b.unsqueeze(0),
-        )
-        cross_out = cross_out.squeeze(0)          # (N_a, D)
+        # Handle batching
+        batch_a = data_a.batch if hasattr(data_a, 'batch') and data_a.batch is not None else torch.zeros(data_a.num_nodes, dtype=torch.long, device=data_a.x.device)
+        batch_b = data_b.batch if hasattr(data_b, 'batch') and data_b.batch is not None else torch.zeros(data_b.num_nodes, dtype=torch.long, device=data_b.x.device)
 
-        # Residual + norm
-        h_fused = self.norm_cross(h_a + self.dropout(cross_out))
+        h_a_list = unbatch(h_a, batch_a)
+        h_b_list = unbatch(h_b, batch_b)
 
-        # Per-residue logits
-        logits = self.classifier(h_fused)         # (N_a, 1)
+        cross_out_list = []
+        attn_list = []
 
-        return logits, attn_weights.squeeze(0)    # (N_a, N_b)
+        if self.use_cross_attention:
+            for h_a_single, h_b_single in zip(h_a_list, h_b_list):
+                h_a_seq = h_a_single.unsqueeze(0)
+                h_b_seq = h_b_single.unsqueeze(0)
+                
+                h_a_cross, attn_ab = self.cross_attn_a_to_b(h_a_seq, h_b_seq)
+                
+                # Combine original structure representation with cross-chain context
+                out_a_single = torch.cat([h_a_single, h_a_cross.squeeze(0)], dim=-1)
+                
+                cross_out_list.append(out_a_single)
+                attn_list.append(attn_ab.squeeze(0))
+                
+            h_fused = torch.cat(cross_out_list, dim=0)
+        else:
+            h_fused = h_a
+            
+        logits = self.classifier(h_fused)
+        
+        return logits, attn_list
 
     def predict(self, data_a, data_b=None, threshold: float = 0.5):
-        """Inference convenience: returns (probs, binary_labels, attn_weights)."""
         self.eval()
         with torch.no_grad():
             logits, attn = self.forward(data_a, data_b)
-            probs  = torch.sigmoid(logits)
+            probs = torch.sigmoid(logits)
             labels = (probs.squeeze(-1) >= threshold).long()
         return probs, labels, attn

@@ -120,7 +120,7 @@ def prepare_dataset(pdb_dir, output_dir, distance_cutoff, train_ratio, val_ratio
     os.makedirs(output_dir, exist_ok=True)
     random.seed(seed)
 
-    pdb_files = sorted(glob.glob(os.path.join(pdb_dir, "*.pdb")) + glob.glob(os.path.join(pdb_dir, "*.PDB")))
+    pdb_files = sorted(list(set(glob.glob(os.path.join(pdb_dir, "*.pdb")) + glob.glob(os.path.join(pdb_dir, "*.PDB")))))
     if not pdb_files:
         print(f"[ERROR] No PDB files found in: {pdb_dir}")
         return
@@ -137,16 +137,21 @@ def prepare_dataset(pdb_dir, output_dir, distance_cutoff, train_ratio, val_ratio
             successful.extend(results)
             all_errors.extend(errors)
 
-    # Create train/val/test splits
-    random.shuffle(successful)
-    n = len(successful)
+    # Group by PDB ID so all chains of the same complex stay in the same split
+    complexes = list(set([s["pdb_id"] for s in successful]))
+    random.shuffle(complexes)
+
+    n = len(complexes)
     n_train = int(n * train_ratio)
     n_val = int(n * val_ratio)
 
-    for i, s in enumerate(successful):
-        if i < n_train:
+    train_complexes = set(complexes[:n_train])
+    val_complexes = set(complexes[n_train:n_train + n_val])
+
+    for s in successful:
+        if s["pdb_id"] in train_complexes:
             s["split"] = "train"
-        elif i < n_train + n_val:
+        elif s["pdb_id"] in val_complexes:
             s["split"] = "val"
         else:
             s["split"] = "test"

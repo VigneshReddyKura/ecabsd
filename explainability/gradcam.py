@@ -44,21 +44,14 @@ class GradCAM:
         Which GCN layer to target. One of 'conv1', 'conv2', 'conv3', 'conv4'.
     """
 
-    def __init__(self, model: ECABSDModel, target_layer: str = "conv4"):
+    def __init__(self, model: ECABSDModel, target_layer_idx: int = -1):
         self.model = model
-        self.target_layer = target_layer
-
         self._activations = None
         self._gradients = None
 
-        # Select target layer
-        gcn = self.model.gcn_encoder
-        layer = getattr(gcn, target_layer, None)
-        if layer is None:
-            raise ValueError(
-                f"Layer '{target_layer}' not found in GCNEncoder. "
-                f"Available: conv1, conv2, conv3, conv4"
-            )
+        # V3: encoder.layers is a ModuleList of GATConv layers
+        # Target the last one by default (index -1)
+        layer = model.encoder.layers[target_layer_idx]
 
         # Register hooks
         self._fwd_hook = layer.register_forward_hook(self._fwd_hook_fn)
@@ -214,7 +207,7 @@ def explain_with_gradcam(
     data_b=None,
     residues_a=None,
     output_dir: str = "results",
-    target_layer: str = "conv4",
+    target_layer_idx: int = -1,
 ):
     """
     Convenience function: run Grad-CAM and save plots.
@@ -226,7 +219,7 @@ def explain_with_gradcam(
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    gradcam = GradCAM(model, target_layer=target_layer)
+    gradcam = GradCAM(model, target_layer_idx=target_layer_idx)
     saliency = gradcam.compute(data_a, data_b)
 
     labels = None
@@ -237,7 +230,7 @@ def explain_with_gradcam(
         saliency,
         residue_labels=labels,
         output_path=os.path.join(output_dir, "gradcam_saliency.png"),
-        title=f"Grad-CAM ({target_layer}) — Binding Site Saliency",
+        title=f"Grad-CAM (Layer {target_layer_idx}) — Binding Site Saliency",
     )
     gradcam.remove_hooks()
 

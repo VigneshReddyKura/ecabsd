@@ -42,8 +42,8 @@ class AttentionRollout:
         self.head_fusion = head_fusion
         self._attention_map = None
 
-        # Register forward hook on cross-attention layer
-        self._hook = model.cross_attention.attention.register_forward_hook(
+        # V3: cross-attention is stored as cross_attn_a_to_b.mha (nn.MultiheadAttention)
+        self._hook = model.cross_attn_a_to_b.mha.register_forward_hook(
             self._hook_fn
         )
 
@@ -77,12 +77,20 @@ class AttentionRollout:
         """
         self.model.eval()
         with torch.no_grad():
-            _, attn_weights = self.model(data_a, data_b)
+            _, attn_list = self.model(data_a, data_b)
 
-        attn_matrix = attn_weights.cpu().numpy()  # (N_a, N_b)
+        # V3 returns a list of attention maps (one per complex in batch)
+        # At inference it's a single complex so we take index 0
+        if attn_list and len(attn_list) > 0:
+            attn_matrix = attn_list[0].cpu().numpy()  # (N_a, N_b)
+        else:
+            # Fallback: use hook-captured attention map
+            if self._attention_map is not None:
+                attn_matrix = self._attention_map.squeeze(0).cpu().numpy()
+            else:
+                raise RuntimeError("No attention weights captured. Ensure cross_attention=True in model.")
 
-        # Per-residue score: sum of attention weights received from all partner residues
-        # i.e., how much each chain A residue attends to chain B overall
+        # Per-residue score: how much each chain A residue attends to chain B overall
         scores = attn_matrix.sum(axis=1)  # (N_a,)
 
         # Normalize to [0, 1]
