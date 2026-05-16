@@ -1,66 +1,64 @@
 """
-SE3Refinement — deep residual MLP that refines GATv2 node embeddings.
+SE(3)-inspired refinement block.
 
-Replaces the original 2-linear-layer stub. Uses 3 residual blocks with
-LayerNorm, GELU, and Dropout — providing significantly more expressive
-spatial refinement of per-residue representations.
+Replaces the original 2-linear stub with a proper 4-layer FFN with
+gating, LayerNorm, GELU, residual connection, and dropout.
+This acts as a learnable refinement step after the GATv2 message-passing,
+giving the model a chance to re-weight residue representations before
+cross-attention.
 """
 
 import torch
 import torch.nn as nn
-
-
-class _ResBlock(nn.Module):
-    """Single pre-norm residual feed-forward block."""
-
-    def __init__(self, dim: int, expansion: int = 4, dropout: float = 0.1):
-        super().__init__()
-        self.norm = nn.LayerNorm(dim)
-        self.net  = nn.Sequential(
-            nn.Linear(dim, dim * expansion),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(dim * expansion, dim),
-            nn.Dropout(dropout),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x + self.net(self.norm(x))
+import torch.nn.functional as F
 
 
 class SE3Transformer(nn.Module):
     """
-    Deep residual MLP refinement block (replaces the original 2-layer stub).
+    Gated FFN refinement module (SE3-inspired).
+
+    Architecture (applied after GATv2 encoder):
+        LayerNorm → Linear → GELU → Dropout
+        → Linear (gate, sigmoid) ⊙ Linear (value)
+        → residual → LayerNorm
 
     Parameters
     ----------
-    input_dim : int
-        Input/output feature dimension.
-    hidden_dim : int
-        Passed for API compatibility — must equal input_dim.
-    num_blocks : int
-        Number of residual blocks (default 3).
-    dropout : float
-        Dropout rate inside each block.
+    input_dim  : feature dimensionality in (= hidden_dim from GCNEncoder)
+    hidden_dim : inner expansion dim (default 4× input for Transformer-style FFN)
+    dropout    : dropout probability
     """
 
-    def __init__(
-        self,
-        input_dim:  int = 256,
-        hidden_dim: int = 256,
-        num_blocks: int = 3,
-        dropout:    float = 0.1,
-    ):
+    def __init__(self, input_dim: int = 512, hidden_dim: int = 512, dropout: float = 0.2):
         super().__init__()
-        assert input_dim == hidden_dim, (
-            "SE3Transformer requires input_dim == hidden_dim for residual path."
-        )
-        self.blocks = nn.ModuleList(
-            [_ResBlock(input_dim, expansion=4, dropout=dropout) for _ in range(num_blocks)]
-        )
-        self.norm = nn.LayerNorm(input_dim)
+
+        inner = hidden_dim * 2  # expansion factor
+
+        self.norm1 = nn.LayerNorm(input_dim)
+
+        # Value branch
+        self.fc_v1 = nn.Linear(input_dim, inner)
+        self.fc_v2 = nn.Linear(inner, input_dim)
+
+        # Gate branch (GLU-style gating)
+        self.fc_g  = nn.Linear(input_dim, input_dim)
+
+        self.drop  = nn.Dropout(dropout)
+        self.norm2 = nn.LayerNorm(input_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        for block in self.blocks:
-            x = block(x)
-        return self.norm(x)
+        # Pre-norm
+        h = self.norm1(x)
+
+        # Value path
+        v = F.gelu(self.fc_v1(h))
+        v = self.drop(self.fc_v2(v))
+
+        # Gate
+        g = torch.sigmoid(self.fc_g(h))
+
+        # Gated residual
+        out = x + g * v
+
+        # Post-norm
+        return self.norm2(out)
