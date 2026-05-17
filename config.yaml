@@ -6,11 +6,11 @@ data:
   splits_csv: data/db5_splits.csv
 
 model:
-  version: v3
+  version: v2
   esm_dim: 33
-  dropout: 0.2
+  dropout: 0.3
   graph_cutoff: 10.0
-  hidden_dim: 128
+  hidden_dim: 192
   num_gcn_layers: 4
   num_heads: 4
   residue_max: 800
@@ -25,14 +25,15 @@ training:
   focal_gamma: 2.0
   gradient_clip: 1.0
   label_smoothing: 0.05
-  learning_rate: 0.0001
-  loss: focal
+  learning_rate: 0.0003
+  loss: combined
+  dice_weight: 0.5
   lr_factor: 0.5
   lr_patience: 15
   lr_scheduler: cosine_warmup
   num_workers: 0
   seed: 42
-  warmup_epochs: 10
+  warmup_epochs: 5
   weight_decay: 0.005
 
 prediction:
