@@ -94,7 +94,9 @@ def run_prediction(
         print(f"[ECABSD] WARNING: No checkpoint at {checkpoint_path}. Using random weights.")
         ckpt_threshold = cfg_threshold
 
+    is_auto = False
     if threshold is None:
+        is_auto = True
         threshold = ckpt_threshold
         print(f"[ECABSD] Using threshold: {threshold:.4f}")
 
@@ -135,7 +137,36 @@ def run_prediction(
 
     # Predict
     probs, labels, attn = model.predict(data_a, data_b, threshold=threshold)
-    probs = probs.squeeze(-1).cpu().numpy()
+    probs_np = probs.squeeze(-1).cpu().numpy()
+    
+    # Dynamic range adjustment if auto: keep binding ratio in 10% - 40%
+    if is_auto:
+        total_res = len(probs_np)
+        binding_count = int((probs_np >= threshold).sum())
+        ratio = binding_count / total_res if total_res > 0 else 0.0
+        
+        if ratio < 0.10:
+            # Too strict, lower the threshold to get more binding residues
+            for t in [0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05]:
+                new_count = int((probs_np >= t).sum())
+                new_ratio = new_count / total_res
+                if new_ratio >= 0.10:
+                    threshold = t
+                    labels = (probs >= t).int()
+                    print(f"[ECABSD] Dynamic threshold adjustment: lowered to {t:.4f} to reach binding ratio of {new_ratio*100:.2f}% (range 10%-40%)")
+                    break
+        elif ratio > 0.40:
+            # Too broad, raise the threshold to filter false positives
+            for t in [0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]:
+                new_count = int((probs_np >= t).sum())
+                new_ratio = new_count / total_res
+                if new_ratio <= 0.40:
+                    threshold = t
+                    labels = (probs >= t).int()
+                    print(f"[ECABSD] Dynamic threshold adjustment: raised to {t:.4f} to reach binding ratio of {new_ratio*100:.2f}% (range 10%-40%)")
+                    break
+                    
+    probs = probs_np
     labels = labels.cpu().numpy()
 
     # Get residue info for output
