@@ -8,10 +8,10 @@ data:
 model:
   version: v3
   esm_dim: 33
-  dropout: 0.3
+  dropout: 0.2
   graph_cutoff: 10.0
-  hidden_dim: 256
-  num_gcn_layers: 6
+  hidden_dim: 128
+  num_gcn_layers: 4
   num_heads: 4
   residue_max: 800
   residue_min: 30
@@ -22,8 +22,8 @@ training:
   early_stopping_patience: 60
   epochs: 100
   focal_alpha: 0.75
-  focal_gamma: 3.0
-  gradient_clip: 0.5
+  focal_gamma: 2.0
+  gradient_clip: 1.0
   label_smoothing: 0.05
   learning_rate: 0.0001
   loss: focal
