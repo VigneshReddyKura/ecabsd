@@ -114,8 +114,14 @@
               <input type="text" id="chain-b" class="form-input" value="" maxlength="2" placeholder="B" />
             </div>
             <div class="form-group">
-              <label class="form-label" for="threshold">Threshold: <span id="threshold-val">0.50</span></label>
-              <input type="range" id="threshold" class="form-range" min="0.1" max="0.9" step="0.05" value="0.5" />
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" for="threshold" style="margin-bottom: 0;">Threshold: <span id="threshold-val">Auto (0.58)</span></label>
+                <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-muted); font-weight: 500;">
+                  <input type="checkbox" id="threshold-auto" checked style="accent-color: #6366f1; width: 14px; height: 14px; margin: 0; cursor: pointer;" />
+                  Auto
+                </label>
+              </div>
+              <input type="range" id="threshold" class="form-range" min="0.1" max="0.90" step="0.01" value="0.58" disabled />
             </div>
           </div>
 

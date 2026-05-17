@@ -71,8 +71,10 @@ def get_model(config_path: str = "config.yaml"):
         if os.path.exists(checkpoint_path):
             ckpt = torch.load(checkpoint_path, map_location=_device, weights_only=False)
             _model.load_state_dict(ckpt["model_state_dict"])
+            _model.best_threshold = ckpt.get("best_threshold", 0.5)
             print(f"[Web] Model loaded from: {checkpoint_path}")
         else:
+            _model.best_threshold = 0.5
             print(f"[Web] WARNING: No checkpoint at '{checkpoint_path}'. Using random weights.")
 
         _model.eval()
@@ -126,22 +128,51 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
     @app.post("/predict")
     async def predict(
-        pdb_file: UploadFile = File(...),
+        pdb_file: Optional[UploadFile] = File(None),
+        pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),
         chain_b: Optional[str] = Form(None),
         threshold: float = Form(0.5),
     ):
         """
-        Predict binding sites from an uploaded PDB file.
-
-        Returns per-residue binding probabilities.
+        Predict binding sites from an uploaded PDB file or a 4-letter PDB ID.
         """
         model, device, cfg = get_model()
 
-        # Save uploaded PDB to temp file
-        with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
-            shutil.copyfileobj(pdb_file.file, tmp)
-            tmp_path = tmp.name
+        # Resolve PDB input
+        tmp_path = None
+        filename = ""
+        try:
+            if pdb_file and pdb_file.filename:
+                # Save uploaded PDB to temp file
+                with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
+                    shutil.copyfileobj(pdb_file.file, tmp)
+                    tmp_path = tmp.name
+                    filename = pdb_file.filename
+            elif pdb_id and pdb_id.strip():
+                pid = pdb_id.strip().upper()
+                if len(pid) == 4:
+                    os.makedirs("data/raw/pdbs", exist_ok=True)
+                    local_pdb = f"data/raw/pdbs/{pid}.pdb"
+                    if not os.path.exists(local_pdb):
+                        import urllib.request
+                        url = f"https://files.rcsb.org/download/{pid}.pdb"
+                        urllib.request.urlretrieve(url, local_pdb)
+                    
+                    # Create a copy in temp file
+                    with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
+                        with open(local_pdb, "rb") as src:
+                            shutil.copyfileobj(src, tmp)
+                        tmp_path = tmp.name
+                    filename = f"{pid}.pdb"
+                else:
+                    raise HTTPException(status_code=400, detail="Invalid PDB ID format. Must be a 4-character ID.")
+            else:
+                raise HTTPException(status_code=400, detail="Please upload a PDB file or provide a 4-letter PDB ID.")
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Failed to load PDB resource: {str(e)}")
 
         try:
             # Build graphs — v2 model requires edge_attr (5-dim)
@@ -164,8 +195,13 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception:
                     data_b = None
 
+            # Resolve threshold: negative value indicates "Auto"
+            threshold_val = threshold
+            if threshold < 0:
+                threshold_val = getattr(model, "best_threshold", 0.5819)
+
             # Predict
-            probs, labels, attn = model.predict(data_a, data_b, threshold=threshold)
+            probs, labels, attn = model.predict(data_a, data_b, threshold=threshold_val)
             probs_np = probs.squeeze(-1).cpu().tolist()
             labels_np = labels.cpu().tolist()
 
@@ -195,10 +231,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             return JSONResponse({
                 "status": "success",
-                "pdb_file": pdb_file.filename,
+                "pdb_file": filename,
                 "chain_a": chain_a,
                 "chain_b": chain_b,
-                "threshold": threshold,
+                "threshold": threshold_val,
                 "total_residues": len(results),
                 "binding_residues_count": binding_count,
                 "residues": results,
@@ -209,7 +245,8 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
     @app.post("/explain")
     async def explain(
-        pdb_file: UploadFile = File(...),
+        pdb_file: Optional[UploadFile] = File(None),
+        pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),
         chain_b: Optional[str] = Form(None),
     ):
@@ -218,9 +255,37 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         """
         model, device, cfg = get_model()
 
-        with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
-            shutil.copyfileobj(pdb_file.file, tmp)
-            tmp_path = tmp.name
+        # Resolve PDB input
+        tmp_path = None
+        filename = ""
+        try:
+            if pdb_file and pdb_file.filename:
+                with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
+                    shutil.copyfileobj(pdb_file.file, tmp)
+                    tmp_path = tmp.name
+                    filename = pdb_file.filename
+            elif pdb_id and pdb_id.strip():
+                pid = pdb_id.strip().upper()
+                if len(pid) == 4:
+                    os.makedirs("data/raw/pdbs", exist_ok=True)
+                    local_pdb = f"data/raw/pdbs/{pid}.pdb"
+                    if not os.path.exists(local_pdb):
+                        import urllib.request
+                        url = f"https://files.rcsb.org/download/{pid}.pdb"
+                        urllib.request.urlretrieve(url, local_pdb)
+                    with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
+                        with open(local_pdb, "rb") as src:
+                            shutil.copyfileobj(src, tmp)
+                        tmp_path = tmp.name
+                    filename = f"{pid}.pdb"
+                else:
+                    raise HTTPException(status_code=400, detail="Invalid PDB ID format. Must be a 4-character ID.")
+            else:
+                raise HTTPException(status_code=400, detail="Please upload a PDB file or provide a 4-letter PDB ID.")
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Failed to load PDB resource: {str(e)}")
 
         try:
             from explainability.attention_rollout import AttentionRollout

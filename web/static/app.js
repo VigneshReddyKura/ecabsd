@@ -33,12 +33,26 @@ const exportPymolBtn  = document.getElementById('export-pymol-btn');
 const filterBinding   = document.getElementById('filter-binding');
 const filterAll       = document.getElementById('filter-all');
 const pdbId           = document.getElementById('pdb-id');
+const thresholdAuto   = document.getElementById('threshold-auto');
 
 let selectedFile = null;
 
 // ── Threshold slider ───────────────────────────
 threshold.addEventListener('input', () => {
-  thresholdVal.textContent = parseFloat(threshold.value).toFixed(2);
+  if (!thresholdAuto.checked) {
+    thresholdVal.textContent = parseFloat(threshold.value).toFixed(2);
+  }
+});
+
+// Auto Checkbox listener
+thresholdAuto.addEventListener('change', () => {
+  if (thresholdAuto.checked) {
+    threshold.disabled = true;
+    thresholdVal.textContent = `Auto (${parseFloat(threshold.value).toFixed(2)})`;
+  } else {
+    threshold.disabled = false;
+    thresholdVal.textContent = parseFloat(threshold.value).toFixed(2);
+  }
 });
 
 // ── File selection ─────────────────────────────
@@ -113,7 +127,7 @@ async function runPrediction() {
     }
     formData.append('chain_a', chainA.value.trim() || 'A');
     formData.append('chain_b', chainB.value.trim());
-    formData.append('threshold', threshold.value);
+    formData.append('threshold', thresholdAuto.checked ? -1 : threshold.value);
 
     const response = await fetch(`${API_BASE}/predict`, {
       method: 'POST',
@@ -139,6 +153,12 @@ async function runPrediction() {
 
 // ── Render Results ─────────────────────────────
 function renderResults(data) {
+  // Sync auto threshold slider
+  if (thresholdAuto.checked) {
+    threshold.value = data.threshold;
+    thresholdVal.textContent = `Auto (${data.threshold.toFixed(2)})`;
+  }
+
   // Show section
   resultsSection.hidden = false;
   resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
