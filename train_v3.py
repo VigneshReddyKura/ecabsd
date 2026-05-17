@@ -196,6 +196,11 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip,
             logits, _ = model(data_a, data_b)
             logits    = logits.squeeze(-1)
             loss = criterion(logits, labels.float())
+        
+        if torch.isnan(loss):
+            print("  [WARN] NaN loss detected! Skipping batch to prevent crash...")
+            optimizer.zero_grad()
+            continue
 
         scaler.scale(loss).backward()
 

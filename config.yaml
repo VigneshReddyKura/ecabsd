@@ -25,7 +25,7 @@ training:
   focal_gamma: 3.0
   gradient_clip: 0.5
   label_smoothing: 0.05
-  learning_rate: 0.0003
+  learning_rate: 0.0001
   loss: focal
   lr_factor: 0.5
   lr_patience: 15
