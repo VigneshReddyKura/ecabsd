@@ -6,11 +6,12 @@ data:
   splits_csv: data/db5_splits.csv
 
 model:
+  version: v3
   esm_dim: 33
-  dropout: 0.4
+  dropout: 0.3
   graph_cutoff: 10.0
   hidden_dim: 256
-  num_gcn_layers: 3
+  num_gcn_layers: 6
   num_heads: 4
   residue_max: 800
   residue_min: 30
