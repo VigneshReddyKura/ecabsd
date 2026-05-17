@@ -374,7 +374,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     print(f"[ECABSD] LR: warmup {warmup_epochs} epochs → cosine {cosine_epochs} epochs")
     
     # Initialize Mixed Precision Scaler
-    scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
+    scaler = torch.amp.GradScaler('cuda', enabled=torch.cuda.is_available())
 
     # Resume
     start_epoch   = 0
