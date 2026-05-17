@@ -53,15 +53,14 @@ def get_model(config_path: str = "config.yaml"):
         wcfg = _config.get("web", {})
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # BUG FIX: ECABSDModel v2 uses input_dim/edge_dim, not esm_dim/num_layers
+        # Initialize ECABSDModel with stable V1/V2+ Overboost constructor parameters
         _model = ECABSDModel(
-            input_dim=mcfg.get("esm_dim", 33),
+            esm_dim=mcfg.get("esm_dim", 1280),
             hidden_dim=mcfg.get("hidden_dim", 128),
             num_heads=mcfg.get("num_heads", 4),
-            edge_dim=mcfg.get("edge_feature_dim", 5),
-            num_gcn_layers=mcfg.get("num_gcn_layers", 4),
-            num_cross_attn_layers=mcfg.get("num_cross_attn_layers", 2),
             dropout=0.0,
+            num_layers=mcfg.get("num_gcn_layers", 3),
+            cross_attention=True,
         ).to(_device)
 
         checkpoint_path = wcfg.get("checkpoint", "checkpoints/best_model.pt")
