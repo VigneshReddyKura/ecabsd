@@ -32,6 +32,7 @@ const exportJsonBtn   = document.getElementById('export-json-btn');
 const exportPymolBtn  = document.getElementById('export-pymol-btn');
 const filterBinding   = document.getElementById('filter-binding');
 const filterAll       = document.getElementById('filter-all');
+const pdbId           = document.getElementById('pdb-id');
 
 let selectedFile = null;
 
@@ -48,10 +49,25 @@ function handleFile(file) {
     return;
   }
   selectedFile = file;
+  pdbId.value = ''; // Clear PDB ID input
   fileNameDisplay.textContent = file.name;
   dropzone.classList.add('has-file');
   predictBtn.disabled = false;
 }
+
+// PDB ID Input Listener
+pdbId.addEventListener('input', () => {
+  const val = pdbId.value.trim();
+  if (val.length === 4) {
+    selectedFile = null;
+    dropzone.classList.remove('has-file');
+    fileNameDisplay.textContent = `PDB ID: ${val.toUpperCase()}`;
+    predictBtn.disabled = false;
+  } else if (!selectedFile) {
+    predictBtn.disabled = true;
+    fileNameDisplay.textContent = 'No file selected';
+  }
+});
 
 fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
 dropzone.addEventListener('click', (e) => {
@@ -71,7 +87,7 @@ dropzone.addEventListener('drop', (e) => {
 predictBtn.addEventListener('click', runPrediction);
 
 async function runPrediction() {
-  if (!selectedFile) return;
+  if (!selectedFile && !pdbId.value.trim()) return;
 
   const steps = [
     'Building residue graph…',
@@ -90,7 +106,11 @@ async function runPrediction() {
 
   try {
     const formData = new FormData();
-    formData.append('pdb_file', selectedFile);
+    if (selectedFile) {
+      formData.append('pdb_file', selectedFile);
+    } else {
+      formData.append('pdb_id', pdbId.value.trim().toUpperCase());
+    }
     formData.append('chain_a', chainA.value.trim() || 'A');
     formData.append('chain_b', chainB.value.trim());
     formData.append('threshold', threshold.value);
