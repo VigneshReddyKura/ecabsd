@@ -98,6 +98,28 @@ def run_prediction(
         threshold = ckpt_threshold
         print(f"[ECABSD] Using threshold: {threshold:.4f}")
 
+    # Automatic PDB downloading if the file does not exist locally
+    if not os.path.exists(pdb_path):
+        pdb_base = os.path.basename(pdb_path)
+        pdb_id, ext = os.path.splitext(pdb_base)
+        # If it looks like a PDB code (e.g. "1BRS" or "1BRS.pdb")
+        if len(pdb_id) == 4 and (not ext or ext.lower() == '.pdb'):
+            pdb_id = pdb_id.upper()
+            os.makedirs("data/raw/pdbs", exist_ok=True)
+            download_path = f"data/raw/pdbs/{pdb_id}.pdb"
+            if not os.path.exists(download_path):
+                print(f"[ECABSD] PDB file not found. Attempting to download {pdb_id} from RCSB PDB...")
+                import urllib.request
+                try:
+                    url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
+                    urllib.request.urlretrieve(url, download_path)
+                    print(f"[ECABSD] Successfully downloaded {pdb_id}.pdb to {download_path}")
+                except Exception as e:
+                    raise FileNotFoundError(f"Could not download PDB {pdb_id} from RCSB: {e}")
+            pdb_path = download_path
+        else:
+            raise FileNotFoundError(f"PDB file not found at: {pdb_path}")
+
     # Build graphs
     print(f"[ECABSD] Building graph for chain {chain_a}...")
     data_a = build_residue_graph(pdb_path, chain_a).to(device)
