@@ -192,10 +192,14 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip,
                 labels = data_a.y.float().to(device)
 
         optimizer.zero_grad()
-        with torch.cuda.amp.autocast(enabled=torch.cuda.is_available()):
+        with torch.amp.autocast('cuda', enabled=False):  # AMP disabled - prevents GATv2 float16 NaN
             logits, _ = model(data_a, data_b)
             logits    = logits.squeeze(-1)
             loss = criterion(logits, labels.float())
+
+        if torch.isnan(loss):
+            optimizer.zero_grad()
+            continue
 
         scaler.scale(loss).backward()
 
@@ -346,7 +350,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     print(f"[ECABSD] LR: warmup {warmup_epochs} epochs → cosine {cosine_epochs} epochs")
     
     # Initialize Mixed Precision Scaler
-    scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
+    scaler = torch.amp.GradScaler('cuda', enabled=False)
 
     # Resume
     start_epoch   = 0
