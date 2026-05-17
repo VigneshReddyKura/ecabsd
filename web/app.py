@@ -36,6 +36,10 @@ _config = None
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
+    # Resolve relative to the project root (one level above web/)
+    if not os.path.isabs(config_path):
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        config_path = os.path.join(root, config_path)
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
@@ -49,18 +53,24 @@ def get_model(config_path: str = "config.yaml"):
         wcfg = _config.get("web", {})
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        # BUG FIX: ECABSDModel v2 uses input_dim/edge_dim, not esm_dim/num_layers
         _model = ECABSDModel(
-            esm_dim=mcfg.get("esm_dim", 1280),
-            hidden_dim=mcfg["hidden_dim"],
-            num_heads=mcfg["num_heads"],
+            input_dim=mcfg.get("esm_dim", 33),
+            hidden_dim=mcfg.get("hidden_dim", 128),
+            num_heads=mcfg.get("num_heads", 4),
+            edge_dim=mcfg.get("edge_feature_dim", 5),
+            num_gcn_layers=mcfg.get("num_gcn_layers", 4),
+            num_cross_attn_layers=mcfg.get("num_cross_attn_layers", 2),
             dropout=0.0,
-            num_layers=mcfg.get("num_gcn_layers", 3),
-            cross_attention=True
         ).to(_device)
 
         checkpoint_path = wcfg.get("checkpoint", "checkpoints/best_model.pt")
+        # Resolve relative to project root
+        if not os.path.isabs(checkpoint_path):
+            root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            checkpoint_path = os.path.join(root, checkpoint_path)
         if os.path.exists(checkpoint_path):
-            ckpt = torch.load(checkpoint_path, map_location=_device)
+            ckpt = torch.load(checkpoint_path, map_location=_device, weights_only=False)
             _model.load_state_dict(ckpt["model_state_dict"])
             print(f"[Web] Model loaded from: {checkpoint_path}")
         else:
@@ -135,16 +145,23 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             tmp_path = tmp.name
 
         try:
-            # Build graphs
+            # Build graphs — v2 model requires edge_attr (5-dim)
             try:
-                data_a = build_residue_graph(tmp_path, chain_a).to(device)
+                data_a = build_residue_graph(tmp_path, chain_a)
+                if data_a.edge_attr is None:
+                    raise ValueError("Graph has no edge_attr — check graph_construction.py")
+                data_a = data_a.to(device)
             except (ValueError, KeyError) as e:
                 raise HTTPException(status_code=400, detail=f"Chain {chain_a}: {str(e)}")
 
             data_b = None
             if chain_b and chain_b.strip():
                 try:
-                    data_b = build_residue_graph(tmp_path, chain_b).to(device)
+                    data_b = build_residue_graph(tmp_path, chain_b)
+                    if data_b.edge_attr is not None:
+                        data_b = data_b.to(device)
+                    else:
+                        data_b = None
                 except Exception:
                     data_b = None
 
@@ -153,14 +170,19 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             probs_np = probs.squeeze(-1).cpu().tolist()
             labels_np = labels.cpu().tolist()
 
-            # Get residue info
+            # Get residue info for labelling results
             parser = PDBParser(QUIET=True)
             structure = parser.get_structure("protein", tmp_path)
             chain_obj = structure[0][chain_a]
-            residues, _ = get_residues(chain_obj)
+            # get_residues returns (residue_list, coords) — only need list
+            residue_list = get_residues(chain_obj)
+            if isinstance(residue_list, tuple):
+                residue_list = residue_list[0]
 
             results = []
-            for i, r in enumerate(residues):
+            for i, r in enumerate(residue_list):
+                if i >= len(probs_np):
+                    break
                 results.append({
                     "index": i,
                     "resname": r.get_resname(),
