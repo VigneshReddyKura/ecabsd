@@ -12,6 +12,7 @@ import torch
 import numpy as np
 
 from models.ecabsd_model import ECABSDModel
+from models.ecabsd_v3_model import ECABSDModelV3
 from models.graph_construction import build_residue_graph, get_residues
 from Bio.PDB import PDBParser
 
@@ -25,10 +26,11 @@ def run_prediction(
     pdb_path: str,
     chain_a: str,
     chain_b: str = None,
-    checkpoint_path: str = "checkpoints/best_model.pt",
-    threshold: float = None,   # if None, loaded from checkpoint
+    checkpoint_path: str = None,
+    threshold: float = None,
     output_path: str = None,
     config_path: str = "config.yaml",
+    model_version: str = "v3",
 ):
     """
     Predict binding sites for a single PDB structure.
@@ -57,15 +59,27 @@ def run_prediction(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    if checkpoint_path is None:
+        checkpoint_path = "checkpoints/best_model_v3.pt" if model_version == "v3" else "checkpoints/best_model.pt"
+
     # Load model
-    model = ECABSDModel(
-        esm_dim=mcfg.get("esm_dim", 1280),
-        hidden_dim=mcfg["hidden_dim"],
-        num_heads=mcfg["num_heads"],
-        dropout=0.0,
-        num_layers=mcfg.get("num_gcn_layers", 3),
-        cross_attention=True
-    ).to(device)
+    if model_version == "v3":
+        model = ECABSDModelV3(
+            input_dim=mcfg.get("input_dim", mcfg.get("esm_dim", 33)),
+            hidden_dim=mcfg["hidden_dim"],
+            num_heads=mcfg["num_heads"],
+            dropout=0.0,
+            edge_dim=mcfg.get("edge_feature_dim", 5),
+            num_gcn_layers=mcfg.get("num_gcn_layers", 6)
+        ).to(device)
+    else:
+        model = ECABSDModel(
+            input_dim=mcfg.get("input_dim", mcfg.get("esm_dim", 33)),
+            hidden_dim=mcfg["hidden_dim"],
+            num_heads=mcfg["num_heads"],
+            dropout=0.0,
+            edge_dim=mcfg.get("edge_feature_dim", 5),
+        ).to(device)
 
     # Resolve threshold: CLI arg > checkpoint value > config value
     cfg_threshold = cfg["prediction"].get("threshold", 0.5)
@@ -203,6 +217,7 @@ if __name__ == "__main__":
                         help="Decision threshold (default: loaded from checkpoint)")
     parser.add_argument("--output", default=None)
     parser.add_argument("--config", default="config.yaml")
+    parser.add_argument("--model-version", type=str, choices=["v2", "v3"], default="v3", help="Which model architecture to use")
     args = parser.parse_args()
 
     run_prediction(
@@ -213,4 +228,5 @@ if __name__ == "__main__":
         threshold=args.threshold,
         output_path=args.output,
         config_path=args.config,
+        model_version=args.model_version,
     )
