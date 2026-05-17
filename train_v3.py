@@ -287,12 +287,12 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
 
     # Build model
     model = ECABSDModelV3(
-        esm_dim=mcfg.get("esm_dim", 1280),
+        input_dim=mcfg.get("esm_dim", 33),
         hidden_dim=mcfg["hidden_dim"],
         num_heads=mcfg["num_heads"],
         dropout=mcfg["dropout"],
-        num_layers=mcfg.get("num_gcn_layers", 3),
-        cross_attention=True
+        edge_dim=mcfg.get("edge_feature_dim", 5),
+        num_gcn_layers=mcfg.get("num_gcn_layers", 6),
     ).to(device)
 
     total_params = sum(p.numel() for p in model.parameters())
