@@ -74,11 +74,12 @@ def run_prediction(
         ).to(device)
     else:
         model = ECABSDModel(
-            input_dim=mcfg.get("input_dim", mcfg.get("esm_dim", 33)),
+            esm_dim=mcfg.get("esm_dim", 1280),
             hidden_dim=mcfg["hidden_dim"],
             num_heads=mcfg["num_heads"],
             dropout=0.0,
-            edge_dim=mcfg.get("edge_feature_dim", 5),
+            num_layers=mcfg.get("num_gcn_layers", 3),
+            cross_attention=True,
         ).to(device)
 
     # Resolve threshold: CLI arg > checkpoint value > config value
