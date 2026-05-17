@@ -196,13 +196,39 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     data_b = None
 
             # Resolve threshold: negative value indicates "Auto"
+            is_auto = False
             threshold_val = threshold
             if threshold < 0:
+                is_auto = True
                 threshold_val = getattr(model, "best_threshold", 0.5819)
 
             # Predict
             probs, labels, attn = model.predict(data_a, data_b, threshold=threshold_val)
             probs_np = probs.squeeze(-1).cpu().tolist()
+            
+            # Dynamic range adjustment if auto: keep binding ratio in 10% - 40%
+            if is_auto:
+                total_res = len(probs_np)
+                binding_count = sum(1 for p in probs_np if p >= threshold_val)
+                ratio = binding_count / total_res if total_res > 0 else 0.0
+                
+                if ratio < 0.10:
+                    for t in [0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05]:
+                        new_count = sum(1 for p in probs_np if p >= t)
+                        new_ratio = new_count / total_res
+                        if new_ratio >= 0.10:
+                            threshold_val = t
+                            labels = (probs >= t).int()
+                            break
+                elif ratio > 0.40:
+                    for t in [0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]:
+                        new_count = sum(1 for p in probs_np if p >= t)
+                        new_ratio = new_count / total_res
+                        if new_ratio <= 0.40:
+                            threshold_val = t
+                            labels = (probs >= t).int()
+                            break
+
             labels_np = labels.cpu().tolist()
 
             # Get residue info for labelling results
