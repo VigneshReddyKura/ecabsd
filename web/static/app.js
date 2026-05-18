@@ -48,7 +48,8 @@ threshold.addEventListener('input', () => {
 thresholdAuto.addEventListener('change', () => {
   if (thresholdAuto.checked) {
     threshold.disabled = true;
-    thresholdVal.textContent = `Auto (${parseFloat(threshold.value).toFixed(2)})`;
+    threshold.value = "0.58";
+    thresholdVal.textContent = `Auto (0.58)`;
   } else {
     threshold.disabled = false;
     thresholdVal.textContent = parseFloat(threshold.value).toFixed(2);
@@ -165,7 +166,7 @@ function renderResults(data) {
 
   // Meta
   resultsMeta.textContent =
-    `${data.pdb_file} · Chain ${data.chain_a}${data.chain_b ? ' × ' + data.chain_b : ''} · threshold=${data.threshold}`;
+    `${data.pdb_file} · Chain ${data.chain_a}${data.chain_b ? ' × ' + data.chain_b : ''} · threshold=${parseFloat(data.threshold).toFixed(4)}`;
 
   // Summary cards
   const bindingPct = data.total_residues > 0
@@ -183,7 +184,7 @@ function renderResults(data) {
     qualityCardHtml = `
       <div class="summary-card fade-in" style="border: 1px solid rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.08); display: flex; flex-direction: column; justify-content: center; min-height: 96px;">
         <div class="summary-label" style="color: var(--green); font-weight: 700; letter-spacing: 0.08em;">✨ AUTO-SAVED</div>
-        <div class="summary-value" style="font-size: 1.05rem; font-weight: 700; color: var(--green); margin-top: 4px; line-height: 1.3;">Perfect Sample!</div>
+        <div class="summary-value" style="font-size: 1.05rem; font-weight: 700; color: var(--green); margin-top: 4px; line-height: 1.3;">${data.prediction_quality}</div>
         <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace;">Saved to results/</div>
       </div>
     `;

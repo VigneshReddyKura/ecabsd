@@ -21,6 +21,7 @@ from sklearn.metrics import (
     roc_auc_score,
     average_precision_score,
     confusion_matrix,
+    brier_score_loss,
 )
 
 from models.ecabsd_v3_model import ECABSDModelV3
@@ -100,6 +101,7 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
 
     all_probs = []
     all_labels = []
+    per_pdb_results = {}
 
     if os.path.exists(processed_dir) and os.path.exists(splits_csv):
         from data.dataset import BindingSiteDataset, collate_fn
@@ -119,32 +121,24 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
                 data_a = batch["data_a"].to(device)
                 data_b = batch["data_b"].to(device)   # always a Batch (collate_fn guarantees)
                 labels = batch["labels"]
+                pdb_ids = batch["pdb_id"]
 
                 logits, _ = model(data_a, data_b)
                 probs = torch.sigmoid(logits).squeeze(-1).cpu().numpy()
+                labels_np = labels.cpu().numpy()
+                
                 all_probs.extend(probs.tolist())
-                all_labels.extend(labels.cpu().numpy().tolist())
+                all_labels.extend(labels_np.tolist())
+                
+                # For batch size 1
+                pid = pdb_ids[0]
+                per_pdb_results[pid] = {
+                    "probs": probs.tolist(),
+                    "labels": labels_np.tolist()
+                }
     else:
-        print(f"[ECABSD] No processed test data found. Using sample PDB for demonstration.")
-        from models.graph_construction import build_residue_graph
-
-        sample_pdb = "1AY7.pdb"
-        if os.path.exists(sample_pdb):
-            data_a = build_residue_graph(sample_pdb, "A")
-            data_a = data_a.to(device)
-
-            with torch.no_grad():
-                logits, attn = model(data_a)
-                probs = torch.sigmoid(logits).squeeze(-1).cpu().numpy()
-
-            # Create dummy labels for demonstration
-            dummy_labels = np.zeros(len(probs))
-            dummy_labels[:10] = 1.0
-            all_probs = probs.tolist()
-            all_labels = dummy_labels.tolist()
-        else:
-            print("[ECABSD] ERROR: No data available for evaluation.")
-            return
+        print(f"[ECABSD] No processed test data found. Please run scripts/prepare_dataset.py.")
+        return
 
     # Compute metrics
     all_probs  = np.array(all_probs)
@@ -171,9 +165,18 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
     if len(np.unique(all_labels)) > 1:
         metrics["auc_roc"] = float(roc_auc_score(all_labels, all_probs))
         metrics["auc_pr"] = float(average_precision_score(all_labels, all_probs))
+        metrics["brier_score"] = float(brier_score_loss(all_labels, all_probs))
+        
+        # Precision@15%
+        k = int(len(all_probs) * 0.15)
+        top_k_indices = np.argsort(all_probs)[-k:]
+        top_k_labels = all_labels[top_k_indices]
+        metrics["precision@15"] = float(top_k_labels.sum() / max(k, 1))
     else:
         metrics["auc_roc"] = None
         metrics["auc_pr"] = None
+        metrics["brier_score"] = None
+        metrics["precision@15"] = None
 
     # Print results
     print(f"\n{'='*50}")
@@ -191,6 +194,32 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
     print(f"  Metrics saved to: {metrics_path}")
+
+    # Failure Analysis
+    failures = []
+    for pid, res in per_pdb_results.items():
+        p_probs = np.array(res["probs"])
+        p_labels = np.array(res["labels"])
+        p_preds = (p_probs >= best_threshold).astype(int)
+        
+        if len(np.unique(p_labels)) > 1:
+            p_f1 = f1_score(p_labels, p_preds, zero_division=0)
+            if p_f1 < 0.3:
+                num_pred_pos = int(p_preds.sum())
+                num_true_pos = int(p_labels.sum())
+                failures.append({
+                    "pdb_id": pid,
+                    "f1_score": float(p_f1),
+                    "issue": "Underprediction" if num_pred_pos < (0.5 * num_true_pos) else ("Overprediction" if num_pred_pos > (2.0 * num_true_pos) else "Poor Accuracy"),
+                    "predicted_residues": num_pred_pos,
+                    "actual_residues": num_true_pos
+                })
+    
+    if failures:
+        fail_path = os.path.join(results_dir, "failure_analysis.json")
+        with open(fail_path, "w") as f:
+            json.dump(failures, f, indent=2)
+        print(f"  [Failure Analysis] Found {len(failures)} poorly performing structures. Logged to: {fail_path}")
 
     # Confusion matrix
     cm = confusion_matrix(all_labels, all_preds)

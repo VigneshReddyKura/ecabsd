@@ -10,8 +10,8 @@ from tqdm import tqdm
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from models.graph_construction import build_residue_graph
-from Bio.PDB import PDBParser, NeighborSearch
+from models.graph_construction import build_residue_graph, compute_binding_labels
+from Bio.PDB import PDBParser
 from Bio.PDB.Polypeptide import is_aa
 
 def get_chain_ids(pdb_path):
@@ -24,37 +24,6 @@ def get_chain_ids(pdb_path):
     chains = list(models[0].get_chains())
     return [c.id for c in chains if c.id.strip()]
 
-def compute_binding_labels(pdb_path, target_chain_id, partner_chain_id, distance_cutoff=4.5):
-    parser = PDBParser(QUIET=True)
-    structure = parser.get_structure("protein", pdb_path)
-    models = list(structure.get_models())
-    if not models:
-        return None
-    model = models[0]
-
-    if target_chain_id not in model or partner_chain_id not in model:
-        return None
-
-    target_chain = model[target_chain_id]
-    partner_chain = model[partner_chain_id]
-
-    residues = [r for r in target_chain if is_aa(r, standard=True)]
-    partner_atoms = [atom for r in partner_chain for atom in r]
-
-    if not partner_atoms:
-        return None
-
-    ns = NeighborSearch(partner_atoms)
-    labels = []
-    for residue in residues:
-        is_binding = False
-        for atom in residue:
-            nearby = ns.search(atom.get_vector().get_array(), distance_cutoff, level="A")
-            if nearby:
-                is_binding = True
-                break
-        labels.append(1 if is_binding else 0)
-    return labels
 
 def process_single_pdb(pdb_path, output_dir, distance_cutoff):
     """Process all chain pairs for a plain PDB file."""
