@@ -178,6 +178,24 @@ function renderResults(data) {
     ? Math.max(...data.residues.map(r => r.probability)).toFixed(3)
     : '0';
 
+  let qualityCardHtml = '';
+  if (data.saved_to_results) {
+    qualityCardHtml = `
+      <div class="summary-card fade-in" style="border: 1px solid rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.08); display: flex; flex-direction: column; justify-content: center; min-height: 96px;">
+        <div class="summary-label" style="color: var(--green); font-weight: 700; letter-spacing: 0.08em;">✨ AUTO-SAVED</div>
+        <div class="summary-value" style="font-size: 1.05rem; font-weight: 700; color: var(--green); margin-top: 4px; line-height: 1.3;">Perfect Sample!</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace;">Saved to results/</div>
+      </div>
+    `;
+  } else {
+    qualityCardHtml = `
+      <div class="summary-card fade-in" style="display: flex; flex-direction: column; justify-content: center; min-height: 96px;">
+        <div class="summary-label">Sample Classification</div>
+        <div class="summary-value" style="font-size: 0.92rem; font-weight: 600; color: var(--text-dim); margin-top: 4px; line-height: 1.35;">${data.prediction_quality || 'Unknown'}</div>
+      </div>
+    `;
+  }
+
   summaryGrid.innerHTML = `
     <div class="summary-card fade-in">
       <div class="summary-label">Total Residues</div>
@@ -199,7 +217,22 @@ function renderResults(data) {
       <div class="summary-label">Max Probability</div>
       <div class="summary-value v-primary">${maxProb}</div>
     </div>
+    ${qualityCardHtml}
   `;
+
+  // Explainability Cards (Heatmap & Grad-CAM)
+  const explainCard = document.getElementById('explain-card');
+  const heatmapImg = document.getElementById('heatmap-img');
+  const gradcamImg = document.getElementById('gradcam-img');
+  
+  if (data.heatmap_url && data.gradcam_url) {
+    explainCard.style.display = 'block';
+    // Add timestamp cache buster so images reload when user re-runs prediction on same PDB
+    heatmapImg.src = `${data.heatmap_url}?t=${new Date().getTime()}`;
+    gradcamImg.src = `${data.gradcam_url}?t=${new Date().getTime()}`;
+  } else {
+    explainCard.style.display = 'none';
+  }
 
   // Chart
   renderChart(data.residues, data.threshold);

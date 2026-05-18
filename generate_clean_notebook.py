@@ -6,8 +6,8 @@ notebook = {
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "# ECABSD V3 — Full Architecture Training\n",
-    "This notebook trains the final V3 architecture: 6-layer GATv2, SE3 Refinement, Cross-Attention, and 0.5 Dropout."
+    "# ECABSD V2+ Overboost — Full Architecture Training\n",
+    "This notebook trains the final V2+ Overboost architecture: 6-layer GATv2, SE3 Refinement, Cross-Attention, and 0.5 Dropout."
    ]
   },
   {
