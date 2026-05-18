@@ -22,6 +22,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import torch
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -33,6 +37,44 @@ from Bio.PDB import PDBParser
 _model = None
 _device = None
 _config = None
+
+
+def save_heatmap_plot(probs, out_path, title):
+    try:
+        probs_np = np.array(probs)
+        heatmap = probs_np.reshape(1, -1)
+        
+        plt.figure(figsize=(14, 2))
+        plt.imshow(heatmap, aspect="auto", cmap="viridis")
+        plt.colorbar(label="Binding Probability")
+        plt.title(title)
+        plt.xlabel("Residue Index")
+        plt.yticks([])
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=150)
+        plt.close()
+        print(f"[Web] Heatmap saved to: {out_path}")
+    except Exception as e:
+        print(f"[Web] Failed to save heatmap plot: {e}")
+
+
+def save_gradcam_plot(saliency, out_path, title):
+    try:
+        saliency_np = np.array(saliency)
+        heatmap = saliency_np.reshape(1, -1)
+        
+        plt.figure(figsize=(14, 2))
+        plt.imshow(heatmap, aspect="auto", cmap="plasma")
+        plt.colorbar(label="Grad-CAM Importance")
+        plt.title(title)
+        plt.xlabel("Residue Index")
+        plt.yticks([])
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=150)
+        plt.close()
+        print(f"[Web] Grad-CAM saved to: {out_path}")
+    except Exception as e:
+        print(f"[Web] Failed to save Grad-CAM plot: {e}")
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
@@ -103,6 +145,11 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    # Static results files mounting
+    results_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
+    os.makedirs(results_dir, exist_ok=True)
+    app.mount("/results", StaticFiles(directory=results_dir), name="results")
 
     templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 
@@ -196,39 +243,13 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     data_b = None
 
             # Resolve threshold: negative value indicates "Auto"
-            is_auto = False
             threshold_val = threshold
             if threshold < 0:
-                is_auto = True
                 threshold_val = getattr(model, "best_threshold", 0.5819)
 
             # Predict
             probs, labels, attn = model.predict(data_a, data_b, threshold=threshold_val)
             probs_np = probs.squeeze(-1).cpu().tolist()
-            
-            # Dynamic range adjustment if auto: keep binding ratio in 10% - 40%
-            if is_auto:
-                total_res = len(probs_np)
-                binding_count = sum(1 for p in probs_np if p >= threshold_val)
-                ratio = binding_count / total_res if total_res > 0 else 0.0
-                
-                if ratio < 0.10:
-                    for t in [0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05]:
-                        new_count = sum(1 for p in probs_np if p >= t)
-                        new_ratio = new_count / total_res
-                        if new_ratio >= 0.10:
-                            threshold_val = t
-                            labels = (probs >= t).int()
-                            break
-                elif ratio > 0.40:
-                    for t in [0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]:
-                        new_count = sum(1 for p in probs_np if p >= t)
-                        new_ratio = new_count / total_res
-                        if new_ratio <= 0.40:
-                            threshold_val = t
-                            labels = (probs >= t).int()
-                            break
-
             labels_np = labels.cpu().tolist()
 
             # Get residue info for labelling results
@@ -254,6 +275,97 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 })
 
             binding_count = sum(1 for r in results if r["is_binding"])
+            total_count = len(results)
+            binding_ratio = binding_count / total_count if total_count > 0 else 0.0
+
+            # Determine prediction quality classification
+            quality = "Unknown"
+            if total_count > 0:
+                if binding_ratio < 0.08:
+                    quality = "Too strict / too few predicted binding residues"
+                elif 0.08 <= binding_ratio <= 0.20:
+                    quality = "Good realistic range (Perfect Sample)"
+                elif 0.21 <= binding_ratio <= 0.40:
+                    quality = "Broad interface prediction"
+                else:
+                    quality = "Overprediction - use higher threshold or exclude"
+
+            # Setup results directory and filenames
+            clean_filename = os.path.basename(filename)
+            pdb_name = os.path.splitext(clean_filename)[0]
+            results_dir = _config.get("paths", {}).get("results_dir", "results")
+            out_dir = os.path.join(results_dir, pdb_name)
+            os.makedirs(out_dir, exist_ok=True)
+            
+            heatmap_url = ""
+            gradcam_url = ""
+            
+            if total_count > 0:
+                # Generate and save Heatmap
+                try:
+                    heatmap_filename = f"heatmap_{chain_a}.png"
+                    heatmap_path = os.path.join(out_dir, heatmap_filename)
+                    save_heatmap_plot(probs_np, heatmap_path, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}")
+                    heatmap_url = f"/results/{pdb_name}/{heatmap_filename}"
+                except Exception as e:
+                    print(f"[Web] Error generating Heatmap: {e}")
+
+                # Generate and save Grad-CAM
+                try:
+                    data_a_grad = data_a.clone()
+                    data_a_grad.x = data_a_grad.x.float().detach().clone()
+                    data_a_grad.x.requires_grad_(True)
+                    
+                    model.zero_grad()
+                    logits, _ = model(data_a_grad, data_b)
+                    score = logits.squeeze(-1).sum()
+                    score.backward()
+                    
+                    if data_a_grad.x.grad is not None:
+                        grads = data_a_grad.x.grad.detach().cpu().numpy()
+                        saliency_raw = np.abs(grads).mean(axis=1)
+                        saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
+                        
+                        gradcam_filename = f"gradcam_{chain_a}.png"
+                        gradcam_path = os.path.join(out_dir, gradcam_filename)
+                        save_gradcam_plot(saliency, gradcam_path, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
+                        gradcam_url = f"/results/{pdb_name}/{gradcam_filename}"
+                        
+                        gradcam_json_path = os.path.join(out_dir, f"gradcam_{chain_a}.json")
+                        gradcam_residues = [{"index": int(i), "gradcam_score": float(s)} for i, s in enumerate(saliency)]
+                        with open(gradcam_json_path, "w") as f:
+                            json.dump({
+                                "pdb_file": clean_filename,
+                                "chain": chain_a,
+                                "method": "gradcam_saliency",
+                                "residues": gradcam_residues
+                            }, f, indent=2)
+                except Exception as e:
+                    print(f"[Web] Error generating Grad-CAM: {e}")
+
+            # Auto-save "perfect" samples (Good realistic range)
+            saved_to_results = False
+            saved_path = ""
+            if 0.08 <= binding_ratio <= 0.20:
+                try:
+                    saved_path = os.path.join(out_dir, f"web_perfect_prediction_{chain_a}.json")
+                    payload = {
+                        "pdb_file": clean_filename,
+                        "chain_a": chain_a,
+                        "chain_b": chain_b,
+                        "threshold": threshold_val,
+                        "total_residues": total_count,
+                        "binding_residues_count": binding_count,
+                        "binding_ratio": round(binding_ratio, 4),
+                        "prediction_quality": quality,
+                        "residues": results,
+                    }
+                    with open(saved_path, "w") as f:
+                        json.dump(payload, f, indent=2)
+                    saved_to_results = True
+                    print(f"[Web] Perfect prediction auto-saved to: {saved_path}")
+                except Exception as e:
+                    print(f"[Web] Error auto-saving perfect prediction: {e}")
 
             return JSONResponse({
                 "status": "success",
@@ -261,8 +373,14 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "chain_a": chain_a,
                 "chain_b": chain_b,
                 "threshold": threshold_val,
-                "total_residues": len(results),
+                "total_residues": total_count,
                 "binding_residues_count": binding_count,
+                "binding_ratio": round(binding_ratio, 4),
+                "prediction_quality": quality,
+                "saved_to_results": saved_to_results,
+                "saved_path": saved_path,
+                "heatmap_url": heatmap_url,
+                "gradcam_url": gradcam_url,
                 "residues": results,
             })
 

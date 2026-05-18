@@ -210,6 +210,28 @@
         </div>
       </div>
 
+      <!-- Explainability Card (Heatmap & Grad-CAM) -->
+      <div class="card explain-card" id="explain-card" style="margin-bottom: 24px; display: none;">
+        <div class="card-header">
+          <div class="card-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--green);">🧠</div>
+          <h3 class="card-title">Explainability Heatmaps</h3>
+        </div>
+        <div class="explain-grids" style="display: grid; grid-template-columns: 1fr; gap: 24px; padding: 20px;">
+          <div>
+            <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">🔥 Binding Probability Heatmap</h4>
+            <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <img id="heatmap-img" src="" alt="Probability Heatmap" style="width: 100%; height: auto; display: block; border-radius: 4px;" />
+            </div>
+          </div>
+          <div>
+            <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">⚡ Grad-CAM Saliency Map</h4>
+            <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <img id="gradcam-img" src="" alt="Grad-CAM Saliency Map" style="width: 100%; height: auto; display: block; border-radius: 4px;" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Results Table -->
       <div class="card table-card">
         <div class="card-header">
