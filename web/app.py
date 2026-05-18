@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from models.ecabsd_model import ECABSDModel
-from models.graph_construction import build_residue_graph, get_residues
+from models.graph_construction import build_residue_graph, get_residues, compute_binding_labels
 from Bio.PDB import PDBParser
 
 # Global model instance
@@ -179,7 +179,9 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),
         chain_b: Optional[str] = Form(None),
-        threshold: float = Form(0.5),
+        threshold: str = Form("auto"),
+        mode: str = Form("threshold"),
+        top_k_percent: float = Form(15.0),
     ):
         """
         Predict binding sites from an uploaded PDB file or a 4-letter PDB ID.
@@ -242,15 +244,35 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception:
                     data_b = None
 
-            # Resolve threshold: negative value indicates "Auto"
-            threshold_val = threshold
-            if threshold < 0:
+            # Resolve threshold
+            threshold_val = 0.5
+            if threshold.lower() == "auto":
                 threshold_val = getattr(model, "best_threshold", 0.5819)
+            else:
+                try:
+                    val = float(threshold)
+                    if val < 0:
+                        threshold_val = getattr(model, "best_threshold", 0.5819)
+                    else:
+                        threshold_val = val
+                except ValueError:
+                    threshold_val = 0.5
 
             # Predict
-            probs, labels, attn = model.predict(data_a, data_b, threshold=threshold_val)
-            probs_np = probs.squeeze(-1).cpu().tolist()
-            labels_np = labels.cpu().tolist()
+            logits, attn = model(data_a, data_b)
+            probs = torch.sigmoid(logits).squeeze(-1)
+            probs_np = probs.cpu().tolist()
+            
+            # Apply mode logic
+            if mode == "topk":
+                k = max(1, int(len(probs_np) * (top_k_percent / 100.0)))
+                top_indices = torch.topk(probs, k).indices
+                labels_np = [0] * len(probs_np)
+                for idx in top_indices:
+                    labels_np[idx] = 1
+                threshold_val = min([probs_np[i] for i in top_indices]) if len(top_indices) > 0 else threshold_val
+            else:
+                labels_np = (probs >= threshold_val).cpu().numpy().astype(int).tolist()
 
             # Get residue info for labelling results
             parser = PDBParser(QUIET=True)
@@ -278,17 +300,64 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             total_count = len(results)
             binding_ratio = binding_count / total_count if total_count > 0 else 0.0
 
-            # Determine prediction quality classification
+            true_labels = []
+            overlap_stats = None
             quality = "Unknown"
-            if total_count > 0:
-                if binding_ratio < 0.08:
-                    quality = "Too strict / too few predicted binding residues"
-                elif 0.08 <= binding_ratio <= 0.20:
-                    quality = "Good realistic range (Perfect Sample)"
-                elif 0.21 <= binding_ratio <= 0.40:
-                    quality = "Broad interface prediction"
+            
+            # If partner chain is provided, we can compute ground truth and actual overlap
+            if chain_b and chain_b.strip():
+                try:
+                    true_labels = compute_binding_labels(tmp_path, chain_a, chain_b, distance_cutoff=5.0)
+                except Exception as e:
+                    print(f"Failed to compute ground truth: {e}")
+                    true_labels = []
+                
+                if true_labels and len(true_labels) == len(probs_np):
+                    true_labels_np = np.array(true_labels)
+                    pred_labels_np = np.array(labels_np)
+                    
+                    true_positives = int(np.sum((true_labels_np == 1) & (pred_labels_np == 1)))
+                    false_positives = int(np.sum((true_labels_np == 0) & (pred_labels_np == 1)))
+                    false_negatives = int(np.sum((true_labels_np == 1) & (pred_labels_np == 0)))
+                    
+                    precision = true_positives / max(true_positives + false_positives, 1)
+                    recall = true_positives / max(true_positives + false_negatives, 1)
+                    f1 = 2 * precision * recall / max(precision + recall, 1e-8)
+                    
+                    overlap_stats = {
+                        "precision": round(precision, 4),
+                        "recall": round(recall, 4),
+                        "f1": round(f1, 4),
+                        "actual_binding_count": int(np.sum(true_labels_np))
+                    }
+                    
+                    if f1 >= 0.70:
+                        quality = "Excellent Experimental Overlap"
+                    elif f1 >= 0.50:
+                        quality = "Good Experimental Overlap"
+                    elif precision > recall:
+                        quality = "Underprediction - High Precision, Low Recall (Needs Review)"
+                    else:
+                        quality = "Overprediction - Low Precision, High Recall (Needs Review)"
                 else:
-                    quality = "Overprediction - use higher threshold or exclude"
+                    # Fallback if computation failed
+                    if binding_ratio < 0.10:
+                        quality = f"Mode: {mode.upper()} | Tight Interface / Possible Underprediction (Ratio: {round(binding_ratio*100, 1)}%)"
+                    elif 0.10 <= binding_ratio <= 0.30:
+                        quality = f"Mode: {mode.upper()} | Healthy Moderate Interface (Ratio: {round(binding_ratio*100, 1)}%)"
+                    elif 0.31 <= binding_ratio <= 0.40:
+                        quality = f"Mode: {mode.upper()} | Broad Interface (Ratio: {round(binding_ratio*100, 1)}%)"
+                    else:
+                        quality = f"Mode: {mode.upper()} | Possible Overprediction (Ratio: {round(binding_ratio*100, 1)}%)"
+            else:
+                if binding_ratio < 0.10:
+                    quality = f"Mode: {mode.upper()} | Tight Interface / Possible Underprediction (Ratio: {round(binding_ratio*100, 1)}%)"
+                elif 0.10 <= binding_ratio <= 0.30:
+                    quality = f"Mode: {mode.upper()} | Healthy Moderate Interface (Ratio: {round(binding_ratio*100, 1)}%)"
+                elif 0.31 <= binding_ratio <= 0.40:
+                    quality = f"Mode: {mode.upper()} | Broad Interface (Ratio: {round(binding_ratio*100, 1)}%)"
+                else:
+                    quality = f"Mode: {mode.upper()} | Possible Overprediction (Ratio: {round(binding_ratio*100, 1)}%)"
 
             # Setup results directory and filenames
             clean_filename = os.path.basename(filename)
@@ -343,10 +412,13 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception as e:
                     print(f"[Web] Error generating Grad-CAM: {e}")
 
-            # Auto-save "perfect" samples (Good realistic range)
+            # Auto-save "perfect" samples or "Excellent" overlap
             saved_to_results = False
             saved_path = ""
-            if 0.08 <= binding_ratio <= 0.20:
+            
+            is_excellent_overlap = (overlap_stats is not None and overlap_stats.get("f1", 0) >= 0.5)
+            
+            if is_excellent_overlap:
                 try:
                     saved_path = os.path.join(out_dir, f"web_perfect_prediction_{chain_a}.json")
                     payload = {
@@ -367,12 +439,13 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception as e:
                     print(f"[Web] Error auto-saving perfect prediction: {e}")
 
-            return JSONResponse({
+            response_payload = {
                 "status": "success",
                 "pdb_file": filename,
                 "chain_a": chain_a,
                 "chain_b": chain_b,
                 "threshold": threshold_val,
+                "mode": mode,
                 "total_residues": total_count,
                 "binding_residues_count": binding_count,
                 "binding_ratio": round(binding_ratio, 4),
@@ -382,7 +455,11 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "heatmap_url": heatmap_url,
                 "gradcam_url": gradcam_url,
                 "residues": results,
-            })
+            }
+            if overlap_stats:
+                response_payload["experimental_overlap"] = overlap_stats
+
+            return JSONResponse(response_payload)
 
         finally:
             os.unlink(tmp_path)

@@ -25,7 +25,7 @@ import math
 import numpy as np
 import torch
 from torch_geometric.data import Data
-from Bio.PDB import PDBParser
+from Bio.PDB import PDBParser, NeighborSearch
 from Bio.PDB.Polypeptide import is_aa
 import pydssp
 
@@ -281,3 +281,39 @@ if __name__ == "__main__":
     print("Node features:", graph.x.shape)        # expect (N, 33)
     print("Edge index:   ", graph.edge_index.shape)
     print("Edge features:", graph.edge_attr.shape) # expect (E, 5)
+
+def compute_binding_labels(pdb_path: str, target_chain_id: str, partner_chain_id: str, distance_cutoff: float = 5.0):
+    """
+    Compute binary binding labels based on distance between atoms of two chains.
+    Returns a list of 1s and 0s corresponding to the target_chain's residues.
+    """
+    parser = PDBParser(QUIET=True)
+    structure = parser.get_structure("protein", pdb_path)
+    models = list(structure.get_models())
+    if not models:
+        return None
+    model = models[0]
+
+    if target_chain_id not in model or partner_chain_id not in model:
+        return None
+
+    target_chain = model[target_chain_id]
+    partner_chain = model[partner_chain_id]
+
+    residues = [r for r in target_chain if is_aa(r, standard=True)]
+    partner_atoms = [atom for r in partner_chain for atom in r]
+
+    if not partner_atoms:
+        return None
+
+    ns = NeighborSearch(partner_atoms)
+    labels = []
+    for residue in residues:
+        is_binding = False
+        for atom in residue:
+            nearby = ns.search(atom.get_vector().get_array(), distance_cutoff, level="A")
+            if nearby:
+                is_binding = True
+                break
+        labels.append(1 if is_binding else 0)
+    return labels
