@@ -392,7 +392,16 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
             scaler.load_state_dict(ckpt["scaler_state_dict"])
         start_epoch   = ckpt.get("epoch", 0) + 1
         best_val_loss = ckpt.get("best_val_loss", float("inf"))
-        print(f"[ECABSD] Resumed from epoch {start_epoch}")
+        if "scheduler_state_dict" in ckpt:
+            # Restore full scheduler state — LR will be exactly where it was
+            scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+            print(f"[ECABSD] Scheduler state restored from checkpoint.")
+        else:
+            # Old checkpoint without scheduler state — fast-forward manually
+            print(f"[ECABSD] No scheduler state in checkpoint. Fast-forwarding {start_epoch} steps...")
+            for _ in range(start_epoch):
+                scheduler.step()
+        print(f"[ECABSD] Resumed from epoch {start_epoch} | LR={optimizer.param_groups[0]['lr']:.6f}")
 
     # Loop
     patience_counter = 0
@@ -448,14 +457,15 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
             ckpt_path        = os.path.join(pcfg["checkpoints_dir"], "best_model_v3.pt")
             torch.save(
                 {
-                    "epoch":                epoch,
-                    "model_state_dict":     model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "scaler_state_dict":    scaler.state_dict(),
-                    "best_val_loss":        best_val_loss,
-                    "best_val_f1":          best_val_f1,
-                    "best_threshold":       best_threshold,
-                    "config":               cfg,
+                    "epoch":                 epoch,
+                    "model_state_dict":      model.state_dict(),
+                    "optimizer_state_dict":  optimizer.state_dict(),
+                    "scaler_state_dict":     scaler.state_dict(),
+                    "scheduler_state_dict":  scheduler.state_dict(),
+                    "best_val_loss":         best_val_loss,
+                    "best_val_f1":           best_val_f1,
+                    "best_threshold":        best_threshold,
+                    "config":                cfg,
                 },
                 ckpt_path,
             )

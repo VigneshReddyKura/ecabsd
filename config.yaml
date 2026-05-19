@@ -6,12 +6,12 @@ data:
   splits_csv: data/db5_splits.csv
 
 model:
-  version: v2
+  version: v3
   esm_dim: 33
   dropout: 0.3
   graph_cutoff: 10.0
-  hidden_dim: 192
-  num_gcn_layers: 4
+  hidden_dim: 256
+  num_gcn_layers: 6
   num_heads: 4
   residue_max: 800
   residue_min: 30
@@ -46,7 +46,7 @@ paths:
   results_dir: results
 
 web:
-  checkpoint: checkpoints/best_model.pt
+  checkpoint: checkpoints/best_model_v3.pt
   host: 0.0.0.0
   port: 8000
 
