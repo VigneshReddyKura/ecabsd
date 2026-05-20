@@ -143,7 +143,16 @@ async function runPrediction() {
       body: formData,
     });
 
-    const data = await response.json();
+    let data;
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      const cleanText = text ? text.replace(/<[^>]*>/g, '').trim() : '';
+      const summaryText = cleanText ? cleanText.substring(0, 120) : response.statusText;
+      throw new Error(`Server error (${response.status}): ${summaryText || 'Bad Gateway'}`);
+    }
 
     if (!response.ok) {
       throw new Error(data.detail || 'Prediction failed');
@@ -233,12 +242,25 @@ function renderResults(data) {
   const explainCard = document.getElementById('explain-card');
   const heatmapImg = document.getElementById('heatmap-img');
   const gradcamImg = document.getElementById('gradcam-img');
+  const heatmapContainer = document.getElementById('heatmap-container');
+  const gradcamContainer = document.getElementById('gradcam-container');
   
-  if (data.heatmap_url && data.gradcam_url) {
+  if (data.heatmap_url || data.gradcam_url) {
     explainCard.style.display = 'block';
-    // Add timestamp cache buster so images reload when user re-runs prediction on same PDB
-    heatmapImg.src = `${data.heatmap_url}?t=${new Date().getTime()}`;
-    gradcamImg.src = `${data.gradcam_url}?t=${new Date().getTime()}`;
+    
+    if (data.heatmap_url) {
+      if (heatmapContainer) heatmapContainer.style.display = 'block';
+      heatmapImg.src = `${data.heatmap_url}?t=${new Date().getTime()}`;
+    } else {
+      if (heatmapContainer) heatmapContainer.style.display = 'none';
+    }
+    
+    if (data.gradcam_url) {
+      if (gradcamContainer) gradcamContainer.style.display = 'block';
+      gradcamImg.src = `${data.gradcam_url}?t=${new Date().getTime()}`;
+    } else {
+      if (gradcamContainer) gradcamContainer.style.display = 'none';
+    }
   } else {
     explainCard.style.display = 'none';
   }
