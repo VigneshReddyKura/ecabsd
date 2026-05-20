@@ -662,11 +662,11 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             num_nodes = data_a.num_nodes
 
-            # Limit residues to max 256
-            if num_nodes > 256:
+            # Limit residues to max 512
+            if num_nodes > 512:
                 return JSONResponse({
                     "status": "error",
-                    "error": "Grad-CAM unavailable for large proteins on free hosting. Use local version."
+                    "error": "Grad-CAM unavailable for large proteins (>512 residues) on free hosting. Use local version."
                 })
 
             saliency_gradcam = None
