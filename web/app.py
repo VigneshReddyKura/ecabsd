@@ -544,14 +544,20 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         threshold: Optional[float] = Form(None),
     ):
         """
-        Get Grad-CAM explanation for a prediction.
+        Get Grad-CAM or Attention explanation for a prediction.
         """
-        model, device, cfg = get_model()
+        import gc
+        gc.collect()
 
-        # Resolve PDB input
         tmp_path = None
-        filename = ""
+        model = None
+        device = None
+
         try:
+            model, device, cfg = get_model()
+
+            # Resolve PDB input
+            filename = ""
             if pdb_file and pdb_file.filename:
                 with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
                     shutil.copyfileobj(pdb_file.file, tmp)
@@ -562,8 +568,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 if len(pid) == 4:
                     os.makedirs("data/raw/pdbs", exist_ok=True)
                     local_pdb = f"data/raw/pdbs/{pid}.pdb"
-                    
-                    # Validate existing file to prevent reading empty/corrupted 404 pages
+
                     is_corrupted = False
                     if os.path.exists(local_pdb):
                         if os.path.getsize(local_pdb) < 5000:
@@ -577,7 +582,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                             except Exception:
                                 pass
                         if is_corrupted:
-                            print(f"[Web] Corrupted PDB file found at {local_pdb}. Deleting and re-downloading...")
                             try:
                                 os.remove(local_pdb)
                             except Exception:
@@ -586,18 +590,17 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     if not os.path.exists(local_pdb):
                         import urllib.request
                         url = f"https://files.rcsb.org/download/{pid}.pdb"
-                        print(f"[Web] Downloading PDB from: {url}")
                         try:
                             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                             with urllib.request.urlopen(req) as response:
                                 content_type = response.info().get_content_type()
                                 if "html" in content_type.lower():
-                                    raise ValueError("RCSB PDB archive returned HTML/error page instead of PDB coordinate data.")
+                                    raise ValueError("RCSB returned HTML page instead of PDB.")
                                 data = response.read()
                                 if len(data) < 5000:
                                     text_sample = data[:500].decode('utf-8', errors='ignore').strip()
-                                    if text_sample.startswith("<!DOCTYPE") or "<html" in text_sample.lower() or "404" in text_sample:
-                                        raise ValueError("RCSB returned HTML error page (404 Not Found).")
+                                    if text_sample.startswith("<!DOCTYPE") or "<html" in text_sample.lower():
+                                        raise ValueError("RCSB returned HTML page.")
                                 with open(local_pdb, "wb") as f:
                                     f.write(data)
                         except Exception as e:
@@ -606,64 +609,131 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                                     os.remove(local_pdb)
                                 except Exception:
                                     pass
-                            raise HTTPException(status_code=400, detail=f"Failed to retrieve PDB '{pid}' from RCSB: {str(e)}")
+                            return JSONResponse({
+                                "status": "error",
+                                "error": f"Failed to retrieve PDB '{pid}' from RCSB: {str(e)}"
+                            })
+
                     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
                         with open(local_pdb, "rb") as src:
                             shutil.copyfileobj(src, tmp)
                         tmp_path = tmp.name
                     filename = f"{pid}.pdb"
                 else:
-                    raise HTTPException(status_code=400, detail="Invalid PDB ID format. Must be a 4-character ID.")
+                    return JSONResponse({
+                        "status": "error",
+                        "error": "Invalid PDB ID format. Must be a 4-character ID."
+                    })
             else:
-                raise HTTPException(status_code=400, detail="Please upload a PDB file or provide a 4-letter PDB ID.")
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail=f"Failed to load PDB resource: {str(e)}")
+                return JSONResponse({
+                    "status": "error",
+                    "error": "Please upload a PDB file or provide a 4-letter PDB ID."
+                })
 
-        try:
             # Clean and auto-capitalize chain inputs
             chain_a = chain_a.strip().upper() if chain_a else "A"
             chain_b = chain_b.strip().upper() if chain_b and chain_b.strip() else None
 
+            # Temporarily move model to CPU to run explanation memory-safely
+            model.to('cpu')
+
+            # Build graph on CPU
             try:
                 data_a = build_residue_graph(tmp_path, chain_a)
                 if data_a.edge_attr is None:
                     raise ValueError("Graph has no edge_attr — check graph_construction.py")
-                data_a = data_a.to(device)
+                data_a = data_a.to('cpu')
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to build graph for Chain {chain_a}: {str(e)}")
+                return JSONResponse({
+                    "status": "error",
+                    "error": f"Failed to build graph for Chain {chain_a}: {str(e)}"
+                })
+
             data_b = None
             if chain_b and chain_b.strip():
                 try:
                     data_b = build_residue_graph(tmp_path, chain_b)
                     if data_b.edge_attr is not None:
-                        data_b = data_b.to(device)
+                        data_b = data_b.to('cpu')
                 except Exception:
                     pass
 
-            # Calculate Grad-CAM in memory
-            data_a_grad = data_a.clone()
-            data_a_grad.x = data_a_grad.x.float().detach().clone()
-            data_a_grad.x.requires_grad_(True)
-            
-            model.zero_grad(set_to_none=True)
-            logits, _ = model(data_a_grad, data_b)
-            score = logits.squeeze(-1).sum()
-            score.backward()
-            
-            gradcam_url = ""
+            num_nodes = data_a.num_nodes
+
+            # Limit residues to max 256
+            if num_nodes > 256:
+                return JSONResponse({
+                    "status": "error",
+                    "error": "Grad-CAM unavailable for large proteins on free hosting. Use local version."
+                })
+
+            is_render = os.environ.get("RENDER") == "true"
+
             saliency = []
-            if data_a_grad.x.grad is not None:
-                grads = data_a_grad.x.grad.detach().cpu().numpy()
-                saliency_raw = np.abs(grads).mean(axis=1)
-                saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
-                
-                pdb_name = os.path.splitext(filename)[0]
-                gradcam_url = get_gradcam_plot_base64(saliency, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
-                
-                # Clean up intermediate arrays immediately
-                del grads, saliency_raw
+            gradcam_url = ""
+
+            # Check if we should force attention explanation
+            if is_render:
+                print("[Web] Render environment detected. Computing Attention-based explanation (torch.no_grad).")
+                model.eval()
+                with torch.no_grad():
+                    logits, attn_list = model(data_a, data_b)
+                    if attn_list and len(attn_list) > 0:
+                        attn = attn_list[0]  # [num_heads, seq_len_a, seq_len_b]
+                        mean_attn = attn.detach().cpu().float().mean(dim=0)  # [seq_len_a, seq_len_b]
+                        scores = mean_attn.sum(dim=1).numpy()  # [seq_len_a]
+                        saliency = ((scores - scores.min()) / (scores.max() - scores.min() + 1e-8)).tolist()
+
+                        pdb_name = os.path.splitext(filename)[0]
+                        gradcam_url = get_gradcam_plot_base64(saliency, f"Attention Saliency Map - {pdb_name} Chain {chain_a}")
+                    else:
+                        raise ValueError("Model did not return cross-attention weights.")
+            else:
+                # Try Grad-CAM on CPU
+                try:
+                    print("[Web] Local environment. Trying Grad-CAM explanation on CPU.")
+                    data_a_grad = data_a.clone()
+                    data_a_grad.x = data_a_grad.x.float().detach().clone()
+                    data_a_grad.x.requires_grad_(True)
+
+                    model.zero_grad(set_to_none=True)
+                    logits, _ = model(data_a_grad, data_b)
+                    score = logits.squeeze(-1).sum()
+                    score.backward()
+
+                    if data_a_grad.x.grad is not None:
+                        grads = data_a_grad.x.grad.detach().cpu().numpy()
+                        saliency_raw = np.abs(grads).mean(axis=1)
+                        saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
+
+                        pdb_name = os.path.splitext(filename)[0]
+                        gradcam_url = get_gradcam_plot_base64(saliency, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
+
+                        del grads, saliency_raw
+                    else:
+                        raise ValueError("No gradients computed on node features.")
+                except (MemoryError, RuntimeError, Exception) as gradcam_err:
+                    # Fallback to Attention Saliency on CPU
+                    print(f"[Web] Grad-CAM failed: {gradcam_err}. Falling back to Attention explanation.")
+                    model.zero_grad(set_to_none=True)
+                    gc.collect()
+
+                    model.eval()
+                    with torch.no_grad():
+                        logits, attn_list = model(data_a, data_b)
+                        if attn_list and len(attn_list) > 0:
+                            attn = attn_list[0]
+                            mean_attn = attn.detach().cpu().float().mean(dim=0)
+                            scores = mean_attn.sum(dim=1).numpy()
+                            saliency = ((scores - scores.min()) / (scores.max() - scores.min() + 1e-8)).tolist()
+
+                            pdb_name = os.path.splitext(filename)[0]
+                            gradcam_url = get_gradcam_plot_base64(saliency, f"Attention Saliency Map - {pdb_name} Chain {chain_a}")
+                        else:
+                            raise ValueError("Attention weights unavailable.")
+
+            # Garbage collect
+            gc.collect()
 
             return JSONResponse({
                 "status": "success",
@@ -671,12 +741,15 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "gradcam_scores": saliency,
                 "saliency_scores": saliency
             })
-        except Exception as e:
+
+        except BaseException as e:
             import traceback
             traceback.print_exc()
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail=f"Explainability API failure: {str(e)}")
+            err_msg = str(e) if str(e) else e.__class__.__name__
+            return JSONResponse({
+                "status": "error",
+                "error": f"Explanation failed: {err_msg}"
+            }, status_code=500)
         finally:
             try:
                 if tmp_path and os.path.exists(tmp_path):
