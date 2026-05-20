@@ -603,7 +603,9 @@ if (generateGradcamBtn) {
           let overlapMsg = "";
           if (data.gradcam_image) {
             const numOverlap = Math.round((data.overlap_percentage / 100) * 10);
-            overlapMsg = `Calculated overlap of <strong>${data.overlap_percentage}%</strong> between the top 10 Grad-CAM residues and the predicted binding residues (${numOverlap} overlapping residues).`;
+            const expectedPct = data.random_overlap_percentage !== undefined ? data.random_overlap_percentage : 0.0;
+            overlapMsg = `Calculated overlap of <strong>${data.overlap_percentage}%</strong> (${numOverlap}/10 residues) between the top 10 Grad-CAM residues and the predicted binding residues.<br/>` +
+                         `<span style="display: block; margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">Expected (random) baseline overlap: <strong>${expectedPct}%</strong> (based on random selection under hypergeometric baseline).</span>`;
           } else {
             overlapMsg = `Grad-CAM calculation was bypassed due to server constraint fallback. Overlap analysis requires gradient maps.`;
           }
