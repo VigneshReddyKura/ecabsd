@@ -75,7 +75,7 @@ The V2+ Overboost architecture achieves state-of-the-art predictive performance 
 
 ```bash
 # Clone repository
-git clone https://github.com/VigneshReddyKura/ecabsd.git
+git clone https://github.com/amanigreeva/ECABSD.git
 cd ecabsd
 
 # Create environment
