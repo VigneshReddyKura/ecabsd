@@ -600,7 +600,11 @@ if (generateGradcamBtn) {
 
         // 1. Render Grad-CAM Saliency Map if available
         if (gradcamContainer) gradcamContainer.style.display = 'block';
-        if (data.gradcam_image) {
+        
+        // Final Render-safe logic: check both gradcam_available and gradcam_image
+        const isGradcamAvailable = (data.gradcam_available !== false) && !!data.gradcam_image;
+
+        if (isGradcamAvailable) {
           if (gradcamErrorMsg) gradcamErrorMsg.style.display = 'none';
           if (gradcamImgWrapper) {
             gradcamImgWrapper.style.display = 'block';
@@ -618,7 +622,7 @@ if (generateGradcamBtn) {
           if (downloadGradcamBtn) downloadGradcamBtn.style.display = 'none';
           if (gradcamErrorMsg) {
             gradcamErrorMsg.style.display = 'block';
-            gradcamErrorMsg.textContent = data.gradcam_error || "Grad-CAM unavailable, attention saliency shown separately.";
+            gradcamErrorMsg.textContent = data.gradcam_message || data.gradcam_error || "Grad-CAM skipped due to low memory. Try smaller sample or run locally.";
           }
         }
 

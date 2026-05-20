@@ -70,3 +70,31 @@ async def test_explain_route(client):
     assert "gradcam_image" in json_data
     assert "attention_image" in json_data
     assert "overlap_percentage" in json_data
+
+
+@pytest.mark.anyio
+async def test_explain_route_low_memory(client, monkeypatch):
+    import web.app
+    # Mock has_enough_memory to return False (simulating low RAM)
+    monkeypatch.setattr(web.app, "has_enough_memory", lambda min_free_mb=250: (False, 120.0))
+    
+    pdb_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '1AY7.pdb'))
+    assert os.path.exists(pdb_path)
+    
+    with open(pdb_path, "rb") as f:
+        files = {"pdb_file": ("1AY7.pdb", f, "application/octet-stream")}
+        data = {
+            "chain_a": "A",
+            "chain_b": "B",
+            "threshold": "0.5819",
+        }
+        res = await client.post("/explain", data=data, files=files)
+        
+    assert res.status_code == 200
+    json_data = res.json()
+    assert json_data["status"] == "success"
+    assert json_data["gradcam_available"] is False
+    assert "skipped" in json_data["gradcam_message"]
+    assert json_data["gradcam_image"] is None
+    assert json_data["attention_image"] is not None
+

@@ -132,6 +132,16 @@ def get_gradcam_plot_base64(saliency, title):
         return ""
 
 
+def has_enough_memory(min_free_mb=250):
+    import psutil
+    try:
+        mem = psutil.virtual_memory()
+        free_mb = mem.available / (1024 * 1024)
+        return free_mb >= min_free_mb, free_mb
+    except Exception:
+        return True, 999.0
+
+
 def load_config(config_path: str = "config.yaml") -> dict:
     # Resolve relative to the project root (one level above web/)
     if not os.path.isabs(config_path):
@@ -678,85 +688,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             num_nodes = data_a.num_nodes
 
-            # Limit residues to max 512
-            if num_nodes > 512:
-                return JSONResponse({
-                    "status": "error",
-                    "error": "Grad-CAM unavailable for large proteins (>512 residues) on free hosting. Use local version."
-                })
-
-            saliency_gradcam = None
-            gradcam_image = None
-            gradcam_error = None
-
-            # 1. Try Grad-CAM on CPU first
-            try:
-                print("[Web] Calculating Grad-CAM explanation on CPU.")
-                data_a_grad = data_a.clone()
-                data_a_grad.x = data_a_grad.x.float().detach().clone()
-                data_a_grad.x.requires_grad_(True)
-
-                model.zero_grad(set_to_none=True)
-
-                # Temporarily disable requires_grad for all model parameters to save memory
-                orig_requires_grad = {}
-                for name, param in model.named_parameters():
-                    orig_requires_grad[name] = param.requires_grad
-                    param.requires_grad = False
-
-                try:
-                    logits, _ = model(data_a_grad, data_b)
-
-                    if logits.ndim == 0:
-                        logits = logits.unsqueeze(0)
-
-                    if logits.ndim > 1:
-                        score_logits = logits.squeeze(-1)
-                    else:
-                        score_logits = logits
-
-                    score = score_logits.sum()
-                    score.backward()
-                finally:
-                    # Restore original requires_grad settings
-                    for name, param in model.named_parameters():
-                        if name in orig_requires_grad:
-                            param.requires_grad = orig_requires_grad[name]
-
-                if data_a_grad.x.grad is not None:
-                    grad_tensor = data_a_grad.x.grad
-                    if grad_tensor.ndim == 1:
-                        grad_tensor = grad_tensor.unsqueeze(0)
-
-                    grads = grad_tensor.detach().cpu().numpy()
-                    features = data_a_grad.x.detach().cpu().numpy()
-
-                    # Gradient-based Grad-CAM calculation
-                    weights = np.mean(grads, axis=0)
-                    saliency_raw = np.sum(features * weights, axis=1)
-                    saliency_raw = np.maximum(saliency_raw, 0) # ReLU positive contribution
-
-                    if np.all(saliency_raw == 0) or np.max(saliency_raw) == 0:
-                        saliency_raw = np.abs(np.sum(features * grads, axis=1))
-
-                    denom = (saliency_raw.max() - saliency_raw.min() + 1e-8)
-                    saliency_gradcam = ((saliency_raw - saliency_raw.min()) / denom).tolist()
-
-                    pdb_name = os.path.splitext(filename)[0]
-                    gradcam_image = get_gradcam_plot_base64(saliency_gradcam, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
-
-                    del grads, features, saliency_raw
-                else:
-                    raise ValueError("No gradients computed on node features.")
-            except (MemoryError, RuntimeError, Exception) as gradcam_err:
-                print(f"[Web] Grad-CAM failed: {gradcam_err}")
-                gradcam_error = f"Grad-CAM unavailable ({str(gradcam_err) or gradcam_err.__class__.__name__}), attention saliency shown separately."
-                saliency_gradcam = None
-                gradcam_image = None
-                model.zero_grad(set_to_none=True)
-                gc.collect()
-
-            # 2. Always compute Attention Saliency Map separately
+            # 1. Always compute Attention Saliency Map first (Memory Safe, forward pass only)
             attention_image = None
             saliency_attn = None
             try:
@@ -784,6 +716,97 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         raise ValueError("Attention weights unavailable.")
             except Exception as attn_err:
                 print(f"[Web] Attention calculation failed: {attn_err}")
+
+            # 2. Check RAM guard & sample size guard before running Grad-CAM
+            gradcam_available = True
+            gradcam_image = None
+            saliency_gradcam = None
+            gradcam_error = None
+            gradcam_message = None
+
+            ok, free_mb = has_enough_memory(250)
+
+            if num_nodes > 300:
+                gradcam_available = False
+                gradcam_message = "Grad-CAM skipped for large protein on Render free tier. Use local mode."
+                gradcam_error = gradcam_message
+                print(f"[Web] Skipping Grad-CAM: {gradcam_message}")
+                gc.collect()
+            elif not ok:
+                gradcam_available = False
+                gradcam_message = f"Grad-CAM skipped: low server memory ({free_mb:.0f} MB free). Attention saliency shown instead."
+                gradcam_error = gradcam_message
+                print(f"[Web] Skipping Grad-CAM: {gradcam_message}")
+                gc.collect()
+            else:
+                # Try Grad-CAM on CPU
+                try:
+                    print("[Web] Calculating Grad-CAM explanation on CPU.")
+                    data_a_grad = data_a.clone()
+                    data_a_grad.x = data_a_grad.x.float().detach().clone()
+                    data_a_grad.x.requires_grad_(True)
+
+                    model.zero_grad(set_to_none=True)
+
+                    # Temporarily disable requires_grad for all model parameters to save memory
+                    orig_requires_grad = {}
+                    for name, param in model.named_parameters():
+                        orig_requires_grad[name] = param.requires_grad
+                        param.requires_grad = False
+
+                    try:
+                        logits, _ = model(data_a_grad, data_b)
+
+                        if logits.ndim == 0:
+                            logits = logits.unsqueeze(0)
+
+                        if logits.ndim > 1:
+                            score_logits = logits.squeeze(-1)
+                        else:
+                            score_logits = logits
+
+                        score = score_logits.sum()
+                        score.backward()
+                    finally:
+                        # Restore original requires_grad settings
+                        for name, param in model.named_parameters():
+                            if name in orig_requires_grad:
+                                param.requires_grad = orig_requires_grad[name]
+
+                    if data_a_grad.x.grad is not None:
+                        grad_tensor = data_a_grad.x.grad
+                        if grad_tensor.ndim == 1:
+                            grad_tensor = grad_tensor.unsqueeze(0)
+
+                        grads = grad_tensor.detach().cpu().numpy()
+                        features = data_a_grad.x.detach().cpu().numpy()
+
+                        # Gradient-based Grad-CAM calculation
+                        weights = np.mean(grads, axis=0)
+                        saliency_raw = np.sum(features * weights, axis=1)
+                        saliency_raw = np.maximum(saliency_raw, 0) # ReLU positive contribution
+
+                        if np.all(saliency_raw == 0) or np.max(saliency_raw) == 0:
+                            saliency_raw = np.abs(np.sum(features * grads, axis=1))
+
+                        denom = (saliency_raw.max() - saliency_raw.min() + 1e-8)
+                        saliency_gradcam = ((saliency_raw - saliency_raw.min()) / denom).tolist()
+
+                        pdb_name = os.path.splitext(filename)[0]
+                        gradcam_image = get_gradcam_plot_base64(saliency_gradcam, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
+
+                        del grads, features, saliency_raw
+                    else:
+                        raise ValueError("No gradients computed on node features.")
+                except (MemoryError, RuntimeError, Exception) as gradcam_err:
+                    print(f"[Web] Grad-CAM failed: {gradcam_err}")
+                    gradcam_available = False
+                    gradcam_message = f"Grad-CAM unavailable ({str(gradcam_err) or gradcam_err.__class__.__name__}), attention saliency shown separately."
+                    gradcam_error = gradcam_message
+                    saliency_gradcam = None
+                    gradcam_image = None
+                    model.zero_grad(set_to_none=True)
+                    gc.collect()
 
             # 3. Add overlap check (between top 10 Grad-CAM residues and top predicted binding residues)
             overlap_pct = 0.0
@@ -834,6 +857,9 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             return JSONResponse({
                 "status": "success",
+                "gradcam_available": gradcam_available,
+                "gradcam_message": gradcam_message,
+                "attention_saliency": attention_image,
                 "gradcam_image": gradcam_image,
                 "gradcam_error": gradcam_error,
                 "attention_image": attention_image,
