@@ -1,0 +1,166 @@
+ 
+1 
+CrossPPI: A Cross-Fusion Based Model for Protein–Protein Binding Affinity Prediction Suhas Reddy Singham1, 2, Nithish Chandra Azad Devarashetty1, 2, Sanjana Gogte2, Vani Kondaparthi2, 3* 1Department of Computer Science and Engineering, Keshav Memorial Institute of Technology, Narayanaguda, Hyderabad, Telangana, India-500029 2Drugparadigm Research Lab, Uppal, Hyderabad, Telangana, India- 500088 3Department of Chemistry, Keshav Memorial Engineering College, Uppal, Hyderabad, Telangana, India- 500088. *Corresponding Author: Vani Kondaparthi  Email: vani@drugparadigm.in                         
+ 
+2 
+Abstract  Background: Many biological processes depend on protein–protein interactions (PPIs), which are particularly important across biology, medicine, and biotechnology. It is essential to accurately predict the binding affinity between protein pairs to prioritize candidate interactions in large-scale studies and expedite drug discovery. The application of cross-attention mechanisms between ligand and receptor protein sequences is often neglected in current computational models, limiting their capacity to accurately represent inter-protein dependencies. In this study, we introduce CrossPPI, a novel deep learning framework that integrates structural and sequential features of interacting proteins to improve binding affinity prediction. To model intricate interactions between protein pairs, CrossPPI uses a transformer-based cross-fusion module and a dual-view feature-extraction approach that combines Graph Attention Networks (GATs) and Convolutional Neural Networks (CNNs). Results: On the test dataset of 300 protein–protein pairs. CrossPPI achieved a Pearson correlation coefficient (PCC) of 0.7616, a Spearman correlation coefficient (SCC) of 0.7644, a mean absolute error (MAE) of 1.2869, and a root mean square error (RMSE) of 1.6824, indicating its ability to predict the binding affinity of two proteins. Conclusion: The results highlight CrossPPI’s capability to predict inter-protein binding affinities by leveraging an attention-based integration of sequence and structural features. Keywords: Protein–Protein Interaction, Binding Affinity Prediction, Deep Learning, Graph Neural Networks, Transformer, Sequence Embedding, Cross-Fusion, ESM2, Structural Bioinformatics 1. Introduction Proteins are involved in all significant biological actions, including signalling (1, 2), immunological responses (3, 4), and enzyme-related functions (5, 6), which drive chemical reactions. The most common way proteins enhance their biological activity is through protein-protein interactions (PPIs), which are widely recognized as a major mechanism of altering protein activity. PPIs are a crucial component of protein activity modulation, providing a means for proteins to be functionally active in specific physiological contexts. In many instances, proteins arrive at their biologically active conformational or functional state only through an interaction with a partner protein (7). Therefore, most biological processes rely on PPIs, and PPIs failing or being disrupted in any way can result in loss of biological function, unchecked signaling, and various other negative downstream consequences; PPIs and their dysfunction are associated with many neurodegenerative diseases (8) and cancer (9) disorders. There is also an effort to develop therapeutic modalities that specifically target these PPIs (10). 
+ 
+3 
+Researchers utilize experimental methods to investigate PPIs, as well as a variety of classical experimental techniques, including but not limited to: yeast two-hybrid screening (11, 12), isothermal titration calorimetry (13, 14), and surface plasmon resonance (15), to study protein–protein interactions (PPIs). While these methods can be valuable and robust, they can also be expensive, slow, and relatively labor-intensive (16). Over time, computational methods have gained significant traction, providing a faster way to estimate the binding affinity of two protein sequences and enabling researchers to prioritize which interactions to test in the laboratory (17). Early methods in this area generally relied on sequence alignments to make predictions, energy scoring functions, or molecular docking (18). One software tool that predicts the type and number of contacts at the protein interface is PRODIGY (19), but as deep learning (20) has become more prevalent, models using these new methodologies have begun to outperform traditional methods. Some conventional models, like GraphDTA (21) and DeepAffinity (22), predict binding affinity using graph-based molecular representations and sequence-derived embeddings  respectively. While these models have been successful in predicting protein–small molecule interactions, there is sparse evidence indicating direct applicability for predicting PPI affinity with the above approaches primarily because these were earlier designed to consider small-molecule binding, which may not encompass the complex, larger interface features of PPIs. Despite the advancements made over the years, predicting PPI binding affinity remains a challenging task (23, 24). A major gap in the current literature is the lack of generalizability, as most models are extensively trained on small or narrow datasets and struggle to transfer their performance to proteins from uncharacterized families. Additionally, approaches that solely focus on either protein sequence or structural information often miss the complementary information available through both forms of data.  In response to the challenges in this area of research, we introduce CrossPPI, a deep learning model tailored for predicting protein–protein binding affinity. It is derived from DeepRSMA (25) but modified for protein-protein binding affinity prediction rather than RNA-small molecule binding affinity prediction. CrossPPI model uses structural and sequence information from ligand protein and receptor protein pairs. On the structure side, the model uses Graph Attention Networks (GATs) (26) to model the residue-level interactions and topological relationships. Simultaneously, 1D CNNs (27) are used to acquire hierarchical sequence patterns. The different representations are fused via a cross-fusion transformer module, allowing for bidirectional contextual learning from the ligand and receptor over both sequence and structure modalities. CrossPPI, thus, has the potential to integrate more complex interaction dynamics in a more unified and biologically relevant way as it would relate to the 
+ 
+4 
+binding affinity of the two interacting partners. The fused embeddings are then pooled to predict the binding affinity. In addition, CrossPPI’s modular structure offers flexibility and maintainability, enabling easy modification or extension of the model for different applications in protein interaction modelling.  2. Method 2.1. Overview The CrossPPI framework consists of three different modules, as illustrated in Figure 1: a pKD prediction module, a cross-fusion module, and a protein feature extraction module, which is used for extracting features for both receptors and ligands. The protein feature extraction module uses a 1D CNN block to extract sequential features from protein residues, and a contact map generated via ESM2(650M) to extract spatial features. The cross-fusion module combines receptor and ligand information, and the pKD prediction module then predicts the pKD for the receptor and ligand protein sequences. The model’s performance was evaluated with PCC (28), SCC (29), MAE, and RMSE (30, 31). High values for PCC and SCC indicate that the model captured the linear and monotonic relationships, respectively. In contrast, lower values for MAE and RMSE indicate greater accuracy in predicting binding affinity. 2.2 Protein feature extraction module 2.2.1 Protein graph findings The protein graph information is collected from the sequence using ESM2 (650M) to generate a contact map. This contact map is then binarized with a threshold of 0.5, indicating that two amino acids are considered to be in contact if their distance is less than 0.5 (represented as 1) and not in contact if their distance is greater than 0.5 (defined as 0). Three GAT layers are applied to the amino acid embedding derived from the protein sequence, followed by one-hot encoding to learn node embeddings and capture intricate relationships between nodes (i.e., protein residues). Each edge, or connection between nodes, is given an attention coefficient by GAT, which is determined using the formula given below.    𝛼௜௡௟=௘௫௣ቀ௅௘௔௞௬ோ௘௅௎൫௔೅ൣௐ೏௣೔೗,ௐ೏௣೙೗൧൯ቁ∑௘௫௣ቀ௅௘௔௞௬ோ௘௅௎൫௔೅ൣௐ೏௣೔೗,ௐ೏௣೘೗൧൯ቁ೘∈ಿ(೔) Where LeakyReLU is an activation function (32, 33), pil is the hidden representation of the amino acid i at the lth layer, Wd is a trainable parameter and a is the learnable weight matrix, 
+ 
+5 
+and N(i) is the neighbor nodes of i. After acquiring the attention coefficient, the representation of amino acid i is calculated by a linear attention aggregation layer: 𝑝𝑖𝑔,(𝑙)=𝑅𝑒𝐿𝑈ቆ𝛼𝑖𝑖(𝑙−1)𝑊𝑎𝑝𝑖𝑔,(𝑙−1)+෍𝛼𝑖𝑛(𝑙−1)𝑊𝑎𝑝𝑛𝑔,(𝑙−1)𝑚∈𝑁(𝑖)ቇ Where Wa is a trainable parameter and 𝛼 is the attention coefficient. 2.2.2 Protein sequence information After the one-hot encoded sequence has been passed through an embedding layer, the amino acid embeddings were created to extract sequential information from the protein sequence. Furthermore, the embedding produced was used by ESM2 (650M) to leverage its capacity to capture contextually aware, rich representations of protein sequences (34). The ESM2 (650M) and amino acid embeddings are then both padded to a predetermined length. The embeddings are averaged after padding.      𝑒𝑐𝑜𝑚=(𝑒𝑎𝑚𝑖𝑛𝑜+𝑒𝑒𝑠𝑚)2 Where ecom is the combined embeddings, eamino is the embeddings generated by the embeddings layer, and eesm are the embeddings generated by the ESM2 (650M) model. To investigate amino acids in various local neighborhoods, three 1D CNN layers with kernel sizes of 7, 11, and 15 were used (35, 36). The final CNN embeddings are obtained by linearly transforming the averaged outputs of the three CNNs. 𝐿𝑠=𝑅𝑒𝐿𝑈൭𝑊𝑐2ቆ𝑅𝑒𝐿𝑈ቀ𝑊𝑐1𝐸ቁቇ൱ Where E is the averaged embedding, Wc1 and Wc2 are trainable parameters. After averaging the node-level features and masking the padded position, the final sequential embeddings are obtained. 
+ 
+6 
+Fig. 1: Overview of the CrossPPI framework.  
+ Figure 1 presents 2.2 as the Feature Extraction Module for Ligand and Receptor, as mentioned in the respective section;  2.3 presents the Cross-fusion module to integrate ligand and receptor information from sequential and graphical views, as mentioned. 2.4 represents the Affinity Prediction module to combine the ligand and receptor representations from (2.2) and (2.3) to predict ligand and receptor binding affinity values.  2.3. Cross-Fusion Module To model their interactions for affinity prediction, the cross-fusion module combines the graph and sequence embeddings of the ligand and receptor, produced in sections 2.2.1 and 2.2.2, respectively. To capture intricate, non-local interactions between receptor and ligand residues, it uses a transformer-based cross-attention mechanism. The two inputs [Rg, Rs] and [Lg, Ls] that make up the cross-fusion module are the sequential and graphical embeddings of the receptor and ligand, respectively, together with their corresponding masks; to identify the input's source, it uses a graph-view segment embedding (Sg) and a sequence-view segment embedding (Ss). Following the application of cross-
+
+ 
+7 
+attention, the module generates a context layer that includes the fused representations of the Receptor and Ligand, as well as their respective attention ratings. Consider the following representations: rg, rs, lg, and ls, which stand for receptor graph, receptor sequence, ligand graph, and ligand sequence embeddings, respectively. Before being concatenated into receptor and ligand hidden states, the graph and sequence view segment embeddings are first added to the receptor and ligand embeddings.  𝑙𝑖𝑔𝑎𝑛𝑑 = 𝑐𝑜𝑛𝑐𝑎𝑡(𝑙௦+ 𝑙௚)𝑟𝑒𝑐𝑒𝑝𝑡𝑜𝑟 = 𝑐𝑜𝑛𝑐𝑎𝑡(𝑟௦+ 𝑟௚) Following this, the masks are concatenated appropriately, the hidden states and masks are grouped, the ligand and receptor hidden states are subjected to cross-attention, and, after masking, SoftMax is applied to the result; the context layers are obtained. Dense layers are applied to the resulting context layers to refine the features; this process is then repeated for n layers to receive the encoded layers and attention scores of the Receptor and Ligand. 2.4 Affinity prediction module The affinity prediction module combines Receptor and Ligand embeddings from Protein feature extraction and cross-fusion modules to predict the binding affinity (pKD). It processes the four Receptor embeddings Rg, Rs, Rc,g, Rc,s, and the four Ligand embeddings Lg, Ls, Lc,g, Lc,s .  The Receptor embeddings R and Ligand embedding L are obtained by averaging and then passing their respective embeddings through an MLP. The calculations used to get the embeddings are:  𝐿 = 𝑀𝐿𝑃([𝑀𝑒𝑎𝑛(𝐿௚, 𝐿௖,௚), 𝑀𝑒𝑎𝑛(𝐿௦, 𝐿௖,௦)]) 𝑅 = 𝑀𝐿𝑃([𝑀𝑒𝑎𝑛(𝑅௚, 𝑅௖,௚), 𝑀𝑒𝑎𝑛(𝑅௦, 𝑅௖,௦)]) Where the MLP uses ReLU as an activation function and has a dropout of 0.2. Finally, we use a 3-layer MLP to obtain the predicted pKD of the Receptor and Ligand. 𝑦^= 𝑀𝐿𝑃([𝐿, 𝑅]) Where,   is the predicted pKD of the Receptor-Ligand pair. The model is trained to minimize the root mean squared error between predicted and actual pKD values. During the training process, the model was trained with a learning rate of 5e-4, hidden dimension of 128, batch size of 32, dropout of 0.2, and weight decay of 1e-7. 2.5. Datasets 
+
+ 
+8 
+PPB-Affinity (37) is a protein-protein binding affinity dataset that includes 12062 distinct receptor-ligand pairs, along with their corresponding PDB IDs and experimentally verified KD values in molar units. The dataset examined in this study contains various protein types, allowing for extensive representation of protein-protein interactions. It consists of proteins found in biological organisms, including viruses, bacteria, humans, and non-mammalian organisms. The dataset's diversity allows the model to learn interactions across species and biological contexts, thereby improving its generalizability and robustness for PPI prediction. For ease of interpretation, the dataset was converted to pKD (pKD = -log10 [KD]).  The model was trained on a dataset created by extracting 6436 dimer pairs, that is, only one ligand chain and one receptor chain. Of these, 300 samples were selected from the training set to create a test set for comparative analysis. A density plot, as shown in Figure 2, was designed to visualize the distributions of pKD values in the training and test datasets. Fig. 2: Distribution Curve Comparison of pKD Values.      Figure 2 presents the density distribution curves for pKD values in the train (blue) and test (orange) datasets. The x-axis represents the pKD values ranging from 0.0 to 17.5, while the y-axis indicates the density.  It can be observed from Figure 2 that both the training and test datasets have similar peaks and some overlap, indicating that they have a similar distribution of values. 3. Results and Discussion 3.1. Five-Fold evaluation. 
+
+ 
+9 
+The model's performance was evaluated using five-fold cross-validation (38) on the 6136-sample training dataset. The dataset is split into k equal parts (in the present case, 5) for cross-validation. The remaining portions are used to train the model, while one of these sections, which comprises 20% of the dataset, is selected as the test set. Each component is used as the test set once during the five repetitions of this procedure. To assess the model's performance, the PCC, SCC, MAE, and RMSE were computed for each fold. By averaging the PCC, SCC, MAE, and RMSE of the best model from each of the five folds, the final PCC, SCC, MAE, and RMSE of the model were determined, which were 0.7534, 0.7528, 1.1572, and 1.5450, respectively. Table 1 displays the individual folds' PCC, SCC, MAE, and RMSE values. The best values for each metric are indicated in bold. Additionally, Figure 3 shows the CrossPPI metrics on the training dataset.      Fig. 3: Performance Metrics of CrossPPI on Training Dataset.                                                                   The line graph in Figure 3 displays the performance of CrossPPI training metrics (PCC and SCC) over epochs on the training dataset.  Table 1: Metrics across all 5-folds. Fold PCC SCC MAE RMSE 1 0.7526 0.7377 1.1138 1.5154 2 0.7486 0.7351 1.2033 1.5869 3 0.7710 0.7796 1.0283 1.3983 
+
+ 
+10 
+4 0.7253 0.7397 1.1809 1.6013 5 0.7695 0.7720 1.2598 1.6232   The metrics in Table 1 present the valid score of each metric across all 5-folds, with the best scores highlighted in bold. 3.2 Comparison with other models on the test dataset. The 300-sample test dataset was used to compare the CrossPPI model's performance to that of other models.  The best outcomes are highlighted in bold in Table 2, which presents the results. The CrossPPI model is evaluated with KNN (39) and SVM (40) as the machine learning baselines and transformer (41) and GCN (42) as deep learning baselines. The CrossPPI model obtained a PCC of 0.7616, SCC of 0.7644, MAE of 1.2869, and RMSE of 1.6824 on the test dataset. The test dataset was evaluated using the CrossPPI fold-1 checkpoint. The CrossPPI model's predictions on the test dataset are displayed as a scatter plot in Figure 4. Fig. 4: CrossPPI model’s pKD values prediction on the test dataset.   The scatter plot in Figure 4 illustrates the relationship between predicted and actual values, with each blue dot representing a single prediction instance. Points closer to the red line (linear regression line) reflect higher prediction accuracy.    
+
+ 
+11 
+Table 2: Comparison of models on the test dataset. Methods PCC SCC MAE RMSE KNN 0.7074 0.6757 1.2884 1.8189 SVM 0.6486 0.6724 1.2479 1.7324 Transformer 0.6381 0.6390 1.2980 1.7234 GCN 0.5034 0.5610 1.4860 1.9632 PPI-Graphomer 0.6062 0.6088 1.9082 2.3454 PRODIGY 0.3366 0.3320 1.8135 2.3806 CrossPPI 0.7616 0.7644 1.2869 1.6824          All four parameters were compared across all available models and presented in Table 2. CrossPPI achieved the best PCC, SCC, and RMSE scores among all the models tested and has the second-best MAE. 3.3 Ablation Study. To evaluate the contribution of each module in our model, we created three variants and tested their performance using five-fold cross-validation. The three models are CrossPPI without graph context (w/o Graph), CrossPPI without sequence context (w/o sequence), and CrossPPI without cross attention (w/o cross_attn).  The results of the five-fold cross-validation, conducted over 100 epochs for each fold, are shown below in Table 3, with the best outcomes highlighted in bold. The noticeable decrease in the performance of CrossPPI (w/o sequence) highlights the importance of sequence information in accurately predicting protein-protein binding affinity. Additionally, the inferior performance of CrossPPI (w/o cross attention) demonstrates the importance of the model learning the binding patterns of the ligand and receptor sequences. 
+ 
+12 
+ Table 3: Ablation study. Method PCC SCC MAE RMSE w/o graph 0.7442 0.7527 1.2044 1.5413 w/o sequence 0.7241 0.7165 1.1747 1.5140 w/o cross_attn 0.7215 0.7312 1.4084 1.7588 CrossPPI 0.7574 0.7584 1.1453 1.4831    Table 3 presents the metrics of ablation studies. Where, w/o means without, and the best performance for each metric is marked in bold.  4. Conclusion The present work, CrossPPI, is a novel deep learning model for predicting protein–protein binding affinity (pKD values). CrossPPI integrates both sequence-based and graph-based representations of protein structures, enabling the model to capture both sequential and spatial information. A primary advantage of the model is its cross-fusion mechanism, which supports effective interaction modeling when the receptor and ligand proteins interact. CrossPPI proposes a new paradigm for pKD value prediction that utilizes complementary sequence and structural features, as well as interaction-aware fusion. Furthermore, because the model uses embeddings and contact maps from the ESM-2 protein language model, improvements to ESM-2 expected in the future will likely enhance CrossPPI's predictive capability. In addition to its strong predictive accuracy, the model's modular design allows for easy integration with emerging protein representation techniques and datasets. This flexibility makes CrossPPI a promising foundation for downstream tasks such as PPI site prediction, protein design, and virtual screening in drug discovery. Although our current work focuses on pairwise protein binding affinity, the underlying architecture can be extended to multi-protein systems or protein–small molecule interactions. Future work may also explore integrating experimental data, attention visualization, and interpretability mechanisms to understand the learned interaction features better and guide experimental validation. ABBREVIATIONS CNN – Convolutional Neural Network 
+ 
+13 
+ESM2 – Evolutionary Scale Modeling 2 GAT – Graph Attention Network GCN – Graph Convolutional Network KNN – K-Nearest Neighbors MAE – Mean Absolute Error MLP – Multi-Layer Perceptron PCC – Pearson Correlation Coefficient PDB – Protein Data Bank pKD – Negative logarithm of the equilibrium dissociation constant (K_D) PPIs – Protein-Protein Interactions PRODIGY – PROtein binDIng enerGY prediction RMSE – Root Mean Square Error SCC – Spearman Correlation Coefficient SVM – Support Vector Machine DECLARATIONS Availability of Data and Materials The code and dataset supporting the conclusions of this article is available in the Github repository https://github.com/drugparadigm/CrossPPI  Ethics Statement The present work did not involve any human participants or animal experiments. Hence, ethical approval was not applicable. Author Contributions Suhas Reddy Singham: Investigation; validation; methodology; visualization; writing— original draft; formal analysis. Nithish Chandra Azad Devarashetty: Formal analysis; methodology; validation; visualization. Sanjana Gogte: Conceptualization; methodology; 
+ 
+14 
+validation; visualization; formal analysis; data curation; software; supervision; formal analysis; writing— review and editing. Vani Kondaparthi: Conceptualization; methodology; writing—review and editing; supervision; formal analysis. Conflict of Interests All authors declare that they have no conflicts of interest. Funding Sources This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors. Acknowledgements We, the authors SRS, NCAD, SG, and VK, express our sincere gratitude to the Drugparadigm Research Lab for providing the necessary facilities and infrastructure that enabled the successful completion of this work. 
+ 
+ 
+REFERENCES 
+ 
+1. Bondos SE, Dunker AK, Uversky VN. Intrinsically disordered proteins play diverse roles 
+in cell signaling. Cell Commun Signal. [Research Support, N.I.H., Extramural Review]. 
+2022 Feb 17;20(1):20. 
+2. Neagu M, Constantin C. Signal Transduction in Immune Cells and Protein Kinases. 2021. 
+p. 133-49. 
+3. Di Conza G, Ho PC, Cubillos-Ruiz JR, Huang SC. Control of immune cell function by the 
+unfolded protein response. Nat Rev Immunol. [Research Support, N.I.H., Extramural 
+Research Support, Non-U.S. Gov't Research Support, U.S. Gov't, Non-P.H.S. Review]. 
+2023 Sep;23(9):546-62. 
+4. Megha KB, Mohanan PV. Role of immunoglobulin and antibodies in disease management. 
+Int J Biol Macromol. [Review]. 2021 Feb 1;169:28-38. 
+5. Engin A. Protein Kinase-Mediated Decision Between the Life and Death. Adv Exp Med 
+Biol. 2021;1275:1-33. 
+6. Torgeson KR, Clarkson MW, Granata D, Lindorff-Larsen K, Page R, Peti W. Conserved 
+conformational dynamics determine enzyme activity. Sci Adv. 2022 Aug 
+5;8(31):eabo5546. 
+7. Sevimoglu T, Arga KY. The role of protein interaction networks in systems biomedicine. 
+Comput Struct Biotechnol J. [Review]. 2014 Aug;11(18):22-7. 
+8. Ramazi S, Dadzadi M, Darvazi M, Seddigh N, Allahverdi A. Protein modification in 
+neurodegenerative diseases. MedComm (2020). [Review]. 2024 Aug;5(8):e674. 
+9. Joerger AC, Fersht AR. Structure-function-rescue: the diverse nature of common p53 
+cancer mutants. Oncogene. [Review]. 2007 Apr 2;26(15):2226-42. 
+10. Camps-Fajol C, Cavero D, Minguillon J, Surralles J. Targeting protein-protein interactions 
+in drug discovery: Modulators approved or in clinical trials for cancer treatment. Pharmacol 
+Res. [Review]. 2025 Jan;211:107544. 
+11. Elmore JM, Velasquez-Zapata V, Wise RP. Next-Generation Yeast Two-Hybrid Screening 
+to Discover Protein-Protein Interactions. Methods Mol Biol. [Research Support, Non-U.S. 
+Gov't Research Support, U.S. Gov't, Non-P.H.S.]. 2023;2690:205-22. 
+ 
+15 
+12. McLellan H, Armstrong MR, Birch PRJ. Yeast Two-Hybrid Screening for Identification of 
+Protein-Protein Interactions in Solanum tuberosum. Methods Mol Biol. [Research Support, 
+Non-U.S. Gov't]. 2021;2354:95-110. 
+13. Velazquez-Campoy A, Leavitt SA, Freire E. Characterization of protein-protein 
+interactions by isothermal titration calorimetry. Methods Mol Biol. [Research Support, 
+N.I.H., Extramural Research Support, U.S. Gov't, Non-P.H.S.]. 2015;1278:183-204. 
+14. Upadhyay V, Lucas A, Patrick C, Mallela KMG. Isothermal titration calorimetry and 
+surface plasmon resonance methods to probe protein-protein interactions. Methods. 
+[Research Support, Non-U.S. Gov't]. 2024 May;225:52-61. 
+15. Douzi B. Surface Plasmon Resonance: A Sensitive Tool to Study Protein-Protein 
+Interactions. Methods Mol Biol. [Research Support, Non-U.S. Gov't]. 2024;2715:363-82. 
+16. Unser S, Bruzas I, He J, Sagle L. Localized Surface Plasmon Resonance Biosensing: 
+Current Challenges and Approaches. Sensors (Basel). [Research Support, Non-U.S. Gov't 
+Review]. 2015 Jul 2;15(7):15684-716. 
+17. Guo Z, Yamaguchi R. Machine learning methods for protein-protein binding affinity 
+prediction in protein design. Front Bioinform. 2022;2:1065703. 
+18. Bitencourt-Ferreira G, de Azevedo WF, Jr. Molecular Docking Simulations with ArgusLab. 
+Methods Mol Biol. [Research Support, Non-U.S. Gov't]. 2019;2053:203-20. 
+19. Vangone A, Bonvin A. PRODIGY: A Contact-based Predictor of Binding Affinity in 
+Protein-protein Complexes. Bio Protoc. 2017 Feb 5;7(3):e2124. 
+20. Soleymani F, Paquet E, Viktor H, Michalowski W, Spinello D. Protein-protein interaction 
+prediction with deep learning: A comprehensive review. Comput Struct Biotechnol J. 
+[Review]. 2022;20:5316-41. 
+21. Nguyen T, Le H, Quinn TP, Le TD, Venkatesh S. GraphDTA: predicting drug-target 
+binding affinity with graph neural networks. Bioinformatics. 2021 May 23;37(8):1140-7. 
+22. Karimi M, Wu D, Wang Z, Shen Y. DeepAffinity: interpretable deep learning of 
+compound-protein affinity through unified recurrent and convolutional neural networks. 
+Bioinformatics. [Research Support, N.I.H., Extramural Research Support, U.S. Gov't, Non-
+P.H.S.]. 2019 Sep 15;35(18):3329-38. 
+23. Tsishyn M, Pucci F, Rooman M. Quantification of biases in predictions of protein-protein 
+binding affinity changes upon mutations. Brief Bioinform. [Research Support, Non-U.S. 
+Gov't]. 2023 Nov 22;25(1). 
+24. Yuan R, Zhang J, Zhou J, Cong Q. Recent progress and future challenges in structure-based 
+protein-protein interaction prediction. Mol Ther. [Review]. 2025 May 7;33(5):2252-68. 
+25. Huang Z, Wang Y, Chen S, Tan YS, Deng L, Wu M. DeepRSMA: a cross-fusion-based 
+deep learning method for RNA-small molecule binding affinity prediction. Bioinformatics. 
+2024 Nov 28;40(12). 
+26. Velickovic P, Cucurull G, Casanova A, Romero A, Lio’ P, Bengio Y. Graph Attention 
+Networks. ArXiv. 2017;abs/1710.10903. 
+27. Kiranyaz S, Avcı O, Abdeljaber O, Ince T, Gabbouj M, Inman DJ. 1D Convolutional Neural 
+Networks and Applications: A Survey. ArXiv. 2019;abs/1905.03554. 
+28. Rovetta A. Raiders of the Lost Correlation: A Guide on Using Pearson and Spearman 
+Coefficients to Detect Hidden Correlations in Medical Sciences. Cureus. 2020 Nov 
+30;12(11):e11794. 
+29. Wisniewski SJ, Brannan GD. Correlation (Coefficient, Partial, and Spearman Rank) and 
+Regression Analysis.  StatPearls. Treasure Island (FL) ineligible companies. Disclosure: 
+Grace Brannan declares no relevant financial relationships with ineligible companies.2025. 
+30. Robeson SM, Willmott CJ. Decomposition of the mean absolute error (MAE) into 
+systematic and unsystematic components. PLoS One. 2023;18(2):e0279774. 
+ 
+16 
+31. Terven JR, Córdova-Esparza D-M, Romero-González J-A, Ramirez-Pedraza A, Chavez-
+Urbiola EA. A comprehensive survey of loss functions and metrics in deep learning. Artif 
+Intell Rev. 2023;58:195. 
+32. Holzmüller D, Schölpple M. Beyond ReLU: How Activations Affect Neural Kernels and 
+Random Wide Networks. ArXiv. 2025;abs/2506.22429. 
+33. Layton OW, Peng S, Steinmetz ST. ReLU, Sparseness, and the Encoding of Optic Flow in 
+Neural Networks. Sensors. 2024;24(23):7453. 
+34. Zhao L, He Q, Song H, Zhou T, Luo A, Wen Z, et al. Protein A-like Peptide Design Based 
+on Diffusion and ESM2 Models. Molecules. 2024 Oct 21;29(20). 
+35. Lee S, Hussein R, Ward R, Jane Wang Z, McKeown MJ. A convolutional-recurrent neural 
+network approach to resting-state EEG classification in Parkinson's disease. J Neurosci 
+Methods. [Research Support, N.I.H., Extramural Research Support, Non-U.S. Gov't]. 2021 
+Sep 1;361:109282. 
+36. Sathi KA, Hosain MK, Hossain MA, Kouzani AZ. Attention-assisted hybrid 1D CNN-
+BiLSTM model for predicting electric field induced by transcranial magnetic stimulation 
+coil. Sci Rep. 2023 Feb 13;13(1):2494. 
+37. Liu H, Chen P, Zhai X, Huo KG, Zhou S, Han L, et al. PPB-Affinity: Protein-Protein 
+Binding Affinity dataset for AI-based protein drug discovery. Sci Data. 2024 Dec 
+3;11(1):1316. 
+38. Arlot S, Celisse A. A Survey of Cross Validation Procedures for Model Selection. Statistics 
+Surveys. 2009;4. 
+39. Cover T, Hart P. Nearest neighbor pattern classification. IEEE Transactions on Information 
+Theory. 1967;13(1):21-7. 
+40. Hearst MA, Dumais ST, Osuna E, Platt J, Scholkopf B. Support vector machines. IEEE 
+Intelligent Systems and their Applications. 1998;13(4):18-28. 
+41. Vaswani A, Shazeer NM, Parmar N, Uszkoreit J, Jones L, Gomez AN, et al., editors. 
+Attention is All you Need. Neural Information Processing Systems; 2017. 
+42. Kipf T, Welling M. Semi-Supervised Classification with Graph Convolutional Networks. 
+ArXiv. 2016;abs/1609.02907. 
+ 
+ 
+ 
+ 

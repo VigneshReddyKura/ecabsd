@@ -1,0 +1,471 @@
+[
+  {
+    "pdb_id": "1TK4",
+    "f1_score": 0.1935483870967742,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 14,
+    "actual_residues": 17
+  },
+  {
+    "pdb_id": "2AXI",
+    "f1_score": 0.2727272727272727,
+    "issue": "Underprediction",
+    "predicted_residues": 4,
+    "actual_residues": 18
+  },
+  {
+    "pdb_id": "2CF8",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 21,
+    "actual_residues": 15
+  },
+  {
+    "pdb_id": "2OXW",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 11
+  },
+  {
+    "pdb_id": "2WLV",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 27
+  },
+  {
+    "pdb_id": "2WNV",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 24,
+    "actual_residues": 15
+  },
+  {
+    "pdb_id": "2ZFD",
+    "f1_score": 0.15789473684210525,
+    "issue": "Underprediction",
+    "predicted_residues": 3,
+    "actual_residues": 35
+  },
+  {
+    "pdb_id": "3ASL",
+    "f1_score": 0.2,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 31,
+    "actual_residues": 19
+  },
+  {
+    "pdb_id": "2XTS",
+    "f1_score": 0.2026431718061674,
+    "issue": "Overprediction",
+    "predicted_residues": 204,
+    "actual_residues": 23
+  },
+  {
+    "pdb_id": "3CJS",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 10
+  },
+  {
+    "pdb_id": "3F1P",
+    "f1_score": 0.15789473684210525,
+    "issue": "Underprediction",
+    "predicted_residues": 9,
+    "actual_residues": 29
+  },
+  {
+    "pdb_id": "3HDS",
+    "f1_score": 0.19753086419753085,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 37,
+    "actual_residues": 44
+  },
+  {
+    "pdb_id": "3HSV",
+    "f1_score": 0.20689655172413793,
+    "issue": "Overprediction",
+    "predicted_residues": 22,
+    "actual_residues": 7
+  },
+  {
+    "pdb_id": "3ME9",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 15,
+    "actual_residues": 23
+  },
+  {
+    "pdb_id": "3MEU",
+    "f1_score": 0.05,
+    "issue": "Underprediction",
+    "predicted_residues": 10,
+    "actual_residues": 30
+  },
+  {
+    "pdb_id": "3QGJ",
+    "f1_score": 0.0,
+    "issue": "Overprediction",
+    "predicted_residues": 31,
+    "actual_residues": 3
+  },
+  {
+    "pdb_id": "3RM1",
+    "f1_score": 0.12903225806451613,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 16,
+    "actual_residues": 15
+  },
+  {
+    "pdb_id": "3RUN",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 10,
+    "actual_residues": 12
+  },
+  {
+    "pdb_id": "3U23",
+    "f1_score": 0.18181818181818182,
+    "issue": "Underprediction",
+    "predicted_residues": 2,
+    "actual_residues": 20
+  },
+  {
+    "pdb_id": "4J9E",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 8,
+    "actual_residues": 12
+  },
+  {
+    "pdb_id": "4JJ7",
+    "f1_score": 0.2222222222222222,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 34,
+    "actual_residues": 20
+  },
+  {
+    "pdb_id": "4HRT",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 2
+  },
+  {
+    "pdb_id": "4LEB",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 12,
+    "actual_residues": 22
+  },
+  {
+    "pdb_id": "4O36",
+    "f1_score": 0.14285714285714285,
+    "issue": "Underprediction",
+    "predicted_residues": 7,
+    "actual_residues": 21
+  },
+  {
+    "pdb_id": "4RMI",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 15
+  },
+  {
+    "pdb_id": "4WX4",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 16,
+    "actual_residues": 29
+  },
+  {
+    "pdb_id": "5BXO",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 21,
+    "actual_residues": 21
+  },
+  {
+    "pdb_id": "5ADU",
+    "f1_score": 0.06993006993006994,
+    "issue": "Overprediction",
+    "predicted_residues": 113,
+    "actual_residues": 30
+  },
+  {
+    "pdb_id": "5E95",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 21
+  },
+  {
+    "pdb_id": "5H3J",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 47
+  },
+  {
+    "pdb_id": "5I1N",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 2
+  },
+  {
+    "pdb_id": "5ONQ",
+    "f1_score": 0.2857142857142857,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 10,
+    "actual_residues": 18
+  },
+  {
+    "pdb_id": "5ONR",
+    "f1_score": 0.24,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 10,
+    "actual_residues": 15
+  },
+  {
+    "pdb_id": "5TEG",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 6,
+    "actual_residues": 18
+  },
+  {
+    "pdb_id": "5XCO",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 18
+  },
+  {
+    "pdb_id": "5XHZ",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 5,
+    "actual_residues": 9
+  },
+  {
+    "pdb_id": "5YD3",
+    "f1_score": 0.05263157894736842,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 25,
+    "actual_residues": 13
+  },
+  {
+    "pdb_id": "6BCB",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 3,
+    "actual_residues": 18
+  },
+  {
+    "pdb_id": "6FAV",
+    "f1_score": 0.0,
+    "issue": "Overprediction",
+    "predicted_residues": 26,
+    "actual_residues": 5
+  },
+  {
+    "pdb_id": "6FBW",
+    "f1_score": 0.0,
+    "issue": "Overprediction",
+    "predicted_residues": 26,
+    "actual_residues": 7
+  },
+  {
+    "pdb_id": "6FRJ",
+    "f1_score": 0.28125,
+    "issue": "Overprediction",
+    "predicted_residues": 52,
+    "actual_residues": 12
+  },
+  {
+    "pdb_id": "6HIP",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 12,
+    "actual_residues": 11
+  },
+  {
+    "pdb_id": "6GAL",
+    "f1_score": 0.189873417721519,
+    "issue": "Overprediction",
+    "predicted_residues": 137,
+    "actual_residues": 21
+  },
+  {
+    "pdb_id": "6IHX",
+    "f1_score": 0.2545454545454545,
+    "issue": "Overprediction",
+    "predicted_residues": 42,
+    "actual_residues": 13
+  },
+  {
+    "pdb_id": "6OJ7",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 19
+  },
+  {
+    "pdb_id": "6RD2",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 15
+  },
+  {
+    "pdb_id": "6SBA",
+    "f1_score": 0.2028985507246377,
+    "issue": "Overprediction",
+    "predicted_residues": 52,
+    "actual_residues": 17
+  },
+  {
+    "pdb_id": "6UYZ",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 11,
+    "actual_residues": 13
+  },
+  {
+    "pdb_id": "7ETV",
+    "f1_score": 0.07142857142857142,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 14,
+    "actual_residues": 14
+  },
+  {
+    "pdb_id": "7KJM",
+    "f1_score": 0.2222222222222222,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 6,
+    "actual_residues": 12
+  },
+  {
+    "pdb_id": "7OFV",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 7,
+    "actual_residues": 21
+  },
+  {
+    "pdb_id": "7T89",
+    "f1_score": 0.2716049382716049,
+    "issue": "Overprediction",
+    "predicted_residues": 69,
+    "actual_residues": 12
+  },
+  {
+    "pdb_id": "7Z8O",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 14
+  },
+  {
+    "pdb_id": "8DAB",
+    "f1_score": 0.24,
+    "issue": "Underprediction",
+    "predicted_residues": 7,
+    "actual_residues": 18
+  },
+  {
+    "pdb_id": "8EBL",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 1,
+    "actual_residues": 12
+  },
+  {
+    "pdb_id": "8ESE",
+    "f1_score": 0.08695652173913043,
+    "issue": "Underprediction",
+    "predicted_residues": 1,
+    "actual_residues": 22
+  },
+  {
+    "pdb_id": "8PEF",
+    "f1_score": 0.17391304347826086,
+    "issue": "Underprediction",
+    "predicted_residues": 5,
+    "actual_residues": 18
+  },
+  {
+    "pdb_id": "8S6A",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 2,
+    "actual_residues": 12
+  },
+  {
+    "pdb_id": "8SII",
+    "f1_score": 0.0,
+    "issue": "Poor Accuracy",
+    "predicted_residues": 5,
+    "actual_residues": 7
+  },
+  {
+    "pdb_id": "8T4R",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 25
+  },
+  {
+    "pdb_id": "8UK5",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 3,
+    "actual_residues": 19
+  },
+  {
+    "pdb_id": "9GHK",
+    "f1_score": 0.2857142857142857,
+    "issue": "Overprediction",
+    "predicted_residues": 20,
+    "actual_residues": 8
+  },
+  {
+    "pdb_id": "9GRF",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 0,
+    "actual_residues": 14
+  },
+  {
+    "pdb_id": "9EVF",
+    "f1_score": 0.08695652173913043,
+    "issue": "Underprediction",
+    "predicted_residues": 3,
+    "actual_residues": 20
+  },
+  {
+    "pdb_id": "9IBU",
+    "f1_score": 0.06451612903225806,
+    "issue": "Overprediction",
+    "predicted_residues": 30,
+    "actual_residues": 1
+  },
+  {
+    "pdb_id": "9KHC",
+    "f1_score": 0.0,
+    "issue": "Underprediction",
+    "predicted_residues": 1,
+    "actual_residues": 9
+  },
+  {
+    "pdb_id": "9SYN",
+    "f1_score": 0.17142857142857143,
+    "issue": "Overprediction",
+    "predicted_residues": 54,
+    "actual_residues": 16
+  }
+]
