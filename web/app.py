@@ -200,10 +200,51 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 if len(pid) == 4:
                     os.makedirs("data/raw/pdbs", exist_ok=True)
                     local_pdb = f"data/raw/pdbs/{pid}.pdb"
+                    
+                    # Validate existing file to prevent reading empty/corrupted 404 pages
+                    is_corrupted = False
+                    if os.path.exists(local_pdb):
+                        if os.path.getsize(local_pdb) < 5000:
+                            is_corrupted = True
+                        else:
+                            try:
+                                with open(local_pdb, "r", encoding="utf-8", errors="ignore") as f:
+                                    first_lines = "".join([f.readline() for _ in range(5)]).strip()
+                                    if first_lines.startswith("<!DOCTYPE") or "<html" in first_lines.lower() or "404 not found" in first_lines.lower():
+                                        is_corrupted = True
+                            except Exception:
+                                pass
+                        if is_corrupted:
+                            print(f"[Web] Corrupted PDB file found at {local_pdb}. Deleting and re-downloading...")
+                            try:
+                                os.remove(local_pdb)
+                            except Exception:
+                                pass
+
                     if not os.path.exists(local_pdb):
                         import urllib.request
                         url = f"https://files.rcsb.org/download/{pid}.pdb"
-                        urllib.request.urlretrieve(url, local_pdb)
+                        print(f"[Web] Downloading PDB from: {url}")
+                        try:
+                            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                            with urllib.request.urlopen(req) as response:
+                                content_type = response.info().get_content_type()
+                                if "html" in content_type.lower():
+                                    raise ValueError("RCSB PDB archive returned HTML/error page instead of PDB coordinate data.")
+                                data = response.read()
+                                if len(data) < 5000:
+                                    text_sample = data[:500].decode('utf-8', errors='ignore').strip()
+                                    if text_sample.startswith("<!DOCTYPE") or "<html" in text_sample.lower() or "404" in text_sample:
+                                        raise ValueError("RCSB returned HTML error page (404 Not Found).")
+                                with open(local_pdb, "wb") as f:
+                                    f.write(data)
+                        except Exception as e:
+                            if os.path.exists(local_pdb):
+                                try:
+                                    os.remove(local_pdb)
+                                except Exception:
+                                    pass
+                            raise HTTPException(status_code=400, detail=f"Failed to retrieve PDB '{pid}' from RCSB: {str(e)}")
                     
                     # Create a copy in temp file
                     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
@@ -231,8 +272,8 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 if data_a.edge_attr is None:
                     raise ValueError("Graph has no edge_attr — check graph_construction.py")
                 data_a = data_a.to(device)
-            except (ValueError, KeyError) as e:
-                raise HTTPException(status_code=400, detail=f"Chain {chain_a}: {str(e)}")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to build graph for Chain {chain_a}: {str(e)}")
 
             data_b = None
             if chain_b and chain_b.strip():
@@ -495,10 +536,51 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 if len(pid) == 4:
                     os.makedirs("data/raw/pdbs", exist_ok=True)
                     local_pdb = f"data/raw/pdbs/{pid}.pdb"
+                    
+                    # Validate existing file to prevent reading empty/corrupted 404 pages
+                    is_corrupted = False
+                    if os.path.exists(local_pdb):
+                        if os.path.getsize(local_pdb) < 5000:
+                            is_corrupted = True
+                        else:
+                            try:
+                                with open(local_pdb, "r", encoding="utf-8", errors="ignore") as f:
+                                    first_lines = "".join([f.readline() for _ in range(5)]).strip()
+                                    if first_lines.startswith("<!DOCTYPE") or "<html" in first_lines.lower() or "404 not found" in first_lines.lower():
+                                        is_corrupted = True
+                            except Exception:
+                                pass
+                        if is_corrupted:
+                            print(f"[Web] Corrupted PDB file found at {local_pdb}. Deleting and re-downloading...")
+                            try:
+                                os.remove(local_pdb)
+                            except Exception:
+                                pass
+
                     if not os.path.exists(local_pdb):
                         import urllib.request
                         url = f"https://files.rcsb.org/download/{pid}.pdb"
-                        urllib.request.urlretrieve(url, local_pdb)
+                        print(f"[Web] Downloading PDB from: {url}")
+                        try:
+                            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                            with urllib.request.urlopen(req) as response:
+                                content_type = response.info().get_content_type()
+                                if "html" in content_type.lower():
+                                    raise ValueError("RCSB PDB archive returned HTML/error page instead of PDB coordinate data.")
+                                data = response.read()
+                                if len(data) < 5000:
+                                    text_sample = data[:500].decode('utf-8', errors='ignore').strip()
+                                    if text_sample.startswith("<!DOCTYPE") or "<html" in text_sample.lower() or "404" in text_sample:
+                                        raise ValueError("RCSB returned HTML error page (404 Not Found).")
+                                with open(local_pdb, "wb") as f:
+                                    f.write(data)
+                        except Exception as e:
+                            if os.path.exists(local_pdb):
+                                try:
+                                    os.remove(local_pdb)
+                                except Exception:
+                                    pass
+                            raise HTTPException(status_code=400, detail=f"Failed to retrieve PDB '{pid}' from RCSB: {str(e)}")
                     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
                         with open(local_pdb, "rb") as src:
                             shutil.copyfileobj(src, tmp)
@@ -520,7 +602,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             from explainability.attention_rollout import AttentionRollout
 
-            data_a = build_residue_graph(tmp_path, chain_a).to(device)
+            try:
+                data_a = build_residue_graph(tmp_path, chain_a).to(device)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to build graph for Chain {chain_a}: {str(e)}")
             data_b = None
             if chain_b and chain_b.strip():
                 try:
