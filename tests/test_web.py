@@ -47,6 +47,7 @@ async def test_predict_route(client):
     # /predict returns only binding probability heatmap, binding residues, probabilities
     assert "heatmap_url" in json_data
     assert "residues" in json_data
+    assert "gradcam_allowed" in json_data
     assert len(json_data["residues"]) > 0
     assert "probability" in json_data["residues"][0]
 

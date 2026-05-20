@@ -520,6 +520,9 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception as e:
                     print(f"[Web] Error auto-saving perfect prediction: {e}")
 
+            ok, free_mb = has_enough_memory(250)
+            gradcam_allowed = bool(total_count <= 200 and ok)
+
             response_payload = {
                 "status": "success",
                 "pdb_file": filename,
@@ -539,6 +542,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "saved_path": saved_path,
                 "heatmap_url": heatmap_url,
                 "residues": results,
+                "gradcam_allowed": gradcam_allowed,
             }
             if overlap_stats:
                 response_payload["experimental_overlap"] = overlap_stats
@@ -726,9 +730,9 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             ok, free_mb = has_enough_memory(250)
 
-            if num_nodes > 300:
+            if num_nodes > 200:
                 gradcam_available = False
-                gradcam_message = "Grad-CAM skipped for large protein on Render free tier. Use local mode."
+                gradcam_message = "Grad-CAM skipped for large protein (>200 residues) on Render free tier. Use local mode."
                 gradcam_error = gradcam_message
                 print(f"[Web] Skipping Grad-CAM: {gradcam_message}")
                 gc.collect()
