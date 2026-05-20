@@ -34,6 +34,9 @@ const filterBinding   = document.getElementById('filter-binding');
 const filterAll       = document.getElementById('filter-all');
 const pdbId           = document.getElementById('pdb-id');
 const thresholdAuto   = document.getElementById('threshold-auto');
+const generateGradcamBtn = document.getElementById('generate-gradcam-btn');
+const gradcamPlaceholderArea = document.getElementById('gradcam-placeholder-area');
+const gradcamImgWrapper = document.getElementById('gradcam-img-wrapper');
 
 let selectedFile = null;
 
@@ -236,42 +239,29 @@ function renderResults(data) {
   // Explainability Cards (Heatmap & Grad-CAM)
   const explainCard = document.getElementById('explain-card');
   const heatmapImg = document.getElementById('heatmap-img');
-  const gradcamImg = document.getElementById('gradcam-img');
   const heatmapContainer = document.getElementById('heatmap-container');
-  const gradcamContainer = document.getElementById('gradcam-container');
-  
-  if (data.heatmap_url || data.gradcam_url) {
-    explainCard.style.display = 'block';
-    
-    const downloadHeatmapBtn = document.getElementById('download-heatmap-btn');
-    const downloadGradcamBtn = document.getElementById('download-gradcam-btn');
+  const downloadHeatmapBtn = document.getElementById('download-heatmap-btn');
+  const downloadGradcamBtn = document.getElementById('download-gradcam-btn');
 
-    if (data.heatmap_url) {
-      if (heatmapContainer) heatmapContainer.style.display = 'block';
-      const isBase64 = data.heatmap_url.startsWith('data:');
-      heatmapImg.src = isBase64 ? data.heatmap_url : `${data.heatmap_url}?t=${new Date().getTime()}`;
-      if (downloadHeatmapBtn) {
-        downloadHeatmapBtn.href = data.heatmap_url;
-        downloadHeatmapBtn.style.display = 'inline-block';
-        downloadHeatmapBtn.download = `ecabsd_heatmap_${data.pdb_file.replace('.pdb','')}_chain_${data.chain_a}.png`;
-      }
-    } else {
-      if (heatmapContainer) heatmapContainer.style.display = 'none';
-      if (downloadHeatmapBtn) downloadHeatmapBtn.style.display = 'none';
-    }
+  if (data.heatmap_url) {
+    explainCard.style.display = 'block';
+    if (heatmapContainer) heatmapContainer.style.display = 'block';
     
-    if (data.gradcam_url) {
-      if (gradcamContainer) gradcamContainer.style.display = 'block';
-      const isBase64 = data.gradcam_url.startsWith('data:');
-      gradcamImg.src = isBase64 ? data.gradcam_url : `${data.gradcam_url}?t=${new Date().getTime()}`;
-      if (downloadGradcamBtn) {
-        downloadGradcamBtn.href = data.gradcam_url;
-        downloadGradcamBtn.style.display = 'inline-block';
-        downloadGradcamBtn.download = `ecabsd_gradcam_${data.pdb_file.replace('.pdb','')}_chain_${data.chain_a}.png`;
-      }
-    } else {
-      if (gradcamContainer) gradcamContainer.style.display = 'none';
-      if (downloadGradcamBtn) downloadGradcamBtn.style.display = 'none';
+    const isBase64 = data.heatmap_url.startsWith('data:');
+    heatmapImg.src = isBase64 ? data.heatmap_url : `${data.heatmap_url}?t=${new Date().getTime()}`;
+    if (downloadHeatmapBtn) {
+      downloadHeatmapBtn.href = data.heatmap_url;
+      downloadHeatmapBtn.style.display = 'inline-block';
+      downloadHeatmapBtn.download = `ecabsd_heatmap_${data.pdb_file.replace('.pdb','')}_chain_${data.chain_a}.png`;
+    }
+
+    // Reset Grad-CAM UI state for the new prediction
+    if (gradcamPlaceholderArea) gradcamPlaceholderArea.style.display = 'block';
+    if (gradcamImgWrapper) gradcamImgWrapper.style.display = 'none';
+    if (downloadGradcamBtn) downloadGradcamBtn.style.display = 'none';
+    if (generateGradcamBtn) {
+      generateGradcamBtn.disabled = false;
+      generateGradcamBtn.textContent = '⚡ Generate Grad-CAM Explanation';
     }
   } else {
     explainCard.style.display = 'none';
@@ -487,6 +477,85 @@ exportPymolBtn.addEventListener('click', () => {
   }
   downloadText(pml, `ecabsd_${d.pdb_file.replace('.pdb','')}.pml`);
 });
+
+// ── Grad-CAM Explanation ───────────────────────
+if (generateGradcamBtn) {
+  generateGradcamBtn.addEventListener('click', async () => {
+    if (!currentResults) return;
+
+    generateGradcamBtn.disabled = true;
+    generateGradcamBtn.textContent = 'Generating...';
+
+    try {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append('pdb_file', selectedFile);
+      } else {
+        formData.append('pdb_id', pdbId.value.trim().toUpperCase());
+      }
+      formData.append('chain_a', currentResults.chain_a);
+      if (currentResults.chain_b) {
+        formData.append('chain_b', currentResults.chain_b);
+      }
+      formData.append('threshold', currentResults.threshold);
+
+      const response = await fetch(`${API_BASE}/explain`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      let data = null;
+      const text = await response.text();
+      const contentType = response.headers.get("content-type");
+
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (jsonErr) {
+          console.error("JSON parsing error:", jsonErr, "Response text was:", text);
+          throw new Error(`Failed to parse JSON response: ${text.substring(0, 120) || '(empty response)'}`);
+        }
+      } else {
+        const cleanText = text ? text.replace(/<[^>]*>/g, '').trim() : '';
+        const summaryText = cleanText ? cleanText.substring(0, 120) : response.statusText;
+        throw new Error(`Server error (${response.status}): ${summaryText || 'Bad Gateway'}`);
+      }
+
+      if (!response.ok) {
+        throw new Error((data && data.detail) ? data.detail : 'Grad-CAM generation failed');
+      }
+
+      if (data && data.status === 'success' && data.gradcam_image) {
+        const gradcamImg = document.getElementById('gradcam-img');
+        const downloadGradcamBtn = document.getElementById('download-gradcam-btn');
+
+        // Set image source
+        const isBase64 = data.gradcam_image.startsWith('data:');
+        gradcamImg.src = isBase64 ? data.gradcam_image : `${data.gradcam_image}?t=${new Date().getTime()}`;
+
+        // Update download button
+        if (downloadGradcamBtn) {
+          downloadGradcamBtn.href = data.gradcam_image;
+          downloadGradcamBtn.style.display = 'inline-block';
+          downloadGradcamBtn.download = `ecabsd_gradcam_${currentResults.pdb_file.replace('.pdb','')}_chain_${currentResults.chain_a}.png`;
+        }
+
+        // Toggle display wrappers
+        if (gradcamPlaceholderArea) gradcamPlaceholderArea.style.display = 'none';
+        if (gradcamImgWrapper) gradcamImgWrapper.style.display = 'block';
+
+        // Keep saliency scores in results metadata for reference if needed
+        currentResults.gradcam_scores = data.gradcam_scores;
+      } else {
+        throw new Error('Explain endpoint did not return valid Grad-CAM image data.');
+      }
+    } catch (err) {
+      showError(err.message || 'An unexpected error occurred during explanation generation.');
+      generateGradcamBtn.disabled = false;
+      generateGradcamBtn.textContent = '⚡ Generate Grad-CAM Explanation';
+    }
+  });
+}
 
 // ── Helpers ────────────────────────────────────
 function showLoading(show, msg = '') {
