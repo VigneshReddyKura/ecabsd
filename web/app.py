@@ -463,39 +463,42 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     print(f"[Web] Error generating Heatmap: {e}")
 
                 # Generate and save Grad-CAM with extreme memory optimization
-                try:
-                    data_a_grad = data_a.clone()
-                    data_a_grad.x = data_a_grad.x.float().detach().clone()
-                    data_a_grad.x.requires_grad_(True)
-                    
-                    model.zero_grad(set_to_none=True)
-                    logits, _ = model(data_a_grad, data_b)
-                    score = logits.squeeze(-1).sum()
-                    score.backward()
-                    
-                    if data_a_grad.x.grad is not None:
-                        grads = data_a_grad.x.grad.detach().cpu().numpy()
-                        saliency_raw = np.abs(grads).mean(axis=1)
-                        saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
+                if os.environ.get("RENDER") == "true" or os.environ.get("DISABLE_GRADCAM") == "true":
+                    print("[Web] Skipping Grad-CAM calculation on Render to prevent 512MB RAM OOM crash.")
+                else:
+                    try:
+                        data_a_grad = data_a.clone()
+                        data_a_grad.x = data_a_grad.x.float().detach().clone()
+                        data_a_grad.x.requires_grad_(True)
                         
-                        gradcam_filename = f"GradCAM_Saliency_Map_Chain_{chain_a}.png"
-                        gradcam_path = os.path.join(out_dir, gradcam_filename)
-                        save_gradcam_plot(saliency, gradcam_path, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
-                        gradcam_url = f"/results/{pdb_name}/{gradcam_filename}"
+                        model.zero_grad(set_to_none=True)
+                        logits, _ = model(data_a_grad, data_b)
+                        score = logits.squeeze(-1).sum()
+                        score.backward()
                         
-                        # Clean up intermediate arrays immediately
-                        del grads, saliency_raw, saliency
-                    
-                    # Force delete gradient graph and clear gradients
-                    del data_a_grad, logits, score
-                    model.zero_grad(set_to_none=True)
-                    import gc
-                    gc.collect()
-                except Exception as e:
-                    print(f"[Web] Error generating Grad-CAM: {e}")
-                    model.zero_grad(set_to_none=True)
-                    import gc
-                    gc.collect()
+                        if data_a_grad.x.grad is not None:
+                            grads = data_a_grad.x.grad.detach().cpu().numpy()
+                            saliency_raw = np.abs(grads).mean(axis=1)
+                            saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
+                            
+                            gradcam_filename = f"GradCAM_Saliency_Map_Chain_{chain_a}.png"
+                            gradcam_path = os.path.join(out_dir, gradcam_filename)
+                            save_gradcam_plot(saliency, gradcam_path, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
+                            gradcam_url = f"/results/{pdb_name}/{gradcam_filename}"
+                            
+                            # Clean up intermediate arrays immediately
+                            del grads, saliency_raw, saliency
+                        
+                        # Force delete gradient graph and clear gradients
+                        del data_a_grad, logits, score
+                        model.zero_grad(set_to_none=True)
+                        import gc
+                        gc.collect()
+                    except Exception as e:
+                        print(f"[Web] Error generating Grad-CAM: {e}")
+                        model.zero_grad(set_to_none=True)
+                        import gc
+                        gc.collect()
 
             # Auto-save "perfect" samples or "Excellent" overlap
             saved_to_results = False
