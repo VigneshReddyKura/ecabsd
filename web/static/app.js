@@ -504,25 +504,24 @@ if (generateGradcamBtn) {
         body: formData,
       });
 
-      let data = null;
       const text = await response.text();
-      const contentType = response.headers.get("content-type");
-
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        try {
-          data = text ? JSON.parse(text) : null;
-        } catch (jsonErr) {
-          console.error("JSON parsing error:", jsonErr, "Response text was:", text);
-          throw new Error(`Failed to parse JSON response: ${text.substring(0, 120) || '(empty response)'}`);
-        }
-      } else {
-        const cleanText = text ? text.replace(/<[^>]*>/g, '').trim() : '';
-        const summaryText = cleanText ? cleanText.substring(0, 120) : response.statusText;
-        throw new Error(`Server error (${response.status}): ${summaryText || 'Bad Gateway'}`);
-      }
 
       if (!response.ok) {
-        throw new Error((data && data.detail) ? data.detail : 'Grad-CAM generation failed');
+        const cleanText = text ? text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : '';
+        const summaryText = cleanText ? cleanText.substring(0, 200) : response.statusText;
+        throw new Error(`Server error (${response.status}): ${summaryText || 'Error occurred'}`);
+      }
+
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch (jsonErr) {
+        console.error("JSON parsing error:", jsonErr, "Response text was:", text);
+        throw new Error(`Failed to parse JSON response: ${text.substring(0, 120) || '(empty response)'}`);
+      }
+
+      if (data && data.error) {
+        throw new Error(data.error);
       }
 
       if (data && data.status === 'success' && data.gradcam_image) {
