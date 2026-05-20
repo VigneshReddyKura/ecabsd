@@ -175,7 +175,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         pdb_file: Optional[UploadFile] = File(None),
         pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),
-        chain_b: Optional[str] = Form(None),
+        chain_b: Optional[str] = Form("B"),
         threshold: str = Form("auto"),
         mode: str = Form("threshold"),
         top_k_percent: float = Form(15.0),
@@ -221,6 +221,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             raise HTTPException(status_code=500, detail=f"Failed to load PDB resource: {str(e)}")
 
         try:
+            # Clean and auto-capitalize chain inputs
+            chain_a = chain_a.strip().upper() if chain_a else "A"
+            chain_b = chain_b.strip().upper() if chain_b and chain_b.strip() else None
+
             # Build graphs — v2 model requires edge_attr (5-dim)
             try:
                 data_a = build_residue_graph(tmp_path, chain_a)
@@ -470,7 +474,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         pdb_file: Optional[UploadFile] = File(None),
         pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),
-        chain_b: Optional[str] = Form(None),
+        chain_b: Optional[str] = Form("B"),
     ):
         """
         Get attention rollout explanation for a prediction.
@@ -510,6 +514,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             raise HTTPException(status_code=500, detail=f"Failed to load PDB resource: {str(e)}")
 
         try:
+            # Clean and auto-capitalize chain inputs
+            chain_a = chain_a.strip().upper() if chain_a else "A"
+            chain_b = chain_b.strip().upper() if chain_b and chain_b.strip() else None
+
             from explainability.attention_rollout import AttentionRollout
 
             data_a = build_residue_graph(tmp_path, chain_a).to(device)

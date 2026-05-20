@@ -84,6 +84,14 @@ pdbId.addEventListener('input', () => {
   }
 });
 
+// Auto-capitalize chain inputs on typing
+chainA.addEventListener('input', () => {
+  chainA.value = chainA.value.toUpperCase();
+});
+chainB.addEventListener('input', () => {
+  chainB.value = chainB.value.toUpperCase();
+});
+
 fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
 dropzone.addEventListener('click', (e) => {
   if (!e.target.closest('.btn')) fileInput.click();
@@ -126,8 +134,8 @@ async function runPrediction() {
     } else {
       formData.append('pdb_id', pdbId.value.trim().toUpperCase());
     }
-    formData.append('chain_a', chainA.value.trim() || 'A');
-    formData.append('chain_b', chainB.value.trim());
+    formData.append('chain_a', chainA.value.trim().toUpperCase() || 'A');
+    formData.append('chain_b', chainB.value.trim().toUpperCase());
     formData.append('threshold', thresholdAuto.checked ? -1 : threshold.value);
 
     const response = await fetch(`${API_BASE}/predict`, {
