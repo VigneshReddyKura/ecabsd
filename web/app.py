@@ -71,7 +71,10 @@ _device   = None
 _config   = None
 
 
-def save_heatmap_plot(probs, out_path, title):
+import io
+import base64
+
+def get_heatmap_plot_base64(probs, title):
     try:
         probs_np = np.array(probs)
         heatmap = probs_np.reshape(1, -1)
@@ -83,14 +86,19 @@ def save_heatmap_plot(probs, out_path, title):
         plt.xlabel("Residue Index")
         plt.yticks([])
         plt.tight_layout()
-        plt.savefig(out_path, dpi=150)
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=150)
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.read()).decode("utf-8")
         plt.close()
-        print(f"[Web] Heatmap saved to: {out_path}")
+        return f"data:image/png;base64,{img_base64}"
     except Exception as e:
-        print(f"[Web] Failed to save heatmap plot: {e}")
+        print(f"[Web] Failed to generate heatmap plot: {e}")
+        return ""
 
 
-def save_gradcam_plot(saliency, out_path, title):
+def get_gradcam_plot_base64(saliency, title):
     try:
         saliency_np = np.array(saliency)
         heatmap = saliency_np.reshape(1, -1)
@@ -102,11 +110,16 @@ def save_gradcam_plot(saliency, out_path, title):
         plt.xlabel("Residue Index")
         plt.yticks([])
         plt.tight_layout()
-        plt.savefig(out_path, dpi=150)
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=150)
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.read()).decode("utf-8")
         plt.close()
-        print(f"[Web] Grad-CAM saved to: {out_path}")
+        return f"data:image/png;base64,{img_base64}"
     except Exception as e:
-        print(f"[Web] Failed to save Grad-CAM plot: {e}")
+        print(f"[Web] Failed to generate Grad-CAM plot: {e}")
+        return ""
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
@@ -442,27 +455,20 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 else:
                     quality = f"Mode: {mode.upper()} | Possible Overprediction (Ratio: {round(binding_ratio*100, 1)}%)"
 
-            # Setup results directory and filenames
             clean_filename = os.path.basename(filename)
             pdb_name = os.path.splitext(clean_filename)[0]
-            results_dir = _config.get("paths", {}).get("results_dir", "results")
-            out_dir = os.path.join(results_dir, pdb_name)
-            os.makedirs(out_dir, exist_ok=True)
             
             heatmap_url = ""
             gradcam_url = ""
             
             if total_count > 0:
-                # Generate and save Heatmap
+                # Generate in-memory Heatmap (Base64 data URL)
                 try:
-                    heatmap_filename = f"Binding_Probability_Heatmap_Chain_{chain_a}.png"
-                    heatmap_path = os.path.join(out_dir, heatmap_filename)
-                    save_heatmap_plot(probs_np, heatmap_path, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}")
-                    heatmap_url = f"/results/{pdb_name}/{heatmap_filename}"
+                    heatmap_url = get_heatmap_plot_base64(probs_np, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}")
                 except Exception as e:
                     print(f"[Web] Error generating Heatmap: {e}")
 
-                # Generate and save Grad-CAM with extreme memory optimization
+                # Generate in-memory Grad-CAM with extreme memory optimization
                 if os.environ.get("RENDER") == "true" or os.environ.get("DISABLE_GRADCAM") == "true":
                     print("[Web] Skipping Grad-CAM calculation on Render to prevent 512MB RAM OOM crash.")
                 else:
@@ -481,10 +487,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                             saliency_raw = np.abs(grads).mean(axis=1)
                             saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
                             
-                            gradcam_filename = f"GradCAM_Saliency_Map_Chain_{chain_a}.png"
-                            gradcam_path = os.path.join(out_dir, gradcam_filename)
-                            save_gradcam_plot(saliency, gradcam_path, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
-                            gradcam_url = f"/results/{pdb_name}/{gradcam_filename}"
+                            gradcam_url = get_gradcam_plot_base64(saliency, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
                             
                             # Clean up intermediate arrays immediately
                             del grads, saliency_raw, saliency
