@@ -22,7 +22,7 @@ notebook = {
     "import os, shutil\n",
     "\n",
     "WORK = '/kaggle/working'\n",
-    "REPO = 'https://github.com/VigneshReddyKura/ecabsd.git'\n",
+    "REPO = 'https://github.com/amanigreeva/ECABSD.git'\n",
     "DEST = f'{WORK}/ecabsd'\n",
     "\n",
     "os.chdir(WORK)\n",
