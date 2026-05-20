@@ -152,6 +152,8 @@ python main.py export --results results/predictions_1AY7_A.json --format pymol
 
 ## Web Interface
 
+The deployed web application uses stateless in-memory prediction and visualization export. No prediction artifacts are permanently stored on the server; results are returned directly to the browser and downloaded client-side.
+
 ```bash
 # From project root
 python web/app.py
@@ -204,6 +206,24 @@ Training config is in `config.yaml`. Key parameters:
 | `early_stopping_patience` | 15 | Epochs to wait before stopping |
 
 Checkpoints saved to `checkpoints/`, logs to `logs/training_history.json`.
+
+### Future V3 Model Retraining Protocol
+
+To deliver next-generation improvements in predictive precision and recall, the future V3 training protocol will follow a strict, scientifically rigorous roadmap to resolve low-confidence outliers:
+
+1. **Remove Train/Test Leakage**: Eliminate homology-based and sequence-similarity overlap between train, validation, and test partitions (using MMseqs2 at $30\%$ sequence identity cutoff).
+2. **Clean Complexes**: Leverage high-resolution, curated Docking Benchmark 5 (DB5) and Binding Benchmark 5 (BM5) complexes to ensure accurate interfacial physical contacts.
+3. **Split by PDB ID**: Restructure cross-validation folds strictly by PDB ID / protein family clusters to prevent intra-cluster leakage.
+4. **Balance Residue Classes**: Apply advanced oversampling, focal loss, or dynamically weighted loss functions to handle the heavy imbalance between positive (binding) and negative (non-binding) residues.
+5. **Optimize Decision Threshold**: Rather than static global boundaries, save the absolute best mathematical threshold optimized per validation fold to maximize the validation F1 score.
+6. **Strict Unseen Validation**: Evaluate and validate exclusively on unseen PDB structures during active epoch runs.
+
+### Scientific Probability Interpretation & Low-Confidence Flags
+
+ECABSD produces per-residue binding probabilities derived from structural and language-model sequence embeddings. In scientific paper publications, it is critical not to claim "perfect prediction" or force binary predictions on ambiguous structures. Instead:
+* **Confidence Categorization**: Samples are classified using the maximum residue probability (`max_prob`) to reflect the model's confidence in its predictions.
+* **Low-Confidence Flags**: Outlier samples (such as PDB 1BRS) are explicitly flagged as `"Low-confidence / Needs Review"` rather than forced into positive/negative predictions.
+* **Review Protocol**: Users are advised that these samples are valid biological structures, but the model assigned very low probabilities and they should be validated experimentally or tested with the advanced V3 model.
 
 ---
 
