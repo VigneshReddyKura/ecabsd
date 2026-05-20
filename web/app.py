@@ -54,6 +54,14 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import torch
+
+# Limit PyTorch threads at the very top of startup, before any parallel work or model loading starts
+torch.set_num_threads(1)
+try:
+    torch.set_num_interop_threads(1)
+except Exception:
+    pass
+
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -137,13 +145,6 @@ def get_model(config_path: str = "config.yaml"):
     """Load V3 model (primary, singleton)."""
     global _model, _device, _config
     
-    # Absolute minimum PyTorch memory footprint settings (crucial for 512MB RAM container)
-    try:
-        torch.set_num_threads(1)
-        torch.set_num_interop_threads(1)
-    except Exception as e:
-        print(f"[Web] Failed to limit PyTorch threads: {e}")
-        
     if _model is None:
         _config = load_config(config_path)
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
