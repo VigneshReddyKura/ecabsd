@@ -35,7 +35,7 @@ const filterAll       = document.getElementById('filter-all');
 const pdbId           = document.getElementById('pdb-id');
 const thresholdAuto   = document.getElementById('threshold-auto');
 const generateGradcamBtn = document.getElementById('generate-gradcam-btn');
-const gradcamPlaceholderArea = document.getElementById('gradcam-placeholder-area');
+const explainPlaceholderArea = document.getElementById('explain-placeholder-area');
 const gradcamImgWrapper = document.getElementById('gradcam-img-wrapper');
 
 let selectedFile = null;
@@ -255,13 +255,27 @@ function renderResults(data) {
       downloadHeatmapBtn.download = `ecabsd_heatmap_${data.pdb_file.replace('.pdb','')}_chain_${data.chain_a}.png`;
     }
 
-    // Reset Grad-CAM UI state for the new prediction
-    if (gradcamPlaceholderArea) gradcamPlaceholderArea.style.display = 'block';
+    // Reset Explainability UI state for the new prediction
+    const explainPlaceholder = document.getElementById('explain-placeholder-area');
+    const gradcamContainer = document.getElementById('gradcam-container');
+    const attentionContainer = document.getElementById('attention-container');
+    const overlapContainer = document.getElementById('overlap-container');
+    const gradcamErrorMsg = document.getElementById('gradcam-error-msg');
+    const gradcamImgWrapper = document.getElementById('gradcam-img-wrapper');
+    const downloadGradcamBtn = document.getElementById('download-gradcam-btn');
+    const generateGradcamBtn = document.getElementById('generate-gradcam-btn');
+
+    if (explainPlaceholder) explainPlaceholder.style.display = 'block';
+    if (gradcamContainer) gradcamContainer.style.display = 'none';
+    if (attentionContainer) attentionContainer.style.display = 'none';
+    if (overlapContainer) overlapContainer.style.display = 'none';
+    if (gradcamErrorMsg) gradcamErrorMsg.style.display = 'none';
     if (gradcamImgWrapper) gradcamImgWrapper.style.display = 'none';
     if (downloadGradcamBtn) downloadGradcamBtn.style.display = 'none';
+
     if (generateGradcamBtn) {
       generateGradcamBtn.disabled = false;
-      generateGradcamBtn.textContent = '⚡ Generate Grad-CAM Explanation';
+      generateGradcamBtn.textContent = '⚡ Generate Explanations';
     }
   } else {
     explainCard.style.display = 'none';
@@ -524,34 +538,85 @@ if (generateGradcamBtn) {
         throw new Error(data.error);
       }
 
-      if (data && data.status === 'success' && data.gradcam_image) {
+      if (data && data.status === 'success') {
         const gradcamImg = document.getElementById('gradcam-img');
         const downloadGradcamBtn = document.getElementById('download-gradcam-btn');
+        const gradcamContainer = document.getElementById('gradcam-container');
+        const gradcamErrorMsg = document.getElementById('gradcam-error-msg');
+        const gradcamImgWrapper = document.getElementById('gradcam-img-wrapper');
 
-        // Set image source
-        const isBase64 = data.gradcam_image.startsWith('data:');
-        gradcamImg.src = isBase64 ? data.gradcam_image : `${data.gradcam_image}?t=${new Date().getTime()}`;
+        const attentionImg = document.getElementById('attention-img');
+        const downloadAttentionBtn = document.getElementById('download-attention-btn');
+        const attentionContainer = document.getElementById('attention-container');
+        const attentionImgWrapper = document.getElementById('attention-img-wrapper');
 
-        // Update download button
-        if (downloadGradcamBtn) {
-          downloadGradcamBtn.href = data.gradcam_image;
-          downloadGradcamBtn.style.display = 'inline-block';
-          downloadGradcamBtn.download = `ecabsd_gradcam_${currentResults.pdb_file.replace('.pdb','')}_chain_${currentResults.chain_a}.png`;
+        const overlapContainer = document.getElementById('overlap-container');
+        const overlapText = document.getElementById('overlap-text');
+        const explainPlaceholder = document.getElementById('explain-placeholder-area');
+
+        // Hide placeholder banner
+        if (explainPlaceholder) explainPlaceholder.style.display = 'none';
+
+        // 1. Render Grad-CAM Saliency Map if available
+        if (gradcamContainer) gradcamContainer.style.display = 'block';
+        if (data.gradcam_image) {
+          if (gradcamErrorMsg) gradcamErrorMsg.style.display = 'none';
+          if (gradcamImgWrapper) {
+            gradcamImgWrapper.style.display = 'block';
+            gradcamImg.src = data.gradcam_image;
+          }
+          if (downloadGradcamBtn) {
+            downloadGradcamBtn.href = data.gradcam_image;
+            downloadGradcamBtn.style.display = 'inline-block';
+            downloadGradcamBtn.download = `ecabsd_gradcam_${currentResults.pdb_file.replace('.pdb','')}_chain_${currentResults.chain_a}.png`;
+          }
+          currentResults.gradcam_scores = data.gradcam_scores;
+        } else {
+          // Show Grad-CAM error fallback message
+          if (gradcamImgWrapper) gradcamImgWrapper.style.display = 'none';
+          if (downloadGradcamBtn) downloadGradcamBtn.style.display = 'none';
+          if (gradcamErrorMsg) {
+            gradcamErrorMsg.style.display = 'block';
+            gradcamErrorMsg.textContent = data.gradcam_error || "Grad-CAM unavailable, attention saliency shown separately.";
+          }
         }
 
-        // Toggle display wrappers
-        if (gradcamPlaceholderArea) gradcamPlaceholderArea.style.display = 'none';
-        if (gradcamImgWrapper) gradcamImgWrapper.style.display = 'block';
+        // 2. Render Attention Saliency Map
+        if (data.attention_image) {
+          if (attentionContainer) attentionContainer.style.display = 'block';
+          if (attentionImgWrapper) {
+            attentionImgWrapper.style.display = 'block';
+            attentionImg.src = data.attention_image;
+          }
+          if (downloadAttentionBtn) {
+            downloadAttentionBtn.href = data.attention_image;
+            downloadAttentionBtn.style.display = 'inline-block';
+            downloadAttentionBtn.download = `ecabsd_attention_${currentResults.pdb_file.replace('.pdb','')}_chain_${currentResults.chain_a}.png`;
+          }
+          currentResults.attention_scores = data.attention_scores;
+        }
 
-        // Keep saliency scores in results metadata for reference if needed
-        currentResults.gradcam_scores = data.gradcam_scores;
+        // 3. Render Overlap Analysis
+        if (overlapContainer && data.overlap_percentage !== undefined) {
+          overlapContainer.style.display = 'block';
+          
+          let overlapMsg = "";
+          if (data.gradcam_image) {
+            const numOverlap = Math.round((data.overlap_percentage / 100) * 10);
+            overlapMsg = `Calculated overlap of <strong>${data.overlap_percentage}%</strong> between the top 10 Grad-CAM residues and the predicted binding residues (${numOverlap} overlapping residues).`;
+          } else {
+            overlapMsg = `Grad-CAM calculation was bypassed due to server constraint fallback. Overlap analysis requires gradient maps.`;
+          }
+          if (overlapText) overlapText.innerHTML = overlapMsg;
+        }
+
       } else {
-        throw new Error('Explain endpoint did not return valid Grad-CAM image data.');
+        throw new Error('Explain endpoint did not return success status.');
       }
     } catch (err) {
       showError(err.message || 'An unexpected error occurred during explanation generation.');
       generateGradcamBtn.disabled = false;
-      generateGradcamBtn.textContent = '⚡ Generate Grad-CAM Explanation';
+      generateGradcamBtn.textContent = '⚡ Generate Explanations';
     }
   });
 }

@@ -210,13 +210,14 @@
         </div>
       </div>
 
-      <!-- Explainability Card (Heatmap & Grad-CAM) -->
+      <!-- Explainability Card (Heatmap, Grad-CAM, & Attention) -->
       <div class="card explain-card" id="explain-card" style="margin-bottom: 24px; display: none;">
         <div class="card-header">
           <div class="card-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--green);">🧠</div>
           <h3 class="card-title">Explainability Heatmaps</h3>
         </div>
         <div class="explain-grids" style="display: grid; grid-template-columns: 1fr; gap: 24px; padding: 20px;">
+          <!-- 1. Binding Probability Heatmap -->
           <div id="heatmap-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <h4 style="font-size: 0.9rem; margin: 0; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">🔥 Binding Probability Heatmap</h4>
@@ -226,17 +227,55 @@
               <img id="heatmap-img" src="" alt="Probability Heatmap" style="width: 100%; height: auto; display: block; border-radius: 4px;" />
             </div>
           </div>
-          <div id="gradcam-container">
+
+          <!-- Explanations Trigger Placeholder -->
+          <div id="explain-placeholder-area" style="text-align: center; padding: 30px; background: rgba(0,0,0,0.15); border-radius: var(--radius-sm); border: 1px dashed var(--border); grid-column: 1 / -1;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+              <strong>Grad-CAM</strong> shows gradient-based residue importance.<br/>
+              <strong>Attention saliency</strong> shows residues receiving high attention.<br/>
+              <strong>Binding heatmap</strong> shows predicted binding probability.
+            </p>
+            <button id="generate-gradcam-btn" class="btn btn-primary" style="font-size: 0.85rem; padding: 8px 16px; cursor: pointer; border-radius: 4px; border: none; background: var(--primary); color: white; font-weight: 500; transition: background 0.2s;">⚡ Generate Explanations</button>
+          </div>
+
+          <!-- 2. Grad-CAM Saliency Map -->
+          <div id="gradcam-container" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <h4 style="font-size: 0.9rem; margin: 0; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">⚡ Grad-CAM Saliency Map</h4>
               <a id="download-gradcam-btn" class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 0.75rem; display: none;" download="gradcam.png">⬇ Download PNG</a>
             </div>
-            <div id="gradcam-placeholder-area" style="text-align: center; padding: 30px; background: rgba(0,0,0,0.15); border-radius: var(--radius-sm); border: 1px dashed var(--border);">
-              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Grad-CAM calculates the gradient of the predicted binding score with respect to the input node features to highlight critical residues.</p>
-              <button id="generate-gradcam-btn" class="btn btn-primary" style="font-size: 0.85rem; padding: 8px 16px; cursor: pointer; border-radius: 4px; border: none; background: var(--primary); color: white; font-weight: 500; transition: background 0.2s;">⚡ Generate Grad-CAM Explanation</button>
+            <div id="gradcam-error-msg" style="display: none; padding: 15px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-sm); color: #f87171; font-size: 0.85rem; line-height: 1.4; margin-bottom: 8px;">
+              ⚠️ Grad-CAM unavailable, attention saliency shown separately.
             </div>
             <div id="gradcam-img-wrapper" style="display: none; background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
               <img id="gradcam-img" src="" alt="Grad-CAM Saliency Map" style="width: 100%; height: auto; display: block; border-radius: 4px;" />
+            </div>
+          </div>
+
+          <!-- 3. Attention Saliency Map -->
+          <div id="attention-container" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 0.9rem; margin: 0; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">👁️ Attention Saliency Map</h4>
+              <a id="download-attention-btn" class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 0.75rem; display: none;" download="attention.png">⬇ Download PNG</a>
+            </div>
+            <div id="attention-img-wrapper" style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <img id="attention-img" src="" alt="Attention Saliency Map" style="width: 100%; height: auto; display: block; border-radius: 4px;" />
+            </div>
+          </div>
+
+          <!-- 4. Overlap Check Section -->
+          <div id="overlap-container" style="display: none; grid-column: 1 / -1; padding: 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-sm);">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="font-size: 1.5rem;">🎯</div>
+              <div>
+                <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-bright); font-weight: 600;">Saliency vs Prediction Overlap Analysis</h4>
+                <p id="overlap-text" style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-dim); line-height: 1.45;"></p>
+              </div>
+            </div>
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+              • <strong>Grad-CAM</strong> shows gradient-based residue importance.<br/>
+              • <strong>Attention saliency</strong> shows residues receiving high attention.<br/>
+              • <strong>Binding heatmap</strong> shows predicted binding probability.
             </div>
           </div>
         </div>
