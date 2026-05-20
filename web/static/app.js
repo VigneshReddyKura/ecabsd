@@ -194,6 +194,36 @@ function renderResults(data) {
   resultsMeta.textContent =
     `${data.pdb_file} · Chain ${data.chain_a}${data.chain_b ? ' × ' + data.chain_b : ''} · threshold=${parseFloat(data.threshold).toFixed(4)}`;
 
+  // Custom Alerts / Warnings
+  const alertContainer = document.getElementById('results-alert-container');
+  if (alertContainer) {
+    alertContainer.style.display = 'none';
+    alertContainer.innerHTML = '';
+    
+    if (data.is_1brs) {
+      alertContainer.style.display = 'block';
+      alertContainer.innerHTML = `
+        <div style="background: rgba(239, 68, 68, 0.12); border-left: 4px solid var(--red); padding: 16px; border-radius: 6px; color: var(--text-dim); font-size: 0.9rem; line-height: 1.5;">
+          <div style="font-weight: 700; color: var(--red); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+            <span>⚠️</span> Prediction: Low-confidence underprediction
+          </div>
+          The PDB is valid, but the model assigned very low residue probabilities.<br/>
+          This sample should be reviewed or tested with a stronger V3 model.
+        </div>
+      `;
+    } else if (data.warning_msg || (data.max_prob && data.max_prob < 0.05)) {
+      alertContainer.style.display = 'block';
+      alertContainer.innerHTML = `
+        <div style="background: rgba(245, 158, 11, 0.12); border-left: 4px solid var(--yellow); padding: 16px; border-radius: 6px; color: var(--text-dim); font-size: 0.9rem; line-height: 1.5;">
+          <div style="font-weight: 700; color: var(--yellow); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+            <span>⚠️</span> Low Model Confidence
+          </div>
+          Low model confidence. Prediction should be reviewed (max probability is ${parseFloat(data.max_prob || 0.0).toFixed(4)}).
+        </div>
+      `;
+    }
+  }
+
   // Summary cards
   const bindingPct = data.total_residues > 0
     ? ((data.binding_residues_count / data.total_residues) * 100).toFixed(1)
@@ -201,9 +231,16 @@ function renderResults(data) {
   const avgProb = data.residues.length > 0
     ? (data.residues.reduce((s, r) => s + r.probability, 0) / data.residues.length).toFixed(3)
     : '0';
-  const maxProb = data.residues.length > 0
-    ? Math.max(...data.residues.map(r => r.probability)).toFixed(3)
-    : '0';
+  const maxProb = data.max_prob !== undefined
+    ? parseFloat(data.max_prob).toFixed(3)
+    : (data.residues.length > 0 ? Math.max(...data.residues.map(r => r.probability)).toFixed(3) : '0');
+
+  // Confidence level class and styling
+  const conf = data.confidence || 'High';
+  let confColor = 'var(--green)';
+  if (conf === 'Very Low') confColor = 'var(--red)';
+  else if (conf === 'Low') confColor = 'var(--yellow)';
+  else if (conf === 'Medium') confColor = 'var(--cyan)';
 
   const qualityCardHtml = `
     <div class="summary-card fade-in" style="display: flex; flex-direction: column; justify-content: center; min-height: 96px;">
@@ -232,6 +269,10 @@ function renderResults(data) {
     <div class="summary-card fade-in">
       <div class="summary-label">Max Probability</div>
       <div class="summary-value v-primary">${maxProb}</div>
+    </div>
+    <div class="summary-card fade-in">
+      <div class="summary-label">Model Confidence</div>
+      <div class="summary-value" style="color: ${confColor}; font-weight: 600;">${conf}</div>
     </div>
     ${qualityCardHtml}
   `;

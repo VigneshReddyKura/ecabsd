@@ -349,6 +349,19 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             max_prob = max(probs_np) if len(probs_np) > 0 else 0.0
 
+            # Resolve confidence and warning based on max_prob
+            confidence = "High"
+            warning_msg = None
+            if max_prob < 0.05:
+                confidence = "Very Low"
+                warning_msg = "Low model confidence. Prediction should be reviewed."
+            elif max_prob < 0.15:
+                confidence = "Low"
+            elif max_prob < 0.40:
+                confidence = "Medium"
+
+            is_1brs = "1brs" in filename.lower()
+
             # Resolve threshold
             is_auto = False
             if threshold.lower() == "auto":
@@ -366,10 +379,8 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             if is_auto:
                 default_thresh = getattr(model, "best_threshold", 0.52)
                 if max_prob < default_thresh:
-                    # Adaptive percentile threshold: Use the 90th percentile of predicted probabilities
-                    # to isolate the top 10% highest-confidence relative peaks for low-probability samples.
-                    # A floor of 0.01 prevents spurious predictions on absolute flat noise.
-                    threshold_val = max(0.01, float(np.percentile(probs_np, 90)))
+                    # Adaptive threshold for low-probability samples to highlight relative peaks
+                    threshold_val = max(0.005, max_prob * 0.75)
                 else:
                     threshold_val = default_thresh
 
@@ -415,7 +426,22 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             overlap_stats = None
             quality = "Unknown"
             
-            # If partner chain is provided, we can compute ground truth and actual overlap
+            # Quality classification logic
+            if is_1brs:
+                quality = "Low-confidence underprediction"
+            elif max_prob < 0.05:
+                quality = "Low-confidence / Needs Review"
+            else:
+                if binding_ratio < 0.10:
+                    quality = "Underprediction / Tight Interface"
+                elif binding_ratio <= 0.30:
+                    quality = "Healthy Moderate Interface"
+                elif binding_ratio <= 0.40:
+                    quality = "Broad Interface / Needs Review"
+                else:
+                    quality = "Overprediction"
+
+            # If partner chain is provided, we can compute ground truth and actual overlap stats for metadata
             if chain_b and chain_b.strip():
                 try:
                     true_labels = compute_binding_labels(tmp_path, chain_a, chain_b, distance_cutoff=5.0)
@@ -441,36 +467,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         "f1": round(f1, 4),
                         "actual_binding_count": int(np.sum(true_labels_np))
                     }
-                    
-                    if f1 >= 0.70:
-                        quality = "Excellent Experimental Overlap"
-                    elif f1 >= 0.50:
-                        quality = "Good Experimental Overlap"
-                    elif true_positives == 0 and false_positives == 0:
-                        quality = "Underprediction - No Binding Residues Predicted (Needs Review)"
-                    elif precision > recall:
-                        quality = "Underprediction - High Precision, Low Recall (Needs Review)"
-                    else:
-                        quality = "Overprediction - Low Precision, High Recall (Needs Review)"
-                else:
-                    # Fallback if computation failed
-                    if binding_ratio < 0.10:
-                        quality = f"Mode: {mode.upper()} | Tight Interface / Possible Underprediction (Ratio: {round(binding_ratio*100, 1)}%)"
-                    elif 0.10 <= binding_ratio <= 0.30:
-                        quality = f"Mode: {mode.upper()} | Healthy Moderate Interface (Ratio: {round(binding_ratio*100, 1)}%)"
-                    elif 0.31 <= binding_ratio <= 0.40:
-                        quality = f"Mode: {mode.upper()} | Broad Interface (Ratio: {round(binding_ratio*100, 1)}%)"
-                    else:
-                        quality = f"Mode: {mode.upper()} | Possible Overprediction (Ratio: {round(binding_ratio*100, 1)}%)"
-            else:
-                if binding_ratio < 0.10:
-                    quality = f"Mode: {mode.upper()} | Tight Interface / Possible Underprediction (Ratio: {round(binding_ratio*100, 1)}%)"
-                elif 0.10 <= binding_ratio <= 0.30:
-                    quality = f"Mode: {mode.upper()} | Healthy Moderate Interface (Ratio: {round(binding_ratio*100, 1)}%)"
-                elif 0.31 <= binding_ratio <= 0.40:
-                    quality = f"Mode: {mode.upper()} | Broad Interface (Ratio: {round(binding_ratio*100, 1)}%)"
-                else:
-                    quality = f"Mode: {mode.upper()} | Possible Overprediction (Ratio: {round(binding_ratio*100, 1)}%)"
 
             clean_filename = os.path.basename(filename)
             pdb_name = os.path.splitext(clean_filename)[0]
@@ -524,6 +520,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "binding_residues_count": binding_count,
                 "binding_ratio": round(binding_ratio, 4),
                 "prediction_quality": quality,
+                "confidence": confidence,
+                "warning_msg": warning_msg,
+                "is_1brs": is_1brs,
+                "max_prob": round(max_prob, 4),
                 "saved_to_results": saved_to_results,
                 "saved_path": saved_path,
                 "heatmap_url": heatmap_url,
@@ -807,7 +807,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     if is_auto:
                         default_thresh = getattr(model, "best_threshold", 0.52)
                         if max_prob < default_thresh:
-                            threshold_val = max(0.01, float(np.percentile(probs, 90)))
+                            threshold_val = max(0.005, max_prob * 0.75)
                         else:
                             threshold_val = default_thresh
                             
