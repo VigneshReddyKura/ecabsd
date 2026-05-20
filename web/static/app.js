@@ -315,8 +315,17 @@ function renderResults(data) {
     if (downloadGradcamBtn) downloadGradcamBtn.style.display = 'none';
 
     if (generateGradcamBtn) {
-      generateGradcamBtn.disabled = false;
-      generateGradcamBtn.textContent = '⚡ Generate Explanations';
+      if (data.gradcam_allowed === false) {
+        generateGradcamBtn.disabled = true;
+        generateGradcamBtn.style.opacity = '0.5';
+        generateGradcamBtn.title = 'GradCAM disabled: large protein (>200 residues) or low memory';
+        generateGradcamBtn.textContent = '⚠ GradCAM unavailable';
+      } else {
+        generateGradcamBtn.disabled = false;
+        generateGradcamBtn.style.opacity = '1.0';
+        generateGradcamBtn.title = '';
+        generateGradcamBtn.textContent = '⚡ Generate Explanations';
+      }
     }
   } else {
     explainCard.style.display = 'none';
