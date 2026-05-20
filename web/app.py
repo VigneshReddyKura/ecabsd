@@ -119,7 +119,7 @@ def get_model(config_path: str = "config.yaml"):
 
 def create_app(config_path: str = "config.yaml") -> FastAPI:
     """Create and configure the FastAPI application."""
-    get_model(config_path)  # Pre-load model
+    # get_model(config_path)  # Lazy-loaded on first prediction to speed up server startup and avoid timeouts
 
     app = FastAPI(
         title="ECABSD — Binding Site Detection",
@@ -159,13 +159,13 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
     @app.get("/health")
     async def health():
         """Health check endpoint."""
-        model, device, cfg = get_model()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         v2_ready = os.path.exists(os.path.join(root, "checkpoints", "best_model.pt"))
         v3_ready = os.path.exists(os.path.join(root, "checkpoints", "best_model_v3.pt"))
         return {
             "status": "ok",
-            "device": str(device),
+            "device": device,
             "v2_available": v2_ready,
             "v3_available": v3_ready,
         }
