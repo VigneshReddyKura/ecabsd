@@ -10,6 +10,38 @@ Endpoints:
 
 import os
 import sys
+import gc
+
+# ==========================================
+# BULLETPROOF RENDER PORT & HOST MONKEYPATCH
+# ==========================================
+# Forces Uvicorn to bind to Render's dynamic $PORT and listen on 0.0.0.0,
+# regardless of what start command or parameters were configured in the dashboard.
+try:
+    import uvicorn
+    
+    # 1. Patch any future Config instantiations
+    original_init = uvicorn.Config.__init__
+    def patched_init(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        if "PORT" in os.environ:
+            self.port = int(os.environ["PORT"])
+        self.host = "0.0.0.0"
+        
+    uvicorn.Config.__init__ = patched_init
+    
+    # 2. Override any already existing Config objects in memory (from CLI startup)
+    for obj in gc.get_objects():
+        if isinstance(obj, uvicorn.Config):
+            if "PORT" in os.environ:
+                obj.port = int(os.environ["PORT"])
+                print(f"[ECABSD Patch] Found existing Config in memory: Overrode port to {obj.port}")
+            obj.host = "0.0.0.0"
+            print(f"[ECABSD Patch] Found existing Config in memory: Overrode host to 0.0.0.0")
+except Exception as e:
+    print(f"[ECABSD Patch] Exception applying dynamic port override: {e}")
+# ==========================================
+
 import json
 import shutil
 import tempfile
