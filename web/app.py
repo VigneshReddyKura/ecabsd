@@ -679,9 +679,20 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 with torch.no_grad():
                     logits, attn_list = model(data_a, data_b)
                     if attn_list and len(attn_list) > 0:
-                        attn = attn_list[0]  # [num_heads, seq_len_a, seq_len_b]
-                        mean_attn = attn.detach().cpu().float().mean(dim=0)  # [seq_len_a, seq_len_b]
-                        scores = mean_attn.sum(dim=1).numpy()  # [seq_len_a]
+                        attn = attn_list[0].detach().cpu().float()
+                        print("[Web] Attention tensor shape:", attn.shape)
+                        
+                        # Handle attention tensor dimensions defensively
+                        if attn.ndim == 3:
+                            attn = attn.mean(dim=0)
+                        
+                        if attn.ndim == 2:
+                            scores = attn.sum(dim=1).numpy()
+                        elif attn.ndim == 1:
+                            scores = attn.numpy()
+                        else:
+                            scores = attn.flatten().numpy()
+                            
                         saliency = ((scores - scores.min()) / (scores.max() - scores.min() + 1e-8)).tolist()
 
                         pdb_name = os.path.splitext(filename)[0]
@@ -697,12 +708,33 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     data_a_grad.x.requires_grad_(True)
 
                     model.zero_grad(set_to_none=True)
+                    print("[Web] data_a_grad.x shape:", data_a_grad.x.shape)
                     logits, _ = model(data_a_grad, data_b)
-                    score = logits.squeeze(-1).sum()
+                    print("[Web] logits shape:", logits.shape)
+
+                    # Ensure logits has at least 1 dimension
+                    if logits.ndim == 0:
+                        logits = logits.unsqueeze(0)
+
+                    # Safely squeeze
+                    if logits.ndim > 1:
+                        score_logits = logits.squeeze(-1)
+                    else:
+                        score_logits = logits
+
+                    score = score_logits.sum()
                     score.backward()
 
                     if data_a_grad.x.grad is not None:
-                        grads = data_a_grad.x.grad.detach().cpu().numpy()
+                        grad_tensor = data_a_grad.x.grad
+                        print("[Web] feature shape:", data_a_grad.x.shape)
+                        print("[Web] gradient shape:", grad_tensor.shape)
+
+                        # Ensure 1D or 2D gradient tensor is handled safely
+                        if grad_tensor.ndim == 1:
+                            grad_tensor = grad_tensor.unsqueeze(0)
+
+                        grads = grad_tensor.detach().cpu().numpy()
                         saliency_raw = np.abs(grads).mean(axis=1)
                         saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
 
@@ -722,9 +754,20 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     with torch.no_grad():
                         logits, attn_list = model(data_a, data_b)
                         if attn_list and len(attn_list) > 0:
-                            attn = attn_list[0]
-                            mean_attn = attn.detach().cpu().float().mean(dim=0)
-                            scores = mean_attn.sum(dim=1).numpy()
+                            attn = attn_list[0].detach().cpu().float()
+                            print("[Web] Fallback Attention tensor shape:", attn.shape)
+                            
+                            # Handle attention tensor dimensions defensively
+                            if attn.ndim == 3:
+                                attn = attn.mean(dim=0)
+                            
+                            if attn.ndim == 2:
+                                scores = attn.sum(dim=1).numpy()
+                            elif attn.ndim == 1:
+                                scores = attn.numpy()
+                            else:
+                                scores = attn.flatten().numpy()
+                                
                             saliency = ((scores - scores.min()) / (scores.max() - scores.min() + 1e-8)).tolist()
 
                             pdb_name = os.path.splitext(filename)[0]
