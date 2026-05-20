@@ -87,26 +87,62 @@ def run_prediction(
         print(f"[ECABSD] Using threshold: {threshold:.4f}")
 
     # Automatic PDB downloading if the file does not exist locally
-    if not os.path.exists(pdb_path):
-        pdb_base = os.path.basename(pdb_path)
-        pdb_id, ext = os.path.splitext(pdb_base)
-        # If it looks like a PDB code (e.g. "1BRS" or "1BRS.pdb")
-        if len(pdb_id) == 4 and (not ext or ext.lower() == '.pdb'):
-            pdb_id = pdb_id.upper()
-            os.makedirs("data/raw/pdbs", exist_ok=True)
-            download_path = f"data/raw/pdbs/{pdb_id}.pdb"
-            if not os.path.exists(download_path):
-                print(f"[ECABSD] PDB file not found. Attempting to download {pdb_id} from RCSB PDB...")
-                import urllib.request
+    pdb_base = os.path.basename(pdb_path)
+    pdb_id, ext = os.path.splitext(pdb_base)
+    # If it looks like a PDB code (e.g. "1BRS" or "1BRS.pdb")
+    if (not os.path.exists(pdb_path)) and len(pdb_id.strip()) == 4 and (not ext or ext.lower() == '.pdb'):
+        pdb_id = pdb_id.strip().upper()
+        os.makedirs("data/raw/pdbs", exist_ok=True)
+        download_path = f"data/raw/pdbs/{pdb_id}.pdb"
+        
+        # Validate existing file to prevent reading empty/corrupted 404 pages
+        is_corrupted = False
+        if os.path.exists(download_path):
+            if os.path.getsize(download_path) < 5000:
+                is_corrupted = True
+            else:
                 try:
-                    url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
-                    urllib.request.urlretrieve(url, download_path)
-                    print(f"[ECABSD] Successfully downloaded {pdb_id}.pdb to {download_path}")
-                except Exception as e:
-                    raise FileNotFoundError(f"Could not download PDB {pdb_id} from RCSB: {e}")
-            pdb_path = download_path
-        else:
-            raise FileNotFoundError(f"PDB file not found at: {pdb_path}")
+                    with open(download_path, "r", encoding="utf-8", errors="ignore") as f:
+                        first_lines = "".join([f.readline() for _ in range(5)]).strip()
+                        if first_lines.startswith("<!DOCTYPE") or "<html" in first_lines.lower() or "404 not found" in first_lines.lower():
+                            is_corrupted = True
+                except Exception:
+                    pass
+            if is_corrupted:
+                print(f"[ECABSD] Corrupted PDB file found at {download_path}. Deleting and re-downloading...")
+                try:
+                    os.remove(download_path)
+                except Exception:
+                    pass
+
+        if not os.path.exists(download_path):
+            print(f"[ECABSD] PDB file not found. Attempting to download {pdb_id} from RCSB PDB...")
+            import urllib.request
+            try:
+                url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response:
+                    content_type = response.info().get_content_type()
+                    if "html" in content_type.lower():
+                        raise ValueError("RCSB returned HTML/error page instead of PDB coordinate data.")
+                    data = response.read()
+                    if len(data) < 5000:
+                        text_sample = data[:500].decode('utf-8', errors='ignore').strip()
+                        if text_sample.startswith("<!DOCTYPE") or "<html" in text_sample.lower() or "404" in text_sample:
+                            raise ValueError("RCSB returned HTML error page (404 Not Found).")
+                    with open(download_path, "wb") as f:
+                        f.write(data)
+                print(f"[ECABSD] Successfully downloaded {pdb_id}.pdb to {download_path}")
+            except Exception as e:
+                if os.path.exists(download_path):
+                    try:
+                        os.remove(download_path)
+                    except Exception:
+                        pass
+                raise FileNotFoundError(f"Could not download PDB {pdb_id} from RCSB: {e}")
+        pdb_path = download_path
+    elif not os.path.exists(pdb_path):
+        raise FileNotFoundError(f"PDB file not found at: {pdb_path}")
 
     # Build graphs
     print(f"[ECABSD] Building graph for chain {chain_a}...")
