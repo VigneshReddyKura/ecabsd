@@ -18,7 +18,7 @@
   <!-- Header -->
   <header class="site-header">
     <div class="header-inner">
-      <div class="logo">
+      <a href="/" class="logo" style="text-decoration: none;">
         <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
           <circle cx="18" cy="18" r="17" stroke="url(#grad)" stroke-width="2"/>
           <path d="M10 18 Q14 10 18 18 Q22 26 26 18" stroke="url(#grad)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
@@ -31,7 +31,7 @@
           </defs>
         </svg>
         <span class="logo-text">ECABSD</span>
-      </div>
+      </a>
       <nav class="header-nav">
         <a href="#predict-section">Predict</a>
         <a href="#results-section">Results</a>
@@ -48,12 +48,12 @@
     <div class="hero-inner">
       <div class="hero-badge">Deep Learning · Structural Biology</div>
       <h1 class="hero-title">
-        Protein Binding Site<br/>
-        <span class="gradient-text">Detection</span>
+        <span class="gradient-text" style="font-size: 0.7em;">Explainable Cross-Attention Framework</span><br/>
+        <span style="font-size: 0.5em; line-height: 1.4;">for Protein–Protein Binding Site Discovery</span>
       </h1>
       <p class="hero-subtitle">
-        Equivariant Cross-Attention Graph Neural Network for per-residue
-        binding site prediction from 3D protein structure.
+        Residue-level prediction of protein interaction sites<br/>
+        using interpretable deep learning and structural biology.
       </p>
       <div class="hero-stats">
         <div class="stat"><span class="stat-val">23</span><span class="stat-lbl">Node Features</span></div>
@@ -268,81 +268,6 @@
     </div>
   </main>
 
-  <!-- V2 vs V3 Comparison Section -->
-  <section id="compare-section" class="container" style="padding-top:0;padding-bottom:48px;">
-    <div style="text-align:center;margin-bottom:32px;">
-      <div class="hero-badge" style="margin:0 auto 12px;">Model Comparison</div>
-      <h2 style="font-size:1.8rem;font-weight:700;margin:0 0 8px;">V2 Overboost vs V3</h2>
-      <p style="color:var(--text-muted);font-size:0.95rem;margin:0;">Run both models on the same structure and compare predictions side-by-side</p>
-    </div>
-
-    <!-- Sample Buttons -->
-    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:28px;">
-      <button class="btn btn-outline sample-btn" data-pdb="1BRS" data-a="A" data-b="D"
-        style="font-size:0.9rem;padding:10px 20px;">
-        🧬 1BRS &nbsp;<small style="opacity:0.6">Barnase · Barstar · A+D</small>
-      </button>
-      <button class="btn btn-outline sample-btn" data-pdb="2PTC" data-a="E" data-b="I"
-        style="font-size:0.9rem;padding:10px 20px;">
-        🔬 2PTC &nbsp;<small style="opacity:0.6">Trypsin · BPTI · E+I</small>
-      </button>
-      <button class="btn btn-outline sample-btn" data-pdb="1JTG" data-a="A" data-b="B"
-        style="font-size:0.9rem;padding:10px 20px;">
-        💊 1JTG &nbsp;<small style="opacity:0.6">Antibody · Antigen · A+B</small>
-      </button>
-    </div>
-
-    <!-- Loading -->
-    <div id="cmp-loading" hidden style="text-align:center;padding:32px;">
-      <div class="spinner" style="margin:0 auto 12px;"></div>
-      <p style="color:var(--text-muted);">Running V2 &amp; V3 predictions…</p>
-    </div>
-
-    <!-- Results -->
-    <div id="cmp-results" hidden>
-      <!-- Score Cards -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;" id="cmp-score-cards"></div>
-
-      <!-- Side-by-side Charts -->
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-header">
-          <div class="card-icon">📊</div>
-          <h3 class="card-title">Binding Probability — Per Residue</h3>
-        </div>
-        <div style="padding:20px 20px 8px;">
-          <div style="display:flex;gap:12px;margin-bottom:8px;font-size:0.8rem;">
-            <span style="display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:#6366f1;display:inline-block;"></span>V2 Overboost</span>
-            <span style="display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:#06b6d4;display:inline-block;"></span>V3</span>
-          </div>
-          <canvas id="cmp-chart" style="max-height:220px;"></canvas>
-        </div>
-      </div>
-
-      <!-- Residue Table -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon">📋</div>
-          <h3 class="card-title">Per-Residue Comparison</h3>
-          <div class="table-filter">
-            <button class="filter-btn active" id="cmp-filter-diff">Disagreements</button>
-            <button class="filter-btn" id="cmp-filter-all">All</button>
-          </div>
-        </div>
-        <div class="table-wrapper">
-          <table class="results-table">
-            <thead><tr>
-              <th>Idx</th><th>Residue</th><th>Res ID</th>
-              <th style="color:#a5b4fc;">V2 Prob</th><th style="color:#a5b4fc;">V2 Bind</th>
-              <th style="color:#67e8f9;">V3 Prob</th><th style="color:#67e8f9;">V3 Bind</th>
-              <th>Truth</th>
-            </tr></thead>
-            <tbody id="cmp-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Footer -->
   <footer class="site-footer">
     <p>ECABSD &mdash; Equivariant Cross-Attention for Binding Site Detection &copy; 2025</p>
@@ -351,123 +276,6 @@
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
-
-  <script>
-  // ── V2 vs V3 Comparison Logic ──────────────────────────────────────────────
-  let cmpChart = null;
-  let cmpResidues = [];
-  let showAllResidues = false;
-
-  document.querySelectorAll('.sample-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.sample-btn').forEach(b => b.classList.remove('btn-primary'));
-      btn.classList.add('btn-primary');
-      runCompare(btn.dataset.pdb, btn.dataset.a, btn.dataset.b);
-    });
-  });
-
-  async function runCompare(pdbId, chainA, chainB) {
-    document.getElementById('cmp-loading').hidden = false;
-    document.getElementById('cmp-results').hidden = true;
-
-    const fd = new FormData();
-    fd.append('pdb_id', pdbId);
-    fd.append('chain_a', chainA);
-    if (chainB) fd.append('chain_b', chainB);
-
-    try {
-      const res  = await fetch('/compare', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (data.status !== 'success') throw new Error(data.detail || 'Error');
-      renderCompare(data);
-    } catch(e) {
-      alert('Compare failed: ' + e.message);
-    } finally {
-      document.getElementById('cmp-loading').hidden = true;
-    }
-  }
-
-  function renderCompare(data) {
-    cmpResidues = data.residues;
-
-    // Score cards
-    const hasF1 = data.v2.f1 !== null;
-    document.getElementById('cmp-score-cards').innerHTML = `
-      <div class="card" style="border:1px solid rgba(99,102,241,0.4);background:rgba(99,102,241,0.05);">
-        <div style="padding:20px;">
-          <div style="font-size:0.75rem;font-weight:600;color:#a5b4fc;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">V2 Overboost</div>
-          <div style="font-size:2rem;font-weight:700;">${data.v2.binding_count} <span style="font-size:1rem;color:var(--text-muted)">binding</span></div>
-          ${hasF1 ? `<div style="margin-top:8px;font-size:0.9rem;color:var(--text-muted)">F1: <strong style="color:#a5b4fc;">${data.v2.f1}</strong></div>` : ''}
-          <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">threshold: ${data.v2.threshold.toFixed(3)}</div>
-        </div>
-      </div>
-      <div class="card" style="border:1px solid rgba(6,182,212,0.4);background:rgba(6,182,212,0.05);">
-        <div style="padding:20px;">
-          <div style="font-size:0.75rem;font-weight:600;color:#67e8f9;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">V3 (New)</div>
-          <div style="font-size:2rem;font-weight:700;">${data.v3.binding_count} <span style="font-size:1rem;color:var(--text-muted)">binding</span></div>
-          ${hasF1 ? `<div style="margin-top:8px;font-size:0.9rem;color:var(--text-muted)">F1: <strong style="color:#67e8f9;">${data.v3.f1}</strong></div>` : ''}
-          <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">threshold: ${data.v3.threshold.toFixed(3)}</div>
-        </div>
-      </div>`;
-
-    // Chart
-    const labels  = cmpResidues.map(r => r.resid);
-    const probsV2 = cmpResidues.map(r => r.prob_v2);
-    const probsV3 = cmpResidues.map(r => r.prob_v3);
-
-    if (cmpChart) cmpChart.destroy();
-    cmpChart = new Chart(document.getElementById('cmp-chart'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label:'V2', data: probsV2, borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,0.08)', borderWidth:1.5, pointRadius:0, tension:0.3 },
-          { label:'V3', data: probsV3, borderColor:'#06b6d4', backgroundColor:'rgba(6,182,212,0.08)',  borderWidth:1.5, pointRadius:0, tension:0.3 },
-        ]
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { maxTicksLimit: 20, color:'#64748b' }, grid: { color:'rgba(255,255,255,0.04)' } },
-          y: { min:0, max:1, ticks: { color:'#64748b' }, grid: { color:'rgba(255,255,255,0.04)' } }
-        }
-      }
-    });
-
-    renderTable(false);
-    document.getElementById('cmp-results').hidden = false;
-  }
-
-  function renderTable(showAll) {
-    const rows = showAll ? cmpResidues : cmpResidues.filter(r => r.bind_v2 !== r.bind_v3);
-    const badge = b => b ? '<span style="color:#4ade80;font-weight:600;">●</span>' : '<span style="color:#475569;">○</span>';
-    const truthBadge = t => t === null ? '—' : (t ? '<span style="color:#facc15;">●</span>' : '<span style="color:#475569;">○</span>');
-    document.getElementById('cmp-tbody').innerHTML = rows.map(r => `
-      <tr style="${r.bind_v2 !== r.bind_v3 ? 'background:rgba(251,191,36,0.06);' : ''}">
-        <td>${r.index}</td>
-        <td>${r.resname}</td>
-        <td>${r.resid}</td>
-        <td style="color:#a5b4fc;">${r.prob_v2.toFixed(3)}</td>
-        <td>${badge(r.bind_v2)}</td>
-        <td style="color:#67e8f9;">${r.prob_v3.toFixed(3)}</td>
-        <td>${badge(r.bind_v3)}</td>
-        <td>${truthBadge(r.ground_truth)}</td>
-      </tr>`).join('');
-  }
-
-  document.getElementById('cmp-filter-diff').addEventListener('click', function() {
-    this.classList.add('active');
-    document.getElementById('cmp-filter-all').classList.remove('active');
-    renderTable(false);
-  });
-  document.getElementById('cmp-filter-all').addEventListener('click', function() {
-    this.classList.add('active');
-    document.getElementById('cmp-filter-diff').classList.remove('active');
-    renderTable(true);
-  });
-  </script>
 </body>
 </html>
 

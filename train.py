@@ -192,12 +192,13 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip,
                 labels = data_a.y.float().to(device)
 
         optimizer.zero_grad()
-        with torch.amp.autocast('cuda', enabled=False):  # AMP disabled - prevents GATv2 float16 NaN
+        with torch.amp.autocast('cuda', enabled=False): # DISABLED AMP due to GATv2 float16 overflow
             logits, _ = model(data_a, data_b)
             logits    = logits.squeeze(-1)
             loss = criterion(logits, labels.float())
-
+        
         if torch.isnan(loss):
+            print("  [WARN] NaN loss detected! Skipping batch to prevent crash...")
             optimizer.zero_grad()
             continue
 
@@ -291,12 +292,12 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
 
     # Build model
     model = ECABSDModel(
-        esm_dim=mcfg.get("esm_dim", 1280),
+        input_dim=mcfg.get("esm_dim", 33),
         hidden_dim=mcfg["hidden_dim"],
         num_heads=mcfg["num_heads"],
         dropout=mcfg["dropout"],
-        num_layers=mcfg.get("num_gcn_layers", 3),
-        cross_attention=True
+        edge_dim=mcfg.get("edge_feature_dim", 5),
+        num_gcn_layers=mcfg.get("num_gcn_layers", 6),
     ).to(device)
 
     total_params = sum(p.numel() for p in model.parameters())
@@ -320,8 +321,36 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
 
     train_dataset = BindingSiteDataset(processed_dir, splits_csv, split="train")
     val_dataset   = BindingSiteDataset(processed_dir, splits_csv, split="val")
-    print(f"[Dataset] Loaded {len(train_dataset)} samples for split 'train'")
-    print(f"[Dataset] Loaded {len(val_dataset)} samples for split 'val'")
+    test_dataset  = BindingSiteDataset(processed_dir, splits_csv, split="test")
+
+    print("\n[VERIFICATION] Pre-flight checks starting...")
+    print(f"  Model Version: V3")
+    print(f"  Train Samples: {len(train_dataset)}")
+    print(f"  Val Samples:   {len(val_dataset)}")
+    print(f"  Test Samples:  {len(test_dataset)}")
+
+    # Verify Graph Dimensions on first sample
+    if len(train_dataset) > 0:
+        sample = train_dataset[0]
+        x_dim = sample["data_a"].x.shape[1]
+        e_dim = sample["data_a"].edge_attr.shape[1]
+        print(f"  Graph Dims:    x={x_dim}, edge_attr={e_dim}")
+        if x_dim != 33 or e_dim != 5:
+            raise ValueError(f"FATAL: Expected x=33, edge=5. Found x={x_dim}, edge={e_dim}")
+
+    # Verify Leakage
+    import pandas as pd
+    df = pd.read_csv(splits_csv)
+    t = set(df[df['split']=='train']['pdb_id'])
+    v = set(df[df['split']=='val']['pdb_id'])
+    e = set(df[df['split']=='test']['pdb_id'])
+    t_v = len(t & v)
+    t_e = len(t & e)
+    v_e = len(v & e)
+    print(f"  Leakage Overlap: Train-Val={t_v}, Train-Test={t_e}, Val-Test={v_e}")
+    if t_v > 0 or t_e > 0 or v_e > 0:
+        raise ValueError("FATAL: Leakage overlap detected!")
+    print("[VERIFICATION] All checks passed!\n")
 
     train_loader = DataLoader(
         train_dataset, batch_size=tcfg["batch_size"], shuffle=True,
@@ -349,7 +378,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
 
     print(f"[ECABSD] LR: warmup {warmup_epochs} epochs → cosine {cosine_epochs} epochs")
     
-    # Initialize Mixed Precision Scaler
+    # Initialize Mixed Precision Scaler (Disabled to prevent NaN in GATv2)
     scaler = torch.amp.GradScaler('cuda', enabled=False)
 
     # Resume
@@ -363,7 +392,16 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
             scaler.load_state_dict(ckpt["scaler_state_dict"])
         start_epoch   = ckpt.get("epoch", 0) + 1
         best_val_loss = ckpt.get("best_val_loss", float("inf"))
-        print(f"[ECABSD] Resumed from epoch {start_epoch}")
+        if "scheduler_state_dict" in ckpt:
+            # Restore full scheduler state — LR will be exactly where it was
+            scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+            print(f"[ECABSD] Scheduler state restored from checkpoint.")
+        else:
+            # Old checkpoint without scheduler state — fast-forward manually
+            print(f"[ECABSD] No scheduler state in checkpoint. Fast-forwarding {start_epoch} steps...")
+            for _ in range(start_epoch):
+                scheduler.step()
+        print(f"[ECABSD] Resumed from epoch {start_epoch} | LR={optimizer.param_groups[0]['lr']:.6f}")
 
     # Loop
     patience_counter = 0
@@ -372,7 +410,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     history          = []
 
     print(f"\n{'='*60}")
-    print(f"  ECABSD v2 Training — {tcfg['epochs']} epochs")
+    print(f"  ECABSD V3 Training — {tcfg['epochs']} epochs")
     print(f"{'='*60}\n")
 
     for epoch in range(start_epoch, tcfg["epochs"]):
@@ -416,17 +454,18 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
             best_val_f1      = current_f1
             best_val_loss    = val_metrics["loss"]
             patience_counter = 0
-            ckpt_path        = os.path.join(pcfg["checkpoints_dir"], "best_model.pt")
+            ckpt_path        = os.path.join(pcfg["checkpoints_dir"], "best_model_v3.pt")
             torch.save(
                 {
-                    "epoch":                epoch,
-                    "model_state_dict":     model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "scaler_state_dict":    scaler.state_dict(),
-                    "best_val_loss":        best_val_loss,
-                    "best_val_f1":          best_val_f1,
-                    "best_threshold":       best_threshold,
-                    "config":               cfg,
+                    "epoch":                 epoch,
+                    "model_state_dict":      model.state_dict(),
+                    "optimizer_state_dict":  optimizer.state_dict(),
+                    "scaler_state_dict":     scaler.state_dict(),
+                    "scheduler_state_dict":  scheduler.state_dict(),
+                    "best_val_loss":         best_val_loss,
+                    "best_val_f1":           best_val_f1,
+                    "best_threshold":        best_threshold,
+                    "config":                cfg,
                 },
                 ckpt_path,
             )
@@ -456,7 +495,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
             break
 
     # Save history
-    history_path = os.path.join(pcfg["logs_dir"], "training_history.json")
+    history_path = os.path.join(pcfg["logs_dir"], "training_history_v3.json")
     with open(history_path, "w") as f:
         json.dump(history, f, indent=2)
 

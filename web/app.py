@@ -30,13 +30,11 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from models.ecabsd_model import ECABSDModel
-from models.ecabsd_v3_model import ECABSDModelV3
 from models.graph_construction import build_residue_graph, get_residues, compute_binding_labels
 from Bio.PDB import PDBParser
 
-# Global model instances (V2 and V3)
+# Global model instances (V3)
 _model    = None   # V3 (primary)
-_model_v2 = None   # V2 Overboost
 _device   = None
 _config   = None
 
@@ -95,7 +93,7 @@ def get_model(config_path: str = "config.yaml"):
         _config = load_config(config_path)
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        _model = ECABSDModelV3(
+        _model = ECABSDModel(
             input_dim=33,
             hidden_dim=256,
             num_heads=4,
@@ -117,33 +115,6 @@ def get_model(config_path: str = "config.yaml"):
         _model.eval()
     return _model, _device, _config
 
-
-def get_model_v2():
-    """Load V2 Overboost model (secondary, singleton)."""
-    global _model_v2, _device, _config
-    if _config is None:
-        get_model()  # ensure config + device loaded
-    if _model_v2 is None:
-        _model_v2 = ECABSDModel(
-            esm_dim=33,
-            hidden_dim=192,
-            num_heads=4,
-            dropout=0.0,
-            num_layers=4,
-            cross_attention=True,
-        ).to(_device)
-        root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        ckpt_path = os.path.join(root, "checkpoints", "best_model.pt")
-        if os.path.exists(ckpt_path):
-            ckpt = torch.load(ckpt_path, map_location=_device, weights_only=False)
-            _model_v2.load_state_dict(ckpt["model_state_dict"])
-            _model_v2.best_threshold = ckpt.get("best_threshold", 0.5819)
-            print(f"[Web] V2 model loaded from: {ckpt_path}")
-        else:
-            _model_v2.best_threshold = 0.5819
-            print(f"[Web] WARNING: V2 checkpoint not found at {ckpt_path}")
-        _model_v2.eval()
-    return _model_v2
 
 
 def create_app(config_path: str = "config.yaml") -> FastAPI:
@@ -398,7 +369,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             if total_count > 0:
                 # Generate and save Heatmap
                 try:
-                    heatmap_filename = f"heatmap_{chain_a}.png"
+                    heatmap_filename = f"Binding_Probability_Heatmap_Chain_{chain_a}.png"
                     heatmap_path = os.path.join(out_dir, heatmap_filename)
                     save_heatmap_plot(probs_np, heatmap_path, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}")
                     heatmap_url = f"/results/{pdb_name}/{heatmap_filename}"
@@ -421,12 +392,12 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         saliency_raw = np.abs(grads).mean(axis=1)
                         saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
                         
-                        gradcam_filename = f"gradcam_{chain_a}.png"
+                        gradcam_filename = f"GradCAM_Saliency_Map_Chain_{chain_a}.png"
                         gradcam_path = os.path.join(out_dir, gradcam_filename)
                         save_gradcam_plot(saliency, gradcam_path, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
                         gradcam_url = f"/results/{pdb_name}/{gradcam_filename}"
                         
-                        gradcam_json_path = os.path.join(out_dir, f"gradcam_{chain_a}.json")
+                        gradcam_json_path = os.path.join(out_dir, f"GradCAM_Scores_Chain_{chain_a}.json")
                         gradcam_residues = [{"index": int(i), "gradcam_score": float(s)} for i, s in enumerate(saliency)]
                         with open(gradcam_json_path, "w") as f:
                             json.dump({
@@ -446,7 +417,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             
             if is_excellent_overlap:
                 try:
-                    saved_path = os.path.join(out_dir, f"web_perfect_prediction_{chain_a}.json")
+                    saved_path = os.path.join(out_dir, f"High_Confidence_Prediction_Chain_{chain_a}.json")
                     payload = {
                         "pdb_file": clean_filename,
                         "chain_a": chain_a,
@@ -557,130 +528,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         finally:
             os.unlink(tmp_path)
 
-
-    @app.post("/compare")
-    async def compare(
-        pdb_id: Optional[str] = Form(None),
-        pdb_file: Optional[UploadFile] = File(None),
-        chain_a: str = Form("A"),
-        chain_b: Optional[str] = Form(None),
-    ):
-        """Run both V2 and V3 on the same PDB and return side-by-side results."""
-        model_v3, device, cfg = get_model()
-        model_v2 = get_model_v2()
-
-        # Resolve PDB
-        tmp_path = None
-        filename = ""
-        try:
-            if pdb_file and pdb_file.filename:
-                with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
-                    shutil.copyfileobj(pdb_file.file, tmp)
-                    tmp_path = tmp.name
-                    filename = pdb_file.filename
-            elif pdb_id and pdb_id.strip():
-                pid = pdb_id.strip().upper()
-                os.makedirs("data/raw/pdbs", exist_ok=True)
-                local_pdb = f"data/raw/pdbs/{pid}.pdb"
-                if not os.path.exists(local_pdb):
-                    import urllib.request
-                    urllib.request.urlretrieve(f"https://files.rcsb.org/download/{pid}.pdb", local_pdb)
-                with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
-                    with open(local_pdb, "rb") as src:
-                        shutil.copyfileobj(src, tmp)
-                    tmp_path = tmp.name
-                filename = f"{pid}.pdb"
-            else:
-                raise HTTPException(status_code=400, detail="Provide a PDB ID or upload a PDB file.")
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail=str(e))
-
-        try:
-            data_a = build_residue_graph(tmp_path, chain_a).to(device)
-            data_b = None
-            if chain_b and chain_b.strip():
-                try:
-                    data_b = build_residue_graph(tmp_path, chain_b).to(device)
-                except Exception:
-                    data_b = None
-
-            # V3 prediction
-            with torch.no_grad():
-                logits_v3, _ = model_v3(data_a, data_b)
-                probs_v3 = torch.sigmoid(logits_v3).squeeze(-1).cpu().tolist()
-            thr_v3 = getattr(model_v3, "best_threshold", 0.52)
-            labels_v3 = [int(p >= thr_v3) for p in probs_v3]
-
-            # V2 prediction
-            with torch.no_grad():
-                logits_v2, _ = model_v2(data_a, data_b)
-                probs_v2 = torch.sigmoid(logits_v2).squeeze(-1).cpu().tolist()
-            thr_v2 = getattr(model_v2, "best_threshold", 0.5819)
-            labels_v2 = [int(p >= thr_v2) for p in probs_v2]
-
-            # Residue info
-            parser = PDBParser(QUIET=True)
-            structure = parser.get_structure("p", tmp_path)
-            residue_list = get_residues(structure[0][chain_a])
-            if isinstance(residue_list, tuple):
-                residue_list = residue_list[0]
-
-            # Ground truth if chain_b given
-            true_labels = []
-            if chain_b and chain_b.strip():
-                try:
-                    true_labels = compute_binding_labels(tmp_path, chain_a, chain_b, distance_cutoff=5.0)
-                except Exception:
-                    true_labels = []
-
-            def f1_score(preds, truth):
-                if not truth or len(truth) != len(preds):
-                    return None
-                tp = sum(1 for p, t in zip(preds, truth) if p == 1 and t == 1)
-                fp = sum(1 for p, t in zip(preds, truth) if p == 1 and t == 0)
-                fn = sum(1 for p, t in zip(preds, truth) if p == 0 and t == 1)
-                prec = tp / max(tp + fp, 1)
-                rec  = tp / max(tp + fn, 1)
-                return round(2 * prec * rec / max(prec + rec, 1e-8), 4)
-
-            residues = []
-            for i, r in enumerate(residue_list):
-                if i >= len(probs_v3):
-                    break
-                residues.append({
-                    "index":    i,
-                    "resname":  r.get_resname(),
-                    "resid":    r.get_id()[1],
-                    "prob_v2":  round(probs_v2[i] if i < len(probs_v2) else 0, 4),
-                    "prob_v3":  round(probs_v3[i], 4),
-                    "bind_v2":  labels_v2[i] if i < len(labels_v2) else 0,
-                    "bind_v3":  labels_v3[i],
-                    "ground_truth": int(true_labels[i]) if i < len(true_labels) else None,
-                })
-
-            return JSONResponse({
-                "status":          "success",
-                "pdb":             filename,
-                "chain_a":         chain_a,
-                "chain_b":         chain_b,
-                "total_residues":  len(residues),
-                "v2": {
-                    "threshold":       thr_v2,
-                    "binding_count":   sum(labels_v2[:len(residues)]),
-                    "f1":              f1_score(labels_v2[:len(residues)], true_labels),
-                },
-                "v3": {
-                    "threshold":       thr_v3,
-                    "binding_count":   sum(labels_v3[:len(residues)]),
-                    "f1":              f1_score(labels_v3[:len(residues)], true_labels),
-                },
-                "residues": residues,
-            })
-        finally:
-            if tmp_path and os.path.exists(tmp_path):
-                os.unlink(tmp_path)
 
     return app
 
