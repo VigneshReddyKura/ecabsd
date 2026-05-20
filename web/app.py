@@ -459,7 +459,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             pdb_name = os.path.splitext(clean_filename)[0]
             
             heatmap_url = ""
-            gradcam_url = ""
             
             if total_count > 0:
                 # Generate in-memory Heatmap (Base64 data URL)
@@ -467,41 +466,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     heatmap_url = get_heatmap_plot_base64(probs_np, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}")
                 except Exception as e:
                     print(f"[Web] Error generating Heatmap: {e}")
-
-                # Generate in-memory Grad-CAM with extreme memory optimization
-                if os.environ.get("RENDER") == "true" or os.environ.get("DISABLE_GRADCAM") == "true":
-                    print("[Web] Skipping Grad-CAM calculation on Render to prevent 512MB RAM OOM crash.")
-                else:
-                    try:
-                        data_a_grad = data_a.clone()
-                        data_a_grad.x = data_a_grad.x.float().detach().clone()
-                        data_a_grad.x.requires_grad_(True)
-                        
-                        model.zero_grad(set_to_none=True)
-                        logits, _ = model(data_a_grad, data_b)
-                        score = logits.squeeze(-1).sum()
-                        score.backward()
-                        
-                        if data_a_grad.x.grad is not None:
-                            grads = data_a_grad.x.grad.detach().cpu().numpy()
-                            saliency_raw = np.abs(grads).mean(axis=1)
-                            saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
-                            
-                            gradcam_url = get_gradcam_plot_base64(saliency, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
-                            
-                            # Clean up intermediate arrays immediately
-                            del grads, saliency_raw, saliency
-                        
-                        # Force delete gradient graph and clear gradients
-                        del data_a_grad, logits, score
-                        model.zero_grad(set_to_none=True)
-                        import gc
-                        gc.collect()
-                    except Exception as e:
-                        print(f"[Web] Error generating Grad-CAM: {e}")
-                        model.zero_grad(set_to_none=True)
-                        import gc
-                        gc.collect()
 
             # Auto-save "perfect" samples or "Excellent" overlap
             saved_to_results = False
@@ -546,7 +510,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "saved_to_results": saved_to_results,
                 "saved_path": saved_path,
                 "heatmap_url": heatmap_url,
-                "gradcam_url": gradcam_url,
                 "residues": results,
             }
             if overlap_stats:
@@ -577,10 +540,11 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         pdb_file: Optional[UploadFile] = File(None),
         pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),
-        chain_b: Optional[str] = Form("B"),
+        chain_b: Optional[str] = Form(None),
+        threshold: Optional[float] = Form(None),
     ):
         """
-        Get attention rollout explanation for a prediction.
+        Get Grad-CAM explanation for a prediction.
         """
         model, device, cfg = get_model()
 
@@ -662,27 +626,50 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             chain_a = chain_a.strip().upper() if chain_a else "A"
             chain_b = chain_b.strip().upper() if chain_b and chain_b.strip() else None
 
-            from explainability.attention_rollout import AttentionRollout
-
             try:
-                data_a = build_residue_graph(tmp_path, chain_a).to(device)
+                data_a = build_residue_graph(tmp_path, chain_a)
+                if data_a.edge_attr is None:
+                    raise ValueError("Graph has no edge_attr — check graph_construction.py")
+                data_a = data_a.to(device)
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to build graph for Chain {chain_a}: {str(e)}")
             data_b = None
             if chain_b and chain_b.strip():
                 try:
-                    data_b = build_residue_graph(tmp_path, chain_b).to(device)
+                    data_b = build_residue_graph(tmp_path, chain_b)
+                    if data_b.edge_attr is not None:
+                        data_b = data_b.to(device)
                 except Exception:
                     pass
 
-            rollout = AttentionRollout(model)
-            scores, attn_matrix = rollout.compute(data_a, data_b)
-            rollout.remove_hook()
+            # Calculate Grad-CAM in memory
+            data_a_grad = data_a.clone()
+            data_a_grad.x = data_a_grad.x.float().detach().clone()
+            data_a_grad.x.requires_grad_(True)
+            
+            model.zero_grad(set_to_none=True)
+            logits, _ = model(data_a_grad, data_b)
+            score = logits.squeeze(-1).sum()
+            score.backward()
+            
+            gradcam_url = ""
+            saliency = []
+            if data_a_grad.x.grad is not None:
+                grads = data_a_grad.x.grad.detach().cpu().numpy()
+                saliency_raw = np.abs(grads).mean(axis=1)
+                saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
+                
+                pdb_name = os.path.splitext(filename)[0]
+                gradcam_url = get_gradcam_plot_base64(saliency, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
+                
+                # Clean up intermediate arrays immediately
+                del grads, saliency_raw
 
             return JSONResponse({
                 "status": "success",
-                "attention_scores": scores.tolist(),
-                "attention_matrix_shape": list(attn_matrix.shape),
+                "gradcam_image": gradcam_url,
+                "gradcam_scores": saliency,
+                "saliency_scores": saliency
             })
         except Exception as e:
             import traceback
@@ -697,9 +684,19 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             except Exception:
                 pass
             try:
+                if 'data_a' in locals(): del data_a
+                if 'data_b' in locals(): del data_b
+                if 'data_a_grad' in locals(): del data_a_grad
+                if 'logits' in locals(): del logits
+                if 'score' in locals(): del score
+            except Exception:
+                pass
+            try:
                 model.zero_grad(set_to_none=True)
                 import gc
                 gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
             except Exception:
                 pass
 

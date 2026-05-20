@@ -231,7 +231,11 @@
               <h4 style="font-size: 0.9rem; margin: 0; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">⚡ Grad-CAM Saliency Map</h4>
               <a id="download-gradcam-btn" class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 0.75rem; display: none;" download="gradcam.png">⬇ Download PNG</a>
             </div>
-            <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <div id="gradcam-placeholder-area" style="text-align: center; padding: 30px; background: rgba(0,0,0,0.15); border-radius: var(--radius-sm); border: 1px dashed var(--border);">
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Grad-CAM calculates the gradient of the predicted binding score with respect to the input node features to highlight critical residues.</p>
+              <button id="generate-gradcam-btn" class="btn btn-primary" style="font-size: 0.85rem; padding: 8px 16px; cursor: pointer; border-radius: 4px; border: none; background: var(--primary); color: white; font-weight: 500; transition: background 0.2s;">⚡ Generate Grad-CAM Explanation</button>
+            </div>
+            <div id="gradcam-img-wrapper" style="display: none; background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
               <img id="gradcam-img" src="" alt="Grad-CAM Saliency Map" style="width: 100%; height: auto; display: block; border-radius: 4px;" />
             </div>
           </div>
