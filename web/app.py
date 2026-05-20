@@ -366,8 +366,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             if is_auto:
                 default_thresh = getattr(model, "best_threshold", 0.52)
                 if max_prob < default_thresh:
-                    # Adaptive threshold for low-probability samples to highlight relative peaks
-                    threshold_val = max(0.005, max_prob * 0.75)
+                    # Adaptive percentile threshold: Use the 90th percentile of predicted probabilities
+                    # to isolate the top 10% highest-confidence relative peaks for low-probability samples.
+                    # A floor of 0.01 prevents spurious predictions on absolute flat noise.
+                    threshold_val = max(0.01, float(np.percentile(probs_np, 90)))
                 else:
                     threshold_val = default_thresh
 
@@ -805,13 +807,20 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     if is_auto:
                         default_thresh = getattr(model, "best_threshold", 0.52)
                         if max_prob < default_thresh:
-                            threshold_val = max(0.005, max_prob * 0.75)
+                            threshold_val = max(0.01, float(np.percentile(probs, 90)))
                         else:
                             threshold_val = default_thresh
                             
                     predicted_binding_indices = np.where(probs >= threshold_val)[0].tolist()
             except Exception as e:
                 print(f"[Web] Prediction check failed for overlap calculation: {e}")
+
+            random_overlap_pct = 0.0
+            if saliency_gradcam is not None:
+                total_n = len(saliency_gradcam)
+                if total_n > 0:
+                    # Hypergeometric random expected baseline overlap % for 10 chosen residues
+                    random_overlap_pct = round((len(predicted_binding_indices) / total_n) * 100, 1)
 
             if saliency_gradcam is not None and len(predicted_binding_indices) > 0:
                 sorted_gc_indices = np.argsort(saliency_gradcam)[::-1][:10].tolist()
@@ -830,6 +839,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "gradcam_scores": saliency_gradcam,
                 "attention_scores": saliency_attn,
                 "overlap_percentage": overlap_pct,
+                "random_overlap_percentage": random_overlap_pct,
                 "top_gradcam_residues": sorted_gc_indices,
                 "predicted_binding_residues": predicted_binding_indices
             })
