@@ -143,19 +143,25 @@ async function runPrediction() {
       body: formData,
     });
 
-    let data;
+    let data = null;
+    const text = await response.text();
     const contentType = response.headers.get("content-type");
+
     if (contentType && contentType.indexOf("application/json") !== -1) {
-      data = await response.json();
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch (jsonErr) {
+        console.error("JSON parsing error:", jsonErr, "Response text was:", text);
+        throw new Error(`Failed to parse JSON response: ${text.substring(0, 120) || '(empty response)'}`);
+      }
     } else {
-      const text = await response.text();
       const cleanText = text ? text.replace(/<[^>]*>/g, '').trim() : '';
       const summaryText = cleanText ? cleanText.substring(0, 120) : response.statusText;
       throw new Error(`Server error (${response.status}): ${summaryText || 'Bad Gateway'}`);
     }
 
     if (!response.ok) {
-      throw new Error(data.detail || 'Prediction failed');
+      throw new Error((data && data.detail) ? data.detail : 'Prediction failed');
     }
 
     currentResults = data;

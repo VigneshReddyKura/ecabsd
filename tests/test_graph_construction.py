@@ -65,9 +65,9 @@ def test_get_residues_skips_hetatm():
 # ──────────────────────────────────────────────
 
 def test_node_feature_shape():
-    """Each residue must produce exactly 23 features (20 AA + 3 SS)."""
+    """Each residue must produce exactly 33 features (20 AA + 3 SS + other descriptors)."""
     graph = build_residue_graph(PDB_PATH, CHAIN_ID)
-    assert graph.x.shape[1] == 23, f"Expected 23 features, got {graph.x.shape[1]}"
+    assert graph.x.shape[1] == 33, f"Expected 33 features, got {graph.x.shape[1]}"
 
 def test_node_feature_count_matches_residues():
     """Number of node feature rows must equal number of residues."""
@@ -87,9 +87,9 @@ def test_one_hot_is_valid():
     assert torch.all(row_sums == 1.0), "Some residues have invalid one-hot encoding"
 
 def test_ss_one_hot_is_valid():
-    """Each residue's SS one-hot (last 3 dims) must sum to exactly 1."""
+    """Each residue's SS one-hot (dims 20 to 22) must sum to exactly 1."""
     graph = build_residue_graph(PDB_PATH, CHAIN_ID)
-    ss_part = graph.x[:, 20:]
+    ss_part = graph.x[:, 20:23]
     row_sums = ss_part.sum(dim=1)
     assert torch.all(row_sums == 1.0), "Some residues have invalid SS encoding"
 
@@ -114,9 +114,9 @@ def test_no_self_loops():
     assert torch.all(src != dst), "Self-loops found in edge_index"
 
 def test_edge_attr_shape():
-    """Edge attributes must have 4 features (dist + 3D unit vector)."""
+    """Edge attributes must have 5 features (dist + 3D unit vector + type)."""
     graph = build_residue_graph(PDB_PATH, CHAIN_ID)
-    assert graph.edge_attr.shape[1] == 4, f"Expected 4 edge features, got {graph.edge_attr.shape[1]}"
+    assert graph.edge_attr.shape[1] == 5, f"Expected 5 edge features, got {graph.edge_attr.shape[1]}"
 
 def test_edge_attr_count_matches_edges():
     """Number of edge_attr rows must match number of edges."""

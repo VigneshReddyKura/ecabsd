@@ -550,7 +550,12 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 response_payload["experimental_overlap"] = overlap_stats
 
             return JSONResponse(response_payload)
-
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Prediction API failure: {str(e)}")
         finally:
             try:
                 if tmp_path and os.path.exists(tmp_path):
@@ -676,6 +681,12 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "attention_scores": scores.tolist(),
                 "attention_matrix_shape": list(attn_matrix.shape),
             })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Explainability API failure: {str(e)}")
         finally:
             try:
                 if tmp_path and os.path.exists(tmp_path):
