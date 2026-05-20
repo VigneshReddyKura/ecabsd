@@ -121,6 +121,14 @@ def load_config(config_path: str = "config.yaml") -> dict:
 def get_model(config_path: str = "config.yaml"):
     """Load V3 model (primary, singleton)."""
     global _model, _device, _config
+    
+    # Absolute minimum PyTorch memory footprint settings (crucial for 512MB RAM container)
+    try:
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
+    except Exception as e:
+        print(f"[Web] Failed to limit PyTorch threads: {e}")
+        
     if _model is None:
         _config = load_config(config_path)
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -332,21 +340,22 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except ValueError:
                     threshold_val = 0.5
 
-            # Predict
-            logits, attn = model(data_a, data_b)
-            probs = torch.sigmoid(logits).squeeze(-1)
-            probs_np = probs.cpu().tolist()
-            
-            # Apply mode logic
-            if mode == "topk":
-                k = max(1, int(len(probs_np) * (top_k_percent / 100.0)))
-                top_indices = torch.topk(probs, k).indices
-                labels_np = [0] * len(probs_np)
-                for idx in top_indices:
-                    labels_np[idx] = 1
-                threshold_val = min([probs_np[i] for i in top_indices]) if len(top_indices) > 0 else threshold_val
-            else:
-                labels_np = (probs >= threshold_val).cpu().numpy().astype(int).tolist()
+            # Predict with absolute minimum memory footprint
+            with torch.no_grad():
+                logits, attn = model(data_a, data_b)
+                probs = torch.sigmoid(logits).squeeze(-1)
+                probs_np = probs.cpu().tolist()
+                
+                # Apply mode logic
+                if mode == "topk":
+                    k = max(1, int(len(probs_np) * (top_k_percent / 100.0)))
+                    top_indices = torch.topk(probs, k).indices
+                    labels_np = [0] * len(probs_np)
+                    for idx in top_indices:
+                        labels_np[idx] = 1
+                    threshold_val = min([probs_np[i] for i in top_indices]) if len(top_indices) > 0 else threshold_val
+                else:
+                    labels_np = (probs >= threshold_val).cpu().numpy().astype(int).tolist()
 
             # Get residue info for labelling results
             parser = PDBParser(QUIET=True)
@@ -453,13 +462,13 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception as e:
                     print(f"[Web] Error generating Heatmap: {e}")
 
-                # Generate and save Grad-CAM
+                # Generate and save Grad-CAM with extreme memory optimization
                 try:
                     data_a_grad = data_a.clone()
                     data_a_grad.x = data_a_grad.x.float().detach().clone()
                     data_a_grad.x.requires_grad_(True)
                     
-                    model.zero_grad()
+                    model.zero_grad(set_to_none=True)
                     logits, _ = model(data_a_grad, data_b)
                     score = logits.squeeze(-1).sum()
                     score.backward()
@@ -474,19 +483,19 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         save_gradcam_plot(saliency, gradcam_path, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
                         gradcam_url = f"/results/{pdb_name}/{gradcam_filename}"
                         
-                        # Disabled JSON result saving to prevent local file generation on the deployed site
-                        # gradcam_json_path = os.path.join(out_dir, f"GradCAM_Scores_Chain_{chain_a}.json")
-                        # gradcam_residues = [{"index": int(i), "gradcam_score": float(s)} for i, s in enumerate(saliency)]
-                        # with open(gradcam_json_path, "w") as f:
-                        #     json.dump({
-                        #         "pdb_file": clean_filename,
-                        #         "chain": chain_a,
-                        #         "method": "gradcam_saliency",
-                        #         "residues": gradcam_residues
-                        #     }, f, indent=2)
-                        pass
+                        # Clean up intermediate arrays immediately
+                        del grads, saliency_raw, saliency
+                    
+                    # Force delete gradient graph and clear gradients
+                    del data_a_grad, logits, score
+                    model.zero_grad(set_to_none=True)
+                    import gc
+                    gc.collect()
                 except Exception as e:
                     print(f"[Web] Error generating Grad-CAM: {e}")
+                    model.zero_grad(set_to_none=True)
+                    import gc
+                    gc.collect()
 
             # Auto-save "perfect" samples or "Excellent" overlap
             saved_to_results = False
@@ -540,7 +549,17 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             return JSONResponse(response_payload)
 
         finally:
-            os.unlink(tmp_path)
+            try:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except Exception:
+                pass
+            try:
+                model.zero_grad(set_to_none=True)
+                import gc
+                gc.collect()
+            except Exception:
+                pass
 
     @app.post("/explain")
     async def explain(
@@ -655,7 +674,17 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "attention_matrix_shape": list(attn_matrix.shape),
             })
         finally:
-            os.unlink(tmp_path)
+            try:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except Exception:
+                pass
+            try:
+                model.zero_grad(set_to_none=True)
+                import gc
+                gc.collect()
+            except Exception:
+                pass
 
 
     return app
