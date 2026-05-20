@@ -341,36 +341,47 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception:
                     data_b = None
 
-            # Resolve threshold
-            threshold_val = 0.5
-            if threshold.lower() == "auto":
-                threshold_val = getattr(model, "best_threshold", 0.5819)
-            else:
-                try:
-                    val = float(threshold)
-                    if val < 0:
-                        threshold_val = getattr(model, "best_threshold", 0.5819)
-                    else:
-                        threshold_val = val
-                except ValueError:
-                    threshold_val = 0.5
-
             # Predict with absolute minimum memory footprint
             with torch.no_grad():
                 logits, attn = model(data_a, data_b)
                 probs = torch.sigmoid(logits).squeeze(-1)
                 probs_np = probs.cpu().tolist()
-                
-                # Apply mode logic
-                if mode == "topk":
-                    k = max(1, int(len(probs_np) * (top_k_percent / 100.0)))
-                    top_indices = torch.topk(probs, k).indices
-                    labels_np = [0] * len(probs_np)
-                    for idx in top_indices:
-                        labels_np[idx] = 1
-                    threshold_val = min([probs_np[i] for i in top_indices]) if len(top_indices) > 0 else threshold_val
+
+            max_prob = max(probs_np) if len(probs_np) > 0 else 0.0
+
+            # Resolve threshold
+            is_auto = False
+            if threshold.lower() == "auto":
+                is_auto = True
+            else:
+                try:
+                    val = float(threshold)
+                    if val < 0:
+                        is_auto = True
+                    else:
+                        threshold_val = val
+                except ValueError:
+                    threshold_val = 0.5
+
+            if is_auto:
+                default_thresh = getattr(model, "best_threshold", 0.52)
+                if max_prob < default_thresh:
+                    # Adaptive threshold for low-probability samples to highlight relative peaks
+                    threshold_val = max(0.005, max_prob * 0.75)
                 else:
-                    labels_np = (probs >= threshold_val).cpu().numpy().astype(int).tolist()
+                    threshold_val = default_thresh
+
+            # Apply mode logic
+            if mode == "topk":
+                k = max(1, int(len(probs_np) * (top_k_percent / 100.0)))
+                # Get top k indices
+                top_indices = np.argsort(probs_np)[::-1][:k].tolist()
+                labels_np = [0] * len(probs_np)
+                for idx in top_indices:
+                    labels_np[idx] = 1
+                threshold_val = min([probs_np[i] for i in top_indices]) if len(top_indices) > 0 else threshold_val
+            else:
+                labels_np = [1 if p >= threshold_val else 0 for p in probs_np]
 
             # Get residue info for labelling results
             parser = PDBParser(QUIET=True)
@@ -433,6 +444,8 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         quality = "Excellent Experimental Overlap"
                     elif f1 >= 0.50:
                         quality = "Good Experimental Overlap"
+                    elif true_positives == 0 and false_positives == 0:
+                        quality = "Underprediction - No Binding Residues Predicted (Needs Review)"
                     elif precision > recall:
                         quality = "Underprediction - High Precision, Low Recall (Needs Review)"
                     else:
@@ -781,7 +794,21 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     logits, _ = model(data_a, data_b)
                     probs = torch.sigmoid(logits).squeeze(-1).cpu().numpy()
                     
-                    threshold_val = threshold if threshold is not None else getattr(model, "best_threshold", 0.5819)
+                    max_prob = float(probs.max()) if len(probs) > 0 else 0.0
+                    
+                    is_auto = False
+                    if threshold is None or threshold < 0:
+                        is_auto = True
+                    else:
+                        threshold_val = threshold
+                        
+                    if is_auto:
+                        default_thresh = getattr(model, "best_threshold", 0.52)
+                        if max_prob < default_thresh:
+                            threshold_val = max(0.005, max_prob * 0.75)
+                        else:
+                            threshold_val = default_thresh
+                            
                     predicted_binding_indices = np.where(probs >= threshold_val)[0].tolist()
             except Exception as e:
                 print(f"[Web] Prediction check failed for overlap calculation: {e}")
