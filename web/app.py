@@ -681,18 +681,31 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 data_a_grad.x.requires_grad_(True)
 
                 model.zero_grad(set_to_none=True)
-                logits, _ = model(data_a_grad, data_b)
 
-                if logits.ndim == 0:
-                    logits = logits.unsqueeze(0)
+                # Temporarily disable requires_grad for all model parameters to save memory
+                orig_requires_grad = {}
+                for name, param in model.named_parameters():
+                    orig_requires_grad[name] = param.requires_grad
+                    param.requires_grad = False
 
-                if logits.ndim > 1:
-                    score_logits = logits.squeeze(-1)
-                else:
-                    score_logits = logits
+                try:
+                    logits, _ = model(data_a_grad, data_b)
 
-                score = score_logits.sum()
-                score.backward()
+                    if logits.ndim == 0:
+                        logits = logits.unsqueeze(0)
+
+                    if logits.ndim > 1:
+                        score_logits = logits.squeeze(-1)
+                    else:
+                        score_logits = logits
+
+                    score = score_logits.sum()
+                    score.backward()
+                finally:
+                    # Restore original requires_grad settings
+                    for name, param in model.named_parameters():
+                        if name in orig_requires_grad:
+                            param.requires_grad = orig_requires_grad[name]
 
                 if data_a_grad.x.grad is not None:
                     grad_tensor = data_a_grad.x.grad
@@ -721,7 +734,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     raise ValueError("No gradients computed on node features.")
             except (MemoryError, RuntimeError, Exception) as gradcam_err:
                 print(f"[Web] Grad-CAM failed: {gradcam_err}")
-                gradcam_error = "Grad-CAM unavailable, attention saliency shown separately."
+                gradcam_error = f"Grad-CAM unavailable ({str(gradcam_err) or gradcam_err.__class__.__name__}), attention saliency shown separately."
                 saliency_gradcam = None
                 gradcam_image = None
                 model.zero_grad(set_to_none=True)
