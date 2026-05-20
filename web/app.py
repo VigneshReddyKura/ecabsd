@@ -397,15 +397,17 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         save_gradcam_plot(saliency, gradcam_path, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
                         gradcam_url = f"/results/{pdb_name}/{gradcam_filename}"
                         
-                        gradcam_json_path = os.path.join(out_dir, f"GradCAM_Scores_Chain_{chain_a}.json")
-                        gradcam_residues = [{"index": int(i), "gradcam_score": float(s)} for i, s in enumerate(saliency)]
-                        with open(gradcam_json_path, "w") as f:
-                            json.dump({
-                                "pdb_file": clean_filename,
-                                "chain": chain_a,
-                                "method": "gradcam_saliency",
-                                "residues": gradcam_residues
-                            }, f, indent=2)
+                        # Disabled JSON result saving to prevent local file generation on the deployed site
+                        # gradcam_json_path = os.path.join(out_dir, f"GradCAM_Scores_Chain_{chain_a}.json")
+                        # gradcam_residues = [{"index": int(i), "gradcam_score": float(s)} for i, s in enumerate(saliency)]
+                        # with open(gradcam_json_path, "w") as f:
+                        #     json.dump({
+                        #         "pdb_file": clean_filename,
+                        #         "chain": chain_a,
+                        #         "method": "gradcam_saliency",
+                        #         "residues": gradcam_residues
+                        #     }, f, indent=2)
+                        pass
                 except Exception as e:
                     print(f"[Web] Error generating Grad-CAM: {e}")
 
@@ -417,22 +419,24 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             
             if is_excellent_overlap:
                 try:
-                    saved_path = os.path.join(out_dir, f"High_Confidence_Prediction_Chain_{chain_a}.json")
-                    payload = {
-                        "pdb_file": clean_filename,
-                        "chain_a": chain_a,
-                        "chain_b": chain_b,
-                        "threshold": threshold_val,
-                        "total_residues": total_count,
-                        "binding_residues_count": binding_count,
-                        "binding_ratio": round(binding_ratio, 4),
-                        "prediction_quality": quality,
-                        "residues": results,
-                    }
-                    with open(saved_path, "w") as f:
-                        json.dump(payload, f, indent=2)
-                    saved_to_results = True
-                    print(f"[Web] Perfect prediction auto-saved to: {saved_path}")
+                    # Disabled JSON result saving to prevent local file generation on the deployed site
+                    # saved_path = os.path.join(out_dir, f"High_Confidence_Prediction_Chain_{chain_a}.json")
+                    # payload = {
+                    #     "pdb_file": clean_filename,
+                    #     "chain_a": chain_a,
+                    #     "chain_b": chain_b,
+                    #     "threshold": threshold_val,
+                    #     "total_residues": total_count,
+                    #     "binding_residues_count": binding_count,
+                    #     "binding_ratio": round(binding_ratio, 4),
+                    #     "prediction_quality": quality,
+                    #     "residues": results,
+                    # }
+                    # with open(saved_path, "w") as f:
+                    #     json.dump(payload, f, indent=2)
+                    # saved_to_results = True
+                    # print(f"[Web] Perfect prediction auto-saved to: {saved_path}")
+                    pass
                 except Exception as e:
                     print(f"[Web] Error auto-saving perfect prediction: {e}")
 
