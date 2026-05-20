@@ -105,7 +105,9 @@ def get_gradcam_plot_base64(saliency, title):
         
         plt.figure(figsize=(14, 2))
         plt.imshow(heatmap, aspect="auto", cmap="plasma")
-        plt.colorbar(label="Grad-CAM Importance")
+        
+        cb_label = "Attention Weight" if "Attention" in title else "Grad-CAM Importance"
+        plt.colorbar(label=cb_label)
         plt.title(title)
         plt.xlabel("Residue Index")
         plt.yticks([])
@@ -667,122 +669,129 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     "error": "Grad-CAM unavailable for large proteins on free hosting. Use local version."
                 })
 
-            is_render = os.environ.get("RENDER") == "true"
+            saliency_gradcam = None
+            gradcam_image = None
+            gradcam_error = None
 
-            saliency = []
-            gradcam_url = ""
+            # 1. Try Grad-CAM on CPU first
+            try:
+                print("[Web] Calculating Grad-CAM explanation on CPU.")
+                data_a_grad = data_a.clone()
+                data_a_grad.x = data_a_grad.x.float().detach().clone()
+                data_a_grad.x.requires_grad_(True)
 
-            # Check if we should force attention explanation
-            if is_render:
-                print("[Web] Render environment detected. Computing Attention-based explanation (torch.no_grad).")
+                model.zero_grad(set_to_none=True)
+                logits, _ = model(data_a_grad, data_b)
+
+                if logits.ndim == 0:
+                    logits = logits.unsqueeze(0)
+
+                if logits.ndim > 1:
+                    score_logits = logits.squeeze(-1)
+                else:
+                    score_logits = logits
+
+                score = score_logits.sum()
+                score.backward()
+
+                if data_a_grad.x.grad is not None:
+                    grad_tensor = data_a_grad.x.grad
+                    if grad_tensor.ndim == 1:
+                        grad_tensor = grad_tensor.unsqueeze(0)
+
+                    grads = grad_tensor.detach().cpu().numpy()
+                    features = data_a_grad.x.detach().cpu().numpy()
+
+                    # Gradient-based Grad-CAM calculation
+                    weights = np.mean(grads, axis=0)
+                    saliency_raw = np.sum(features * weights, axis=1)
+                    saliency_raw = np.maximum(saliency_raw, 0) # ReLU positive contribution
+
+                    if np.all(saliency_raw == 0) or np.max(saliency_raw) == 0:
+                        saliency_raw = np.abs(np.sum(features * grads, axis=1))
+
+                    denom = (saliency_raw.max() - saliency_raw.min() + 1e-8)
+                    saliency_gradcam = ((saliency_raw - saliency_raw.min()) / denom).tolist()
+
+                    pdb_name = os.path.splitext(filename)[0]
+                    gradcam_image = get_gradcam_plot_base64(saliency_gradcam, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
+
+                    del grads, features, saliency_raw
+                else:
+                    raise ValueError("No gradients computed on node features.")
+            except (MemoryError, RuntimeError, Exception) as gradcam_err:
+                print(f"[Web] Grad-CAM failed: {gradcam_err}")
+                gradcam_error = "Grad-CAM unavailable, attention saliency shown separately."
+                saliency_gradcam = None
+                gradcam_image = None
+                model.zero_grad(set_to_none=True)
+                gc.collect()
+
+            # 2. Always compute Attention Saliency Map separately
+            attention_image = None
+            saliency_attn = None
+            try:
+                print("[Web] Calculating Attention-based explanation on CPU.")
                 model.eval()
                 with torch.no_grad():
                     logits, attn_list = model(data_a, data_b)
                     if attn_list and len(attn_list) > 0:
                         attn = attn_list[0].detach().cpu().float()
-                        print("[Web] Attention tensor shape:", attn.shape)
-                        
-                        # Handle attention tensor dimensions defensively
                         if attn.ndim == 3:
                             attn = attn.mean(dim=0)
                         
                         if attn.ndim == 2:
-                            scores = attn.sum(dim=1).numpy()
+                            scores_attn = attn.sum(dim=1).numpy()
                         elif attn.ndim == 1:
-                            scores = attn.numpy()
+                            scores_attn = attn.numpy()
                         else:
-                            scores = attn.flatten().numpy()
+                            scores_attn = attn.flatten().numpy()
                             
-                        saliency = ((scores - scores.min()) / (scores.max() - scores.min() + 1e-8)).tolist()
+                        saliency_attn = ((scores_attn - scores_attn.min()) / (scores_attn.max() - scores_attn.min() + 1e-8)).tolist()
 
                         pdb_name = os.path.splitext(filename)[0]
-                        gradcam_url = get_gradcam_plot_base64(saliency, f"Attention Saliency Map - {pdb_name} Chain {chain_a}")
+                        attention_image = get_gradcam_plot_base64(saliency_attn, f"Attention Saliency Map - {pdb_name} Chain {chain_a}")
                     else:
-                        raise ValueError("Model did not return cross-attention weights.")
-            else:
-                # Try Grad-CAM on CPU
-                try:
-                    print("[Web] Local environment. Trying Grad-CAM explanation on CPU.")
-                    data_a_grad = data_a.clone()
-                    data_a_grad.x = data_a_grad.x.float().detach().clone()
-                    data_a_grad.x.requires_grad_(True)
+                        raise ValueError("Attention weights unavailable.")
+            except Exception as attn_err:
+                print(f"[Web] Attention calculation failed: {attn_err}")
 
-                    model.zero_grad(set_to_none=True)
-                    print("[Web] data_a_grad.x shape:", data_a_grad.x.shape)
-                    logits, _ = model(data_a_grad, data_b)
-                    print("[Web] logits shape:", logits.shape)
+            # 3. Add overlap check (between top 10 Grad-CAM residues and top predicted binding residues)
+            overlap_pct = 0.0
+            sorted_gc_indices = []
+            predicted_binding_indices = []
 
-                    # Ensure logits has at least 1 dimension
-                    if logits.ndim == 0:
-                        logits = logits.unsqueeze(0)
+            # Compute prediction probabilities for overlap check
+            try:
+                model.eval()
+                with torch.no_grad():
+                    logits, _ = model(data_a, data_b)
+                    probs = torch.sigmoid(logits).squeeze(-1).cpu().numpy()
+                    
+                    threshold_val = threshold if threshold is not None else getattr(model, "best_threshold", 0.5819)
+                    predicted_binding_indices = np.where(probs >= threshold_val)[0].tolist()
+            except Exception as e:
+                print(f"[Web] Prediction check failed for overlap calculation: {e}")
 
-                    # Safely squeeze
-                    if logits.ndim > 1:
-                        score_logits = logits.squeeze(-1)
-                    else:
-                        score_logits = logits
-
-                    score = score_logits.sum()
-                    score.backward()
-
-                    if data_a_grad.x.grad is not None:
-                        grad_tensor = data_a_grad.x.grad
-                        print("[Web] feature shape:", data_a_grad.x.shape)
-                        print("[Web] gradient shape:", grad_tensor.shape)
-
-                        # Ensure 1D or 2D gradient tensor is handled safely
-                        if grad_tensor.ndim == 1:
-                            grad_tensor = grad_tensor.unsqueeze(0)
-
-                        grads = grad_tensor.detach().cpu().numpy()
-                        saliency_raw = np.abs(grads).mean(axis=1)
-                        saliency = ((saliency_raw - saliency_raw.min()) / (saliency_raw.max() - saliency_raw.min() + 1e-8)).tolist()
-
-                        pdb_name = os.path.splitext(filename)[0]
-                        gradcam_url = get_gradcam_plot_base64(saliency, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
-
-                        del grads, saliency_raw
-                    else:
-                        raise ValueError("No gradients computed on node features.")
-                except (MemoryError, RuntimeError, Exception) as gradcam_err:
-                    # Fallback to Attention Saliency on CPU
-                    print(f"[Web] Grad-CAM failed: {gradcam_err}. Falling back to Attention explanation.")
-                    model.zero_grad(set_to_none=True)
-                    gc.collect()
-
-                    model.eval()
-                    with torch.no_grad():
-                        logits, attn_list = model(data_a, data_b)
-                        if attn_list and len(attn_list) > 0:
-                            attn = attn_list[0].detach().cpu().float()
-                            print("[Web] Fallback Attention tensor shape:", attn.shape)
-                            
-                            # Handle attention tensor dimensions defensively
-                            if attn.ndim == 3:
-                                attn = attn.mean(dim=0)
-                            
-                            if attn.ndim == 2:
-                                scores = attn.sum(dim=1).numpy()
-                            elif attn.ndim == 1:
-                                scores = attn.numpy()
-                            else:
-                                scores = attn.flatten().numpy()
-                                
-                            saliency = ((scores - scores.min()) / (scores.max() - scores.min() + 1e-8)).tolist()
-
-                            pdb_name = os.path.splitext(filename)[0]
-                            gradcam_url = get_gradcam_plot_base64(saliency, f"Attention Saliency Map - {pdb_name} Chain {chain_a}")
-                        else:
-                            raise ValueError("Attention weights unavailable.")
+            if saliency_gradcam is not None and len(predicted_binding_indices) > 0:
+                sorted_gc_indices = np.argsort(saliency_gradcam)[::-1][:10].tolist()
+                intersection = set(sorted_gc_indices).intersection(set(predicted_binding_indices))
+                # Compute percentage overlap based on top 10 GC
+                overlap_pct = round((len(intersection) / 10.0) * 100, 1)
 
             # Garbage collect
             gc.collect()
 
             return JSONResponse({
                 "status": "success",
-                "gradcam_image": gradcam_url,
-                "gradcam_scores": saliency,
-                "saliency_scores": saliency
+                "gradcam_image": gradcam_image,
+                "gradcam_error": gradcam_error,
+                "attention_image": attention_image,
+                "gradcam_scores": saliency_gradcam,
+                "attention_scores": saliency_attn,
+                "overlap_percentage": overlap_pct,
+                "top_gradcam_residues": sorted_gc_indices,
+                "predicted_binding_residues": predicted_binding_indices
             })
 
         except BaseException as e:
