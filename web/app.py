@@ -208,8 +208,11 @@ def get_model(config_path: str = "config.yaml"):
 
 
 def create_app(config_path: str = "config.yaml") -> FastAPI:
-    """Create and configure the FastAPI application."""
-    # get_model(config_path)  # Lazy-loaded on first prediction to speed up server startup and avoid timeouts
+    try:
+        print("[Web] Pre-loading model at startup to prevent dynamic request timeouts...")
+        get_model(config_path)
+    except Exception as e:
+        print(f"[Web] WARNING: Failed to pre-load model at startup: {e}")
 
     app = FastAPI(
         title="ECABSD — Binding Site Detection",
@@ -335,7 +338,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                                     os.remove(local_pdb)
                                 except Exception:
                                     pass
-                            raise HTTPException(status_code=400, detail=f"Failed to retrieve PDB '{pid}' from RCSB: {str(e)}")
+                            raise ValueError(f"Failed to retrieve PDB '{pid}' from RCSB: {str(e)}")
                     
                     # Create a copy in temp file
                     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
@@ -344,18 +347,64 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         tmp_path = tmp.name
                     filename = f"{pid}.pdb"
                 else:
-                    raise HTTPException(status_code=400, detail="Invalid PDB ID format. Must be a 4-character ID.")
+                    raise ValueError("Invalid PDB ID format. Must be a 4-character ID.")
             else:
-                raise HTTPException(status_code=400, detail="Please upload a PDB file or provide a 4-letter PDB ID.")
+                raise ValueError("Please upload a PDB file or provide a 4-letter PDB ID.")
         except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail=f"Failed to load PDB resource: {str(e)}")
+            raise ValueError(f"PDB loading failed: {str(e)}")
 
         try:
             # Clean and auto-capitalize chain inputs
             chain_a = chain_a.strip().upper() if chain_a else "A"
             chain_b = chain_b.strip().upper() if chain_b and chain_b.strip() else None
+
+            # 1. Parse structure and validate chains explicitly
+            try:
+                parser = PDBParser(QUIET=True)
+                structure = parser.get_structure("protein", tmp_path)
+            except Exception as parse_err:
+                raise ValueError(f"Failed to parse PDB structure: {str(parse_err)}")
+
+            if not structure or len(structure) == 0:
+                raise ValueError("PDB structure is empty or has no models.")
+
+            model_obj = structure[0]
+            valid_chains = [c.get_id() for c in model_obj]
+            print(f"[Web] Valid chains in PDB: {valid_chains}")
+
+            if chain_a not in valid_chains:
+                raise ValueError(f"Chain A '{chain_a}' not found in PDB file. Available chains: {', '.join(valid_chains) or 'None'}")
+            
+            if chain_b and chain_b not in valid_chains:
+                raise ValueError(f"Chain B '{chain_b}' not found in PDB file. Available chains: {', '.join(valid_chains) or 'None'}")
+
+            # 2. Extract residue lists to count total residues before building GNN graph
+            try:
+                res_list_a, _ = get_residues(model_obj[chain_a])
+            except Exception as res_err:
+                raise ValueError(f"Failed to parse residues from Chain {chain_a}: {str(res_err)}")
+
+            total_res_a = len(res_list_a)
+            print(f"[Web] Chain {chain_a} residue count: {total_res_a}")
+
+            # Residue size limits
+            if total_res_a < 10:
+                raise ValueError(f"Chain A {chain_a} is too small ({total_res_a} residues, min 10).")
+            if total_res_a > 500:
+                raise ValueError(f"Chain A {chain_a} is too large ({total_res_a} residues, max 500) for server resource limits.")
+
+            if chain_b:
+                try:
+                    res_list_b, _ = get_residues(model_obj[chain_b])
+                    total_res_b = len(res_list_b)
+                    print(f"[Web] Chain {chain_b} residue count: {total_res_b}")
+                    if total_res_b < 10:
+                        raise ValueError(f"Chain B {chain_b} is too small ({total_res_b} residues, min 10).")
+                    if total_res_b > 500:
+                        raise ValueError(f"Chain B {chain_b} is too large ({total_res_b} residues, max 500) for server resource limits.")
+                except Exception as b_err:
+                    print(f"[Web] Warning while parsing chain B: {b_err}. Bypassing chain B.")
+                    chain_b = None
 
             # Build graphs — v2 model requires edge_attr (5-dim)
             try:
@@ -364,10 +413,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     raise ValueError("Graph has no edge_attr — check graph_construction.py")
                 data_a = data_a.to(device)
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to build graph for Chain {chain_a}: {str(e)}")
+                raise ValueError(f"Failed to build graph for Chain {chain_a}: {str(e)}")
 
             data_b = None
-            if chain_b and chain_b.strip():
+            if chain_b:
                 try:
                     data_b = build_residue_graph(tmp_path, chain_b)
                     if data_b.edge_attr is not None:
@@ -573,12 +622,24 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 response_payload["experimental_overlap"] = overlap_stats
 
             return JSONResponse(response_payload)
+        except (MemoryError, RuntimeError) as oom_err:
+            import traceback
+            traceback.print_exc()
+            return JSONResponse({
+                "status": "error",
+                "detail": f"Prediction skipped: Protein size or structure exceeds server memory limits."
+            }, status_code=400)
         except Exception as e:
             import traceback
             traceback.print_exc()
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail=f"Prediction API failure: {str(e)}")
+            err_msg = str(e) if str(e) else e.__class__.__name__
+            # Strip out internal exception packaging prefix if present
+            if err_msg.startswith("400:"):
+                err_msg = err_msg.split("400:")[1].strip()
+            return JSONResponse({
+                "status": "error",
+                "detail": f"Prediction failed: {err_msg}"
+            }, status_code=400)
         finally:
             try:
                 if tmp_path and os.path.exists(tmp_path):
@@ -929,14 +990,21 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "predicted_binding_residues": predicted_binding_indices
             })
 
-        except BaseException as e:
+        except (MemoryError, RuntimeError) as oom_err:
+            import traceback
+            traceback.print_exc()
+            return JSONResponse({
+                "status": "error",
+                "detail": "Explanation skipped: Protein size or structure exceeds server memory limits."
+            }, status_code=400)
+        except Exception as e:
             import traceback
             traceback.print_exc()
             err_msg = str(e) if str(e) else e.__class__.__name__
             return JSONResponse({
                 "status": "error",
-                "error": f"Explanation failed: {err_msg}"
-            }, status_code=500)
+                "detail": f"Explanation failed: {err_msg}"
+            }, status_code=400)
         finally:
             try:
                 if tmp_path and os.path.exists(tmp_path):
