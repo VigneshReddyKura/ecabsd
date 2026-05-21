@@ -103,6 +103,7 @@ def get_heatmap_plot_base64(probs, title):
         return f"data:image/png;base64,{img_base64}"
     except Exception as e:
         print(f"[Web] Failed to generate heatmap plot: {e}")
+        plt.close("all")
         return ""
 
 
@@ -129,6 +130,7 @@ def get_gradcam_plot_base64(saliency, title):
         return f"data:image/png;base64,{img_base64}"
     except Exception as e:
         print(f"[Web] Failed to generate Grad-CAM plot: {e}")
+        plt.close("all")
         return ""
 
 
@@ -140,6 +142,28 @@ def has_enough_memory(min_free_mb=250):
         return free_mb >= min_free_mb, free_mb
     except Exception:
         return True, 999.0
+
+
+def cleanup_memory():
+    """Aggressively free memory between requests to prevent OOM on Render free tier."""
+    try:
+        plt.close("all")
+    except Exception:
+        pass
+    try:
+        gc.collect()
+    except Exception:
+        pass
+    try:
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
+    try:
+        _, free_mb = has_enough_memory(0)
+        print(f"[Web] cleanup_memory() done. Free: {free_mb:.0f} MB")
+    except Exception:
+        pass
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
@@ -249,6 +273,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         """
         Predict binding sites from an uploaded PDB file or a 4-letter PDB ID.
         """
+        cleanup_memory()  # Clear old prediction/gradcam memory first
         model, device, cfg = get_model()
 
         # Resolve PDB input
@@ -562,10 +587,9 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 pass
             try:
                 model.zero_grad(set_to_none=True)
-                import gc
-                gc.collect()
             except Exception:
                 pass
+            cleanup_memory()
 
     @app.post("/explain")
     async def explain(
@@ -578,8 +602,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         """
         Get Grad-CAM or Attention explanation for a prediction.
         """
-        import gc
-        gc.collect()
+        cleanup_memory()  # Clear old memory from previous requests
 
         tmp_path = None
         model = None
@@ -926,16 +949,17 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 if 'data_a_grad' in locals(): del data_a_grad
                 if 'logits' in locals(): del logits
                 if 'score' in locals(): del score
+                if 'attn' in locals(): del attn
+                if 'attn_list' in locals(): del attn_list
+                if 'grad_tensor' in locals(): del grad_tensor
+                if 'probs' in locals(): del probs
             except Exception:
                 pass
             try:
                 model.zero_grad(set_to_none=True)
-                import gc
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
             except Exception:
                 pass
+            cleanup_memory()
 
 
     return app
