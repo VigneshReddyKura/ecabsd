@@ -520,7 +520,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception as e:
                     print(f"[Web] Error auto-saving perfect prediction: {e}")
 
-            ok, free_mb = has_enough_memory(250)
+            ok, free_mb = has_enough_memory(150)
             gradcam_allowed = bool(total_count <= 200 and ok)
 
             response_payload = {
@@ -728,11 +728,16 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             gradcam_error = None
             gradcam_message = None
 
-            ok, free_mb = has_enough_memory(250)
+            # Aggressive cleanup before memory check to get accurate reading
+            model.zero_grad(set_to_none=True)
+            gc.collect()
+
+            ok, free_mb = has_enough_memory(150)
+            print(f"[Web] Pre-GradCAM memory check: {free_mb:.0f} MB free, num_nodes={num_nodes}")
 
             if num_nodes > 200:
                 gradcam_available = False
-                gradcam_message = "Grad-CAM skipped for large protein (>200 residues) on Render free tier. Use local mode."
+                gradcam_message = f"Grad-CAM skipped for large protein ({num_nodes} residues, >200 limit) on Render free tier. Use local mode."
                 gradcam_error = gradcam_message
                 print(f"[Web] Skipping Grad-CAM: {gradcam_message}")
                 gc.collect()
@@ -743,9 +748,9 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 print(f"[Web] Skipping Grad-CAM: {gradcam_message}")
                 gc.collect()
             else:
-                # Try Grad-CAM on CPU
+                # Try Grad-CAM on CPU with maximum memory safety
                 try:
-                    print("[Web] Calculating Grad-CAM explanation on CPU.")
+                    print(f"[Web] Attempting Grad-CAM on CPU ({free_mb:.0f} MB free, {num_nodes} residues).")
                     data_a_grad = data_a.clone()
                     data_a_grad.x = data_a_grad.x.float().detach().clone()
                     data_a_grad.x.requires_grad_(True)
@@ -770,6 +775,18 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                             score_logits = logits
 
                         score = score_logits.sum()
+
+                        # === CRITICAL: Real-time memory check RIGHT before backward() ===
+                        # backward() is the memory spike that kills Render.
+                        # Check again after forward pass consumed memory.
+                        gc.collect()
+                        ok2, free_mb2 = has_enough_memory(100)
+                        print(f"[Web] Pre-backward() memory: {free_mb2:.0f} MB free")
+
+                        if not ok2:
+                            print(f"[Web] Aborting backward(): only {free_mb2:.0f} MB free, need 100 MB")
+                            raise MemoryError(f"Insufficient memory for backward pass ({free_mb2:.0f} MB free)")
+
                         score.backward()
                     finally:
                         # Restore original requires_grad settings
@@ -802,10 +819,24 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         del grads, features, saliency_raw
                     else:
                         raise ValueError("No gradients computed on node features.")
-                except (MemoryError, RuntimeError, Exception) as gradcam_err:
+                except MemoryError as mem_err:
+                    print(f"[Web] Grad-CAM OOM: {mem_err}")
+                    gradcam_available = False
+                    gradcam_message = f"Grad-CAM skipped: server ran low on memory. Attention saliency shown instead."
+                    gradcam_error = gradcam_message
+                    saliency_gradcam = None
+                    gradcam_image = None
+                    model.zero_grad(set_to_none=True)
+                    gc.collect()
+                except (RuntimeError, Exception) as gradcam_err:
+                    err_str = str(gradcam_err)
+                    is_oom = "out of memory" in err_str.lower() or "alloc" in err_str.lower()
                     print(f"[Web] Grad-CAM failed: {gradcam_err}")
                     gradcam_available = False
-                    gradcam_message = f"Grad-CAM unavailable ({str(gradcam_err) or gradcam_err.__class__.__name__}), attention saliency shown separately."
+                    if is_oom:
+                        gradcam_message = f"Grad-CAM skipped: server ran low on memory. Attention saliency shown instead."
+                    else:
+                        gradcam_message = f"Grad-CAM unavailable ({err_str or gradcam_err.__class__.__name__}), attention saliency shown separately."
                     gradcam_error = gradcam_message
                     saliency_gradcam = None
                     gradcam_image = None
