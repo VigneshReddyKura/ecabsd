@@ -373,6 +373,11 @@ ecabsd/
 └── requirements.txt
 ```
 
+## Known Limitations
+
+- **Render Free Tier**: Render free tier may disable Grad-CAM for large proteins due to RAM limits (512MB).
+- **Leakage Check**: Exact-match leakage check is included by default. However, MMseqs2 clustering is highly recommended for stronger sequence-similarity leakage prevention.
+
 ---
 
 ## License
