@@ -55,15 +55,15 @@ def check_exact_id_leakage(splits_csv: str) -> bool:
 
     print("[LEAKAGE CHECK] Tier 1 — Exact PDB-ID overlap")
     print(f"  Train: {len(train_ids)} | Val: {len(val_ids)} | Test: {len(test_ids)}")
-    print(f"  Train∩Val  : {len(tv)}")
-    print(f"  Train∩Test : {len(te)}")
-    print(f"  Val∩Test   : {len(ve)}")
+    print(f"  Train & Val  : {len(tv)}")
+    print(f"  Train & Test : {len(te)}")
+    print(f"  Val & Test   : {len(ve)}")
 
     if tv or te or ve:
         print("[LEAKAGE CHECK] FAIL — overlapping PDB IDs detected:")
-        if tv: print(f"  Train∩Val  : {sorted(tv)}")
-        if te: print(f"  Train∩Test : {sorted(te)}")
-        if ve: print(f"  Val∩Test   : {sorted(ve)}")
+        if tv: print(f"  Train & Val  : {sorted(tv)}")
+        if te: print(f"  Train & Test : {sorted(te)}")
+        if ve: print(f"  Val & Test   : {sorted(ve)}")
         return False
 
     print("[LEAKAGE CHECK] PASS — no exact-ID overlap found.\n")
