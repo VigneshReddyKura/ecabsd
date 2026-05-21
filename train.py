@@ -190,6 +190,8 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip,
             if hasattr(data_b, 'y') and data_b.y is not None:
                 data_a, data_b = data_b, data_a
                 labels = data_a.y.float().to(device)
+            else:
+                print("  [WARN] Chain-swap augmentation skipped: data_b missing .y labels")
 
         optimizer.zero_grad()
         with torch.amp.autocast('cuda', enabled=False): # DISABLED AMP due to GATv2 float16 overflow

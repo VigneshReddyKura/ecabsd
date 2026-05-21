@@ -3,7 +3,7 @@ import csv
 import argparse
 from Bio import SeqIO
 from Bio.PDB import PDBParser
-from Bio.PDB.Polypeptide import is_aa, three_to_one
+from Bio.PDB.Polypeptide import is_aa, protein_letters_3to1
 
 def get_sequence_from_pdb(pdb_path, chain_id):
     """Extract amino acid sequence from PDB chain."""
@@ -18,7 +18,7 @@ def get_sequence_from_pdb(pdb_path, chain_id):
             if is_aa(r, standard=True):
                 resname = r.get_resname()
                 try:
-                    seq += three_to_one(resname)
+                    seq += protein_letters_3to1[resname.capitalize()]
                 except KeyError:
                     seq += "X"
         return seq
@@ -92,10 +92,13 @@ def check_sequence_leakage(splits_csv, pdb_dir):
     else:
         print("FAIL: Sequence leakage detected. You should use MMSeqs2/CD-HIT to cluster your dataset.")
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--splits", default="data/db5_splits.csv")
     parser.add_argument("--pdb-dir", default="data/raw/pdbs")
     args = parser.parse_args()
     
     check_sequence_leakage(args.splits, args.pdb_dir)
+
+if __name__ == "__main__":
+    main()
