@@ -396,7 +396,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     scheduler      = SequentialLR(optimizer,
                                    schedulers=[warmup_sched, cosine_sched],
                                    milestones=[warmup_epochs])
-    print(f"[ECABSD] LR: warmup {warmup_epochs} epochs → cosine {cosine_epochs} epochs")
+    print(f"[ECABSD] LR: warmup {warmup_epochs} epochs -> cosine {cosine_epochs} epochs")
 
     # AMP scaler (disabled — GATv2 float16 overflow)
     scaler = torch.amp.GradScaler('cuda', enabled=False)

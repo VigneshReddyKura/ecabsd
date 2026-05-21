@@ -166,6 +166,11 @@ Opens at **http://localhost:8000**. Features:
 - Per-residue results table with filter
 - One-click export: CSV, JSON, PyMOL script
 
+> [!NOTE]
+> **Deployment & Hardware Limitations:**
+> - Grad-CAM explainability may be automatically disabled on constrained environments like the Render free tier due to the **512 MB RAM** limit.
+> - For very large protein structures, it is highly recommended to run predictions locally or use a GPU-accelerated environment (like Google Colab) to prevent memory-related performance degradation.
+
 ---
 
 ## Training

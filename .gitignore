@@ -25,3 +25,11 @@ generate_v1_notebook.py
 test_novel_pdb.py
 logs/
 results/
+
+# Scratch & Archive
+scratch/
+archive/
+*.pth
+
+# Sample PDB Exception
+!1AY7.pdb
