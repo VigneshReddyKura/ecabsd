@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "ECABSD: Explainable Cross Attention Model for Binding Site Discovery"
+abstract: >
+  ECABSD is a deep learning framework for per-residue protein–protein
+  binding site prediction using a 6-layer GATv2 graph encoder, global
+  context pooling, and multi-head cross-attention. It supports
+  explainability via attention rollout and Grad-CAM, as well as
+  downstream docking integration with AutoDock Vina.
+authors:
+  - family-names: "Greeva"
+    given-names: "Amani"
+    email: ""
+    orcid: ""
+version: "3.0.0"
+date-released: "2026-05-28"
+license: MIT
+repository-code: "https://github.com/amanigreeva/ECABSD"
+keywords:
+  - protein-protein interaction
+  - binding site prediction
+  - graph neural network
+  - GATv2
+  - cross-attention
+  - explainable AI
+  - structural bioinformatics
