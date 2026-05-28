@@ -76,6 +76,7 @@ async def test_explain_route(client):
 @pytest.mark.anyio
 async def test_explain_route_low_memory(client, monkeypatch):
     import web.app
+    monkeypatch.setenv("IS_RENDER", "true")
     # Mock has_enough_memory to return False (simulating low RAM)
     monkeypatch.setattr(web.app, "has_enough_memory", lambda min_free_mb=250: (False, 120.0))
     
