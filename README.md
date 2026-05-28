@@ -370,7 +370,9 @@ ecabsd/
 │   └── quickstart_1AY7.ipynb  # Quickstart Jupyter notebook
 │
 ├── tests/
-│   └── test_graph_construction.py
+│   ├── test_graph_construction.py
+│   ├── test_model_ml.py
+│   └── test_web.py
 │
 ├── checkpoints/                # Saved model weights
 ├── logs/                       # Training logs
@@ -378,10 +380,15 @@ ecabsd/
 └── requirements.txt
 ```
 
-## Known Limitations
+## Limitations
 
-- **Render Free Tier**: Render free tier may disable Grad-CAM for large proteins due to RAM limits (512MB).
-- **Leakage Check**: Exact-match leakage check is included by default. However, MMseqs2 clustering is highly recommended for stronger sequence-similarity leakage prevention.
+- No pretrained checkpoint is provided, requiring training before inference.
+- High computational and dependency complexity (PyTorch, PyG, ESM-2, AutoDock Vina).
+- Potential train/test homology overlap may affect generalization if not strictly controlled.
+- Limited unit testing beyond graph construction module.
+- Development scratch scripts are isolated in the `scratch/` directory.
+- No lightweight demo checkpoint or sample data for quick evaluation.
+- GPU resources are effectively required for practical training.
 
 ---
 
