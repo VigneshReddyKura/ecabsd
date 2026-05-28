@@ -61,7 +61,7 @@ def plot_confusion_matrix(cm, output_path):
         print("  [WARN] matplotlib/seaborn not available; skipping confusion matrix plot.")
 
 
-def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "checkpoints/best_model.pt"):
+def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "checkpoints/best_model_v3.pt"):
     """Run full evaluation on test set."""
     cfg = load_config(config_path)
     mcfg = cfg["model"]

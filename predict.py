@@ -259,7 +259,7 @@ if __name__ == "__main__":
     parser.add_argument("--pdb", required=True, help="PDB file path")
     parser.add_argument("--chain-a", required=True, help="Target chain ID")
     parser.add_argument("--chain-b", default=None, help="Partner chain ID")
-    parser.add_argument("--checkpoint", default="checkpoints/best_model.pt")
+    parser.add_argument("--checkpoint", default="checkpoints/best_model_v3.pt")
     parser.add_argument("--threshold", type=float, default=None,
                         help="Decision threshold (default: loaded from checkpoint)")
     parser.add_argument("--output", default=None)

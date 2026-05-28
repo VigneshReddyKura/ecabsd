@@ -22,7 +22,7 @@ def load_config(config_path: str) -> dict:
 
 def run_batch_prediction(
     input_dir: str,
-    checkpoint_path: str = "checkpoints/best_model.pt",
+    checkpoint_path: str = "checkpoints/best_model_v3.pt",
     chain_a: str = "A",
     chain_b: str = None,
     threshold: float = 0.5,
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="ECABSD Batch Prediction")
     parser.add_argument("--input-dir", required=True, help="Directory of PDB files")
-    parser.add_argument("--checkpoint", default="checkpoints/best_model.pt")
+    parser.add_argument("--checkpoint", default="checkpoints/best_model_v3.pt")
     parser.add_argument("--chain-a", default="A")
     parser.add_argument("--chain-b", default=None)
     parser.add_argument("--threshold", type=float, default=0.5)

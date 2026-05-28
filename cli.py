@@ -35,7 +35,7 @@ def train(
 def evaluate(
     config: Path = typer.Option("config.yaml", help="Path to config YAML file"),
     checkpoint: Path = typer.Option(
-        "checkpoints/best_model.pt", help="Model checkpoint path"
+        "checkpoints/best_model_v3.pt", help="Model checkpoint path"
     ),
 ):
     """Evaluate model on the test set."""
@@ -49,7 +49,7 @@ def predict(
     chain_a: str = typer.Option(..., help="Chain ID for target protein"),
     chain_b: Optional[str] = typer.Option(None, help="Chain ID for partner protein"),
     checkpoint: Path = typer.Option(
-        "checkpoints/best_model.pt", help="Model checkpoint"
+        "checkpoints/best_model_v3.pt", help="Model checkpoint"
     ),
     threshold: float = typer.Option(0.5, help="Binding probability threshold"),
     output: Optional[Path] = typer.Option(None, help="Output file path"),
@@ -72,7 +72,7 @@ def predict(
 def batch_predict(
     input_dir: Path = typer.Option(..., help="Directory of PDB files"),
     checkpoint: Path = typer.Option(
-        "checkpoints/best_model.pt", help="Model checkpoint"
+        "checkpoints/best_model_v3.pt", help="Model checkpoint"
     ),
     chain_a: str = typer.Option("A", help="Default chain A"),
     chain_b: Optional[str] = typer.Option(None, help="Default chain B"),
