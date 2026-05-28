@@ -6,6 +6,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.1-orange?logo=pytorch)
 ![PyG](https://img.shields.io/badge/PyG-2.7-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![CI](https://github.com/amanigreeva/ECABSD/actions/workflows/ci.yml/badge.svg)
 ![arXiv](https://img.shields.io/badge/arXiv-preprint-b31b1b?logo=arxiv)
 ![DOI](https://img.shields.io/badge/DOI-pending-lightgrey)
 
@@ -33,6 +34,8 @@
 - [Citation](#citation)
 - [Contact](#contact)
 - [Acknowledgements](#acknowledgements)
+- [Results & Reproducibility](RESULTS.md)
+- [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -261,13 +264,41 @@ Outputs:
 python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model_v3.pt
 ```
 
-### Homology Leakage Check
+### Homology-Aware Splits (Publication Standard)
+
+```bash
+# Requires: conda install -c bioconda mmseqs2
+python scripts/generate_homology_splits.py \
+    --splits data/splits.csv \
+    --pdb-dir data/raw/pdbs \
+    --output data/splits_homology.csv \
+    --identity 0.30
+```
+
+Enforces ≤30% sequence identity across splits using MMseqs2 clustering. Required for peer-reviewed publication.
+
+### 5-Fold Cross-Validation
+
+```bash
+python scripts/train_kfold.py \
+    --config config.yaml \
+    --splits data/splits_homology.csv \
+    --folds 5 \
+    --output results/kfold_results.json
+```
+
+Reports mean ± std metrics across folds — required by most computational biology venues.
+
+### Leakage Check
 
 ```bash
 python check_leakage.py --mmseqs
+# or: make leakage
 ```
 
-Verifies that no PDB IDs in `data/splits.csv` overlap across train/val/test partitions. Future releases will add MMseqs2-based sequence-similarity clustering to enforce ≤30% identity separation.
+Verifies zero PDB-level overlap across splits. Runs automatically at start of every training run.
+
+See [RESULTS.md](RESULTS.md) for the full reproducibility record and planned validation roadmap.
 
 ---
 
