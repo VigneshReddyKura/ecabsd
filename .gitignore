@@ -33,3 +33,9 @@ archive/
 
 # Sample PDB Exception
 !1AY7.pdb
+
+# Pretrained Checkpoint Exception
+!checkpoints/
+checkpoints/*
+!checkpoints/best_model.pt
+!checkpoints/.gitkeep
