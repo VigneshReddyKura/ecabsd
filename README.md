@@ -366,9 +366,6 @@ ecabsd/
 │       ├── style.css           # Dark-mode CSS
 │       └── app.js              # Frontend JavaScript
 │
-├── archive/notebooks/          # Training and development Jupyter notebooks
-│   └── ECABSD_V3_Training.ipynb
-│
 ├── tests/
 │   ├── test_graph_construction.py
 │   ├── test_model_ml.py
