@@ -82,24 +82,118 @@ _config   = None
 import io
 import base64
 
-def get_heatmap_plot_base64(probs, title):
+def get_heatmap_plot_base64(probs, title, residues=None):
     try:
         probs_np = np.array(probs)
-        heatmap = probs_np.reshape(1, -1)
+        n_residues = len(probs_np)
         
-        plt.figure(figsize=(14, 2))
-        plt.imshow(heatmap, aspect="auto", cmap="viridis")
-        plt.colorbar(label="Binding Probability")
-        plt.title(title)
-        plt.xlabel("Residue Index")
-        plt.yticks([])
+        # Premium Styling: Dark Theme matching `--bg` (#080b14) & `--surface` (#0f1420)
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 6.0), sharex=True,
+                                       gridspec_kw={'height_ratios': [0.8, 3.2]})
+        fig.patch.set_facecolor('#080b14')
+        ax1.set_facecolor('#0f1420')
+        ax2.set_facecolor('#0f1420')
+        
+        # Title of figure (vibrant & bold)
+        fig.suptitle(title, fontsize=14, fontweight="bold", color='#ffffff', y=0.98)
+        
+        # Top subplot: 1D Heatmap
+        heatmap = probs_np.reshape(1, -1)
+        im = ax1.imshow(heatmap, aspect="auto", cmap="viridis", vmin=0, vmax=1)
+        ax1.set_yticks([])
+        ax1.set_ylabel("Heatmap", color='#94a3b8', fontsize=9, labelpad=8)
+        ax1.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+        for spine in ax1.spines.values():
+            spine.set_visible(False)
+            
+        cb = fig.colorbar(im, ax=ax1, orientation="horizontal", pad=0.3, aspect=60)
+        cb.outline.set_visible(False)
+        cb.ax.xaxis.set_tick_params(color='#94a3b8', labelcolor='#94a3b8', labelsize=8)
+        cb.set_label("Binding Probability", color='#94a3b8', fontsize=8, labelpad=2)
+        
+        # Resolve residue labels
+        three_to_one = {
+            'ALA':'A', 'ARG':'R', 'ASN':'N', 'ASP':'D', 'CYS':'C',
+            'GLN':'Q', 'GLU':'E', 'GLY':'G', 'HIS':'H', 'ILE':'I',
+            'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P',
+            'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'
+        }
+        res_labels = []
+        if residues:
+            for idx, r in enumerate(residues):
+                if idx >= n_residues:
+                    break
+                name = r.get_resname()
+                one_letter = three_to_one.get(name, '?')
+                num = r.get_id()[1]
+                res_labels.append(f"{one_letter}{num}")
+        else:
+            res_labels = [str(i) for i in range(1, n_residues + 1)]
+            
+        # Bottom subplot: Line/Area plot
+        color_main = "#06b6d4"  # beautiful cyan
+        
+        # Main line and shaded area
+        ax2.plot(np.arange(n_residues), probs_np, color=color_main, linewidth=2.5, zorder=3, label="Probability")
+        ax2.plot(np.arange(n_residues), probs_np, color=color_main, linewidth=6.0, alpha=0.3, zorder=2) # subtle glow
+        ax2.fill_between(np.arange(n_residues), probs_np, color=color_main, alpha=0.12, zorder=1)
+        
+        # Dynamic ticks
+        if n_residues <= 60:
+            tick_step = 1
+        elif n_residues <= 120:
+            tick_step = 2
+        elif n_residues <= 200:
+            tick_step = 5
+        elif n_residues <= 400:
+            tick_step = 10
+        else:
+            tick_step = 20
+            
+        tick_indices = np.arange(0, n_residues, tick_step)
+        tick_labels = [res_labels[i] for i in tick_indices]
+        
+        ax2.set_xticks(tick_indices)
+        ax2.set_xticklabels(tick_labels, rotation=45, ha='right', fontsize=9, color='#94a3b8')
+        
+        ax2.set_ylabel("Binding Probability", color='#e2e8f0', fontsize=11, fontweight="bold", labelpad=8)
+        ax2.set_xlabel("Residue Index", color='#e2e8f0', fontsize=11, fontweight="bold", labelpad=8)
+        ax2.grid(True, which="both", color="#1e2640", linestyle=":", linewidth=0.6, alpha=0.6)
+        
+        for name, spine in ax2.spines.items():
+            if name in ['top', 'right']:
+                spine.set_visible(False)
+            else:
+                spine.set_color('#1e2640')
+                spine.set_linewidth(1.0)
+                
+        ax2.set_ylim(-0.05, 1.10)
+        
+        threshold_val = 0.52
+        ax2.axhline(y=threshold_val, color="#f43f5e", linestyle="--", linewidth=1.5, alpha=0.85, zorder=4,
+                    label=f"Decision Threshold ({threshold_val:.2f})")
+        
+        # Highlight sites above threshold
+        binding_idxs = np.where(probs_np >= threshold_val)[0]
+        if len(binding_idxs) > 0:
+            ax2.scatter(binding_idxs, probs_np[binding_idxs], color="#10b981", s=30, zorder=5, edgecolors='#080b14', linewidth=1, label="Predicted Binding Sites")
+            
+        legend = ax2.legend(loc="upper right", frameon=True, fontsize=9.5)
+        if legend:
+            frame = legend.get_frame()
+            frame.set_facecolor('#0f1420')
+            frame.set_edgecolor('#1e2640')
+            frame.set_linewidth(0.8)
+            for text in legend.get_texts():
+                text.set_color('#e2e8f0')
+                
         plt.tight_layout()
         
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=150)
+        plt.savefig(buf, format="png", dpi=180)
         buf.seek(0)
         img_base64 = base64.b64encode(buf.read()).decode("utf-8")
-        plt.close()
+        plt.close(fig)
         return f"data:image/png;base64,{img_base64}"
     except Exception as e:
         print(f"[Web] Failed to generate heatmap plot: {e}")
@@ -107,26 +201,132 @@ def get_heatmap_plot_base64(probs, title):
         return ""
 
 
-def get_gradcam_plot_base64(saliency, title):
+def get_gradcam_plot_base64(saliency, title, residues=None):
     try:
         saliency_np = np.array(saliency)
-        heatmap = saliency_np.reshape(1, -1)
+        n_residues = len(saliency_np)
         
-        plt.figure(figsize=(14, 2))
-        plt.imshow(heatmap, aspect="auto", cmap="plasma")
+        # Normalize saliency for visualization (0 to 1)
+        s_max = saliency_np.max() if saliency_np.max() > 0 else 1.0
+        norm_saliency = saliency_np / s_max
         
+        # Premium Styling: Dark Theme matching `--bg` (#080b14) & `--surface` (#0f1420)
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 6.0), sharex=True,
+                                       gridspec_kw={'height_ratios': [0.8, 3.2]})
+        fig.patch.set_facecolor('#080b14')
+        ax1.set_facecolor('#0f1420')
+        ax2.set_facecolor('#0f1420')
+        
+        fig.suptitle(title, fontsize=14, fontweight="bold", color='#ffffff', y=0.98)
+        
+        # Top subplot: 1D Heatmap
+        heatmap = norm_saliency.reshape(1, -1)
         cb_label = "Attention Weight" if "Attention" in title else "Grad-CAM Importance"
-        plt.colorbar(label=cb_label)
-        plt.title(title)
-        plt.xlabel("Residue Index")
-        plt.yticks([])
+        im = ax1.imshow(heatmap, aspect="auto", cmap="plasma", vmin=0, vmax=1)
+        ax1.set_yticks([])
+        ax1.set_ylabel("Heatmap", color='#94a3b8', fontsize=9, labelpad=8)
+        ax1.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+        for spine in ax1.spines.values():
+            spine.set_visible(False)
+            
+        cb = fig.colorbar(im, ax=ax1, orientation="horizontal", pad=0.3, aspect=60)
+        cb.outline.set_visible(False)
+        cb.ax.xaxis.set_tick_params(color='#94a3b8', labelcolor='#94a3b8', labelsize=8)
+        cb.set_label(cb_label, color='#94a3b8', fontsize=8, labelpad=2)
+        
+        # Resolve residue labels
+        three_to_one = {
+            'ALA':'A', 'ARG':'R', 'ASN':'N', 'ASP':'D', 'CYS':'C',
+            'GLN':'Q', 'GLU':'E', 'GLY':'G', 'HIS':'H', 'ILE':'I',
+            'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P',
+            'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'
+        }
+        res_labels = []
+        if residues:
+            for idx, r in enumerate(residues):
+                if idx >= n_residues:
+                    break
+                name = r.get_resname()
+                one_letter = three_to_one.get(name, '?')
+                num = r.get_id()[1]
+                res_labels.append(f"{one_letter}{num}")
+        else:
+            res_labels = [str(i) for i in range(1, n_residues + 1)]
+            
+        # Bottom subplot: Line/Area plot of raw scores
+        color_main = "#10b981" if "Attention" in title else "#818cf8"  # Emerald vs Violet
+        
+        ax2.plot(np.arange(n_residues), saliency_np, color=color_main, linewidth=2.5, zorder=3, label="Saliency Score")
+        ax2.plot(np.arange(n_residues), saliency_np, color=color_main, linewidth=6.0, alpha=0.3, zorder=2) # subtle glow
+        ax2.fill_between(np.arange(n_residues), saliency_np, color=color_main, alpha=0.12, zorder=1)
+        
+        # Dynamic ticks
+        if n_residues <= 60:
+            tick_step = 1
+        elif n_residues <= 120:
+            tick_step = 2
+        elif n_residues <= 200:
+            tick_step = 5
+        elif n_residues <= 400:
+            tick_step = 10
+        else:
+            tick_step = 20
+            
+        tick_indices = np.arange(0, n_residues, tick_step)
+        tick_labels = [res_labels[i] for i in tick_indices]
+        
+        ax2.set_xticks(tick_indices)
+        ax2.set_xticklabels(tick_labels, rotation=45, ha='right', fontsize=9, color='#94a3b8')
+        
+        ax2.set_ylabel("Saliency Value", color='#e2e8f0', fontsize=11, fontweight="bold", labelpad=8)
+        ax2.set_xlabel("Residue Index", color='#e2e8f0', fontsize=11, fontweight="bold", labelpad=8)
+        ax2.grid(True, which="both", color="#1e2640", linestyle=":", linewidth=0.6, alpha=0.6)
+        
+        for name, spine in ax2.spines.items():
+            if name in ['top', 'right']:
+                spine.set_visible(False)
+            else:
+                spine.set_color('#1e2640')
+                spine.set_linewidth(1.0)
+                
+        ax2.set_ylim(-0.05, 1.10)
+        
+        # Highlight top 10 contributing residues
+        top_10_indices = np.argsort(saliency_np)[::-1][:10]
+        ax2.scatter(top_10_indices, saliency_np[top_10_indices], color="#f59e0b", s=45, zorder=5, edgecolors='#080b14', linewidth=1, label="Top 10 Contributors")
+        
+        # Annotate the top 5 peaks directly on the chart
+        top_5_indices = top_10_indices[:5]
+        for idx in top_5_indices:
+            score = saliency_np[idx]
+            label = res_labels[idx]
+            ax2.annotate(
+                label, 
+                xy=(idx, score), 
+                xytext=(idx + (2 if idx < n_residues * 0.8 else -8), score + 0.05),
+                color='#f59e0b',
+                fontweight='bold',
+                fontsize=9,
+                arrowprops=dict(arrowstyle="->", color="#f59e0b", lw=0.8, alpha=0.7),
+                zorder=6
+            )
+            
+        legend = ax2.legend(loc="upper right", frameon=True, fontsize=9.5)
+        if legend:
+            frame = legend.get_frame()
+            frame.set_facecolor('#0f1420')
+            frame.set_edgecolor('#1e2640')
+            frame.set_linewidth(0.8)
+            for text in legend.get_texts():
+                text.set_color('#e2e8f0')
+                
         plt.tight_layout()
         
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=150)
+        plt.savefig(buf, format="png", dpi=180)
         buf.seek(0)
         img_base64 = base64.b64encode(buf.read()).decode("utf-8")
-        plt.close()
+        plt.close(fig)
         return f"data:image/png;base64,{img_base64}"
     except Exception as e:
         print(f"[Web] Failed to generate Grad-CAM plot: {e}")
@@ -561,7 +761,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             if total_count > 0:
                 # Generate in-memory Heatmap (Base64 data URL)
                 try:
-                    heatmap_url = get_heatmap_plot_base64(probs_np, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}")
+                    heatmap_url = get_heatmap_plot_base64(probs_np, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}", residue_list)
                 except Exception as e:
                     print(f"[Web] Error generating Heatmap: {e}")
 
@@ -594,8 +794,13 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 except Exception as e:
                     print(f"[Web] Error auto-saving perfect prediction: {e}")
 
-            ok, free_mb = has_enough_memory(150)
-            gradcam_allowed = bool(total_count <= 200 and ok)
+            # Detect Render cloud environment vs local run
+            is_render = os.environ.get("RENDER") == "true" or os.environ.get("IS_RENDER") == "true"
+            if is_render:
+                ok, free_mb = has_enough_memory(150)
+                gradcam_allowed = bool(total_count <= 200 and ok)
+            else:
+                gradcam_allowed = True
 
             response_payload = {
                 "status": "success",
@@ -776,6 +981,19 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
             num_nodes = data_a.num_nodes
 
+            # Parse residues for graph plotting annotations
+            residue_list_expl = None
+            try:
+                parser_expl = PDBParser(QUIET=True)
+                structure_expl = parser_expl.get_structure("protein", tmp_path)
+                chain_obj_expl = structure_expl[0][chain_a]
+                from models.graph_construction import get_residues
+                residue_list_expl = get_residues(chain_obj_expl)
+                if isinstance(residue_list_expl, tuple):
+                    residue_list_expl = residue_list_expl[0]
+            except Exception as e:
+                print(f"[Web] Failed to parse residue list for explain plotting: {e}")
+
             # 1. Always compute Attention Saliency Map first (Memory Safe, forward pass only)
             attention_image = None
             saliency_attn = None
@@ -799,7 +1017,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         saliency_attn = ((scores_attn - scores_attn.min()) / (scores_attn.max() - scores_attn.min() + 1e-8)).tolist()
 
                         pdb_name = os.path.splitext(filename)[0]
-                        attention_image = get_gradcam_plot_base64(saliency_attn, f"Attention Saliency Map - {pdb_name} Chain {chain_a}")
+                        attention_image = get_gradcam_plot_base64(saliency_attn, f"Attention Saliency Map - {pdb_name} Chain {chain_a}", residue_list_expl)
                     else:
                         raise ValueError("Attention weights unavailable.")
             except Exception as attn_err:
@@ -816,16 +1034,17 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             model.zero_grad(set_to_none=True)
             gc.collect()
 
+            is_render = os.environ.get("RENDER") == "true" or os.environ.get("IS_RENDER") == "true"
             ok, free_mb = has_enough_memory(150)
             print(f"[Web] Pre-GradCAM memory check: {free_mb:.0f} MB free, num_nodes={num_nodes}")
 
-            if num_nodes > 200:
+            if is_render and num_nodes > 200:
                 gradcam_available = False
                 gradcam_message = f"Grad-CAM skipped for large protein ({num_nodes} residues, >200 limit) on Render free tier. Use local mode."
                 gradcam_error = gradcam_message
                 print(f"[Web] Skipping Grad-CAM: {gradcam_message}")
                 gc.collect()
-            elif not ok:
+            elif is_render and not ok:
                 gradcam_available = False
                 gradcam_message = f"Grad-CAM skipped: low server memory ({free_mb:.0f} MB free). Attention saliency shown instead."
                 gradcam_error = gradcam_message
@@ -864,12 +1083,16 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         # backward() is the memory spike that kills Render.
                         # Check again after forward pass consumed memory.
                         gc.collect()
-                        ok2, free_mb2 = has_enough_memory(100)
-                        print(f"[Web] Pre-backward() memory: {free_mb2:.0f} MB free")
+                        
+                        if is_render:
+                            ok2, free_mb2 = has_enough_memory(100)
+                            print(f"[Web] Pre-backward() memory: {free_mb2:.0f} MB free")
 
-                        if not ok2:
-                            print(f"[Web] Aborting backward(): only {free_mb2:.0f} MB free, need 100 MB")
-                            raise MemoryError(f"Insufficient memory for backward pass ({free_mb2:.0f} MB free)")
+                            if not ok2:
+                                print(f"[Web] Aborting backward(): only {free_mb2:.0f} MB free, need 100 MB")
+                                raise MemoryError(f"Insufficient memory for backward pass ({free_mb2:.0f} MB free)")
+                        else:
+                            print("[Web] Local run: bypassing pre-backward memory check.")
 
                         score.backward()
                     finally:
@@ -898,7 +1121,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         saliency_gradcam = ((saliency_raw - saliency_raw.min()) / denom).tolist()
 
                         pdb_name = os.path.splitext(filename)[0]
-                        gradcam_image = get_gradcam_plot_base64(saliency_gradcam, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}")
+                        gradcam_image = get_gradcam_plot_base64(saliency_gradcam, f"Grad-CAM Saliency Map - {pdb_name} Chain {chain_a}", residue_list_expl)
 
                         del grads, features, saliency_raw
                     else:
