@@ -202,13 +202,13 @@ Training config is in `config.yaml`. Key parameters:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `hidden_dim` | 128 | Model hidden dimension |
-| `num_heads` | 8 | Cross-attention heads |
-| `graph_cutoff` | 8.0 Å | Edge distance cutoff |
+| `hidden_dim` | 256 | Model hidden dimension |
+| `num_heads` | 4 | Cross-attention heads |
+| `graph_cutoff` | 10.0 Å | Edge distance cutoff |
 | `epochs` | 100 | Max training epochs |
-| `learning_rate` | 0.001 | Adam LR |
-| `pos_weight` | 5.0 | BCE class weight for binding sites |
-| `early_stopping_patience` | 15 | Epochs to wait before stopping |
+| `learning_rate` | 0.0003 | AdamW LR |
+| `pos_weight` | Dynamic | BCE class weight calculated at runtime |
+| `early_stopping_patience` | 60 | Epochs to wait before stopping |
 
 Checkpoints saved to `checkpoints/`, logs to `logs/training_history.json`.
 
@@ -323,13 +323,9 @@ ecabsd/
 │
 ├── models/
 │   ├── __init__.py
-│   ├── ecabsd_model.py         # End-to-end model
-│   ├── encoder.py              # GCN + SE3 chain encoder
-│   ├── gcn_model.py            # 4-layer GCNConv encoder
-│   ├── se3_model.py            # SE(3) refinement block
-│   ├── cross_attention.py      # Multi-head cross-attention
-│   ├── classifier.py           # Per-residue MLP classifier
-│   └── graph_construction.py  # PDB → residue graph
+│   ├── ecabsd_model.py         # End-to-end model (GATv2 stack + cross-attention + classifier)
+│   ├── graph_construction.py  # PDB → residue graph builder
+│   └── archive/                # Experimental/legacy modules (encoder, se3, gcn, cross_attention, classifier)
 │
 ├── data/
 │   ├── __init__.py
