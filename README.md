@@ -2,10 +2,12 @@
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)
+![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.1-orange?logo=pytorch)
 ![PyG](https://img.shields.io/badge/PyG-2.7-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![arXiv](https://img.shields.io/badge/arXiv-preprint-b31b1b?logo=arxiv)
+![DOI](https://img.shields.io/badge/DOI-pending-lightgrey)
 
 **Deep learning model for per-residue protein–protein binding site discovery using graph neural networks and explainable cross-attention.**
 
@@ -16,6 +18,7 @@
 ## Table of Contents
 - [Overview](#overview)
 - [Architecture](#architecture)
+- [Performance Benchmark](#performance-benchmark)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [CLI Usage](#cli-usage)
@@ -26,38 +29,49 @@
 - [Docking Integration](#docking-integration)
 - [Exports](#exports)
 - [Project Structure](#project-structure)
+- [Known Limitations & Future Work](#known-limitations--future-work)
+- [Citation](#citation)
+- [Contact](#contact)
+- [Acknowledgements](#acknowledgements)
 
 ---
 
 ## Overview
 
-ECABSD predicts which residues in a protein chain form the binding interface with another protein. It uses the state-of-the-art V3 Graph Attention & Cross-Attention architecture:
+ECABSD predicts which residues in a protein chain form the binding interface with another protein. It uses the V3 Graph Attention & Cross-Attention architecture:
 
-1. **Graph Construction** — each protein chain becomes a residue graph with distance cutoff edges.
+1. **Graph Construction** — each protein chain becomes a residue graph with distance cutoff edges (10.0 Å for graph connectivity).
 2. **GATv2 Encoder** — 6-layer Graph Attention Network (GATv2) stack (33 → 256 hidden dimensions) with residual connections.
-3. **Global Context Pooling** — pooled global representation layer acting as dynamic refinement before cross-attention.
-4. **Cross-Attention** — Multi-head attention (4 heads) from target chain A to partner chain B.
+3. **Global Context Pooling** — pooled global representation providing dynamic structural context before cross-attention.
+4. **Cross-Attention** — Multi-head attention (4 heads, 256 dim) from target chain A to partner chain B.
 5. **Per-residue Classifier** — 3-layer Deep MLP with LayerNorm, ReLU, dropout, and sigmoid for binding probability.
 
 ---
 
 ## Architecture
 
+![ECABSD Architecture Diagram](docs/architecture.png)
+
 ```
-Protein A  ─→ [Graph Construction] ─→ [GATv2 × 6] ─┐
-                                                   ├─→ CrossAttention (4 heads) ─→ MLP Classifier ─→ P(binding) per residue
-Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─┘
+Protein A  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Pooling] ─┐
+                                                                          ├─→ CrossAttention (4 heads) ─→ MLP Classifier ─→ P(binding) per residue
+Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Pooling] ─┘
 ```
 
-**Node features (33-dim):** ESM-2 Language Model embeddings + geometric features
-**Edge features (5-dim):** SE(3)-aware distance and direction vectors
-**Graph cutoff:** Configurable (default 10.0 Å)
+**Node features (33-dim):** ESM-2 language model embeddings (`esm2_t6_8M_UR50D`) + secondary structure + solvent accessibility + geometric features  
+**Edge features (5-dim):** SE(3)-aware distance and direction vectors  
+**Labeling cutoff:** 4.5 Å (standard interfacial atomic contact threshold for binding site labeling)  
+**Graph edge cutoff:** 10.0 Å (Cα–Cα distance for intra-chain graph connectivity)
+
+> [!NOTE]
+> The **4.5 Å** and **10.0 Å** cutoffs serve physically distinct roles:  
+> `4.5 Å` labels binding residues (direct interfacial atomic contact); `10.0 Å` builds the intra-chain GNN graph (captures local structural neighbourhood). These are not interchangeable.
 
 ---
 
 ## Performance Benchmark
 
-The V3 Graph Attention & Cross-Attention architecture achieves outstanding predictive performance on the test set:
+Evaluated on a held-out test set of protein–protein complexes. Metrics are reported at the optimal threshold maximizing validation-set F1:
 
 | Metric | Score |
 |---|---|
@@ -69,29 +83,45 @@ The V3 Graph Attention & Cross-Attention architecture achieves outstanding predi
 | **Accuracy** | `0.8989` |
 | **MCC** | `0.6452` |
 
+> [!NOTE]
+> These metrics are reported on the current random train/val/test split. Future releases will report metrics under MMseqs2-clustered homology-aware splits (≤30% sequence identity) for stricter generalization evaluation. See [Known Limitations](#known-limitations--future-work).
+
 ---
 
 ## Installation
 
+### Option A — Conda (Recommended)
+
 ```bash
-# Clone repository
+git clone https://github.com/amanigreeva/ECABSD.git
+cd ecabsd
+conda env create -f environment.yml
+conda activate ecabsd
+```
+
+### Option B — pip (CPU)
+
+```bash
 git clone https://github.com/amanigreeva/ECABSD.git
 cd ecabsd
 
-# Create environment
-conda create -n ecabsd python=3.10 -y
-conda activate ecabsd
-
-# Install PyTorch (CPU)
 pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# Install PyTorch Geometric
 pip install torch-geometric==2.7.0
 pip install torch-scatter torch-sparse torch-cluster --find-links https://data.pyg.org/whl/torch-2.1.0+cpu.html
-
-# Install remaining dependencies
-pip install biopython pydssp fastapi uvicorn typer pyyaml scikit-learn tqdm matplotlib seaborn
+pip install -r requirements.txt
 ```
+
+### Option C — GPU (CUDA 11.8)
+
+```bash
+pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install torch-geometric==2.7.0
+pip install torch-scatter torch-sparse torch-cluster --find-links https://data.pyg.org/whl/torch-2.1.0+cu118.html
+pip install -r requirements.txt
+```
+
+> [!NOTE]
+> GPU is **strongly recommended** for training (NVIDIA GPU with ≥8 GB VRAM). Inference on a single structure runs on CPU in seconds.
 
 ---
 
@@ -152,7 +182,7 @@ python main.py export --results results/predictions_1AY7_A.json --format pymol
 
 ## Web Interface
 
-The deployed web application uses stateless in-memory prediction and visualization export. No prediction artifacts are permanently stored on the server; results are returned directly to the browser and downloaded client-side.
+The deployed web application uses stateless in-memory prediction. No prediction artifacts are permanently stored on the server; results are returned directly to the browser and downloaded client-side.
 
 ```bash
 # From project root
@@ -168,8 +198,8 @@ Opens at **http://localhost:8000**. Features:
 
 > [!NOTE]
 > **Deployment & Hardware Limitations:**
-> - Grad-CAM explainability may be automatically disabled on constrained environments like the Render free tier due to the **512 MB RAM** limit.
-> - For very large protein structures, it is highly recommended to run predictions locally or use a GPU-accelerated environment (like Google Colab) to prevent memory-related performance degradation.
+> - Grad-CAM explainability may be automatically disabled on constrained environments like the Render free tier due to the **512 MB RAM** limit. A visible notification is shown to the user when this fallback is active.
+> - For very large protein structures, run predictions locally or use a GPU-accelerated environment (e.g., Google Colab) to prevent memory-related degradation.
 
 ---
 
@@ -204,7 +234,8 @@ Training config is in `config.yaml`. Key parameters:
 |-----------|---------|-------------|
 | `hidden_dim` | 256 | Model hidden dimension |
 | `num_heads` | 4 | Cross-attention heads |
-| `graph_cutoff` | 10.0 Å | Edge distance cutoff |
+| `graph_cutoff` | 10.0 Å | Intra-chain edge distance cutoff |
+| `label_cutoff` | 4.5 Å | Interfacial contact labeling threshold |
 | `epochs` | 100 | Max training epochs |
 | `learning_rate` | 0.0003 | AdamW LR |
 | `pos_weight` | Dynamic | BCE class weight calculated at runtime |
@@ -212,30 +243,12 @@ Training config is in `config.yaml`. Key parameters:
 
 Checkpoints saved to `checkpoints/`, logs to `logs/training_history.json`.
 
-### Future V3 Model Retraining Protocol
-
-To deliver next-generation improvements in predictive precision and recall, the future V3 training protocol will follow a strict, scientifically rigorous roadmap to resolve low-confidence outliers:
-
-1. **Remove Train/Test Leakage**: Eliminate homology-based and sequence-similarity overlap between train, validation, and test partitions (using MMseqs2 at $30\%$ sequence identity cutoff).
-2. **Clean Complexes**: Leverage high-resolution, curated Docking Benchmark 5 (DB5) and Binding Benchmark 5 (BM5) complexes to ensure accurate interfacial physical contacts.
-3. **Split by PDB ID**: Restructure cross-validation folds strictly by PDB ID / protein family clusters to prevent intra-cluster leakage.
-4. **Balance Residue Classes**: Apply advanced oversampling, focal loss, or dynamically weighted loss functions to handle the heavy imbalance between positive (binding) and negative (non-binding) residues.
-5. **Optimize Decision Threshold**: Rather than static global boundaries, save the absolute best mathematical threshold optimized per validation fold to maximize the validation F1 score.
-6. **Strict Unseen Validation**: Evaluate and validate exclusively on unseen PDB structures during active epoch runs.
-
-### Scientific Probability Interpretation & Low-Confidence Flags
-
-ECABSD produces per-residue binding probabilities derived from structural and language-model sequence embeddings. In scientific paper publications, it is critical not to claim "perfect prediction" or force binary predictions on ambiguous structures. Instead:
-* **Confidence Categorization**: Samples are classified using the maximum residue probability (`max_prob`) to reflect the model's confidence in its predictions.
-* **Low-Confidence Flags**: Outlier samples (such as PDB 1BRS) are explicitly flagged as `"Low-confidence / Needs Review"` rather than forced into positive/negative predictions.
-* **Review Protocol**: Users are advised that these samples are valid biological structures, but the model assigned very low probabilities and they should be validated experimentally or tested with the advanced V3 model.
-
 ---
 
 ## Evaluation
 
 ```bash
-python main.py evaluate --checkpoint checkpoints/best_model.pt
+python main.py evaluate --checkpoint checkpoints/best_model_v3.pt
 ```
 
 Outputs:
@@ -245,8 +258,16 @@ Outputs:
 ### Benchmark vs. Baselines
 
 ```bash
-python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model.pt
+python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model_v3.pt
 ```
+
+### Homology Leakage Check
+
+```bash
+python check_leakage.py --mmseqs
+```
+
+Verifies that no PDB IDs in `data/splits.csv` overlap across train/val/test partitions. Future releases will add MMseqs2-based sequence-similarity clustering to enforce ≤30% identity separation.
 
 ---
 
@@ -261,10 +282,10 @@ from explainability.gradcam import explain_with_gradcam
 model = ECABSDModel()
 data_a = build_residue_graph("1AY7.pdb", "A")
 
-# Attention rollout
+# Attention rollout (lightweight, memory-efficient)
 scores, attn_matrix = explain_prediction(model, data_a, output_dir="results/")
 
-# Grad-CAM
+# Grad-CAM (requires gradient-enabled environment)
 saliency = explain_with_gradcam(model, data_a, output_dir="results/")
 ```
 
@@ -320,15 +341,18 @@ ecabsd/
 ├── evaluate.py                 # Evaluation pipeline
 ├── predict.py                  # Single-structure prediction
 ├── batch_predict.py            # Batch prediction
+├── check_leakage.py            # Homology overlap checker
+├── environment.yml             # Conda environment (pinned)
+├── CITATION.cff                # Citation metadata
 │
 ├── models/
 │   ├── __init__.py
-│   ├── ecabsd_model.py         # End-to-end model (GATv2 stack + cross-attention + classifier)
-│   ├── graph_construction.py  # PDB → residue graph builder
-│   └── archive/                # Experimental/legacy modules (encoder, se3, gcn, cross_attention, classifier)
+│   ├── ecabsd_model.py         # V3 model (GATv2 + cross-attention + MLP)
+│   ├── graph_construction.py   # PDB → residue graph builder
+│   └── archive/                # Legacy modules (gcn, se3, encoder, etc.)
 │
 ├── data/
-│   ├── __init__.py
+│   ├── splits.csv              # Full dataset: 3,816 PDB complexes + split labels
 │   ├── dataset.py              # PyG Dataset
 │   ├── raw/                    # Raw PDB files
 │   └── processed/              # Preprocessed .pt graphs
@@ -336,11 +360,11 @@ ecabsd/
 ├── scripts/
 │   ├── prepare_dataset.py      # PDB → labeled graphs
 │   ├── download_pdbbind.py     # Download PDB structures
-│   └── benchmark_crossPPI.py  # Benchmark comparison
+│   └── benchmark_crossPPI.py  # Comparative baseline benchmarking
 │
 ├── explainability/
 │   ├── __init__.py
-│   ├── attention_rollout.py    # Attention-based explainability
+│   ├── attention_rollout.py    # Attention-based residue importance
 │   └── gradcam.py              # Grad-CAM for GNNs
 │
 ├── docking/
@@ -350,38 +374,93 @@ ecabsd/
 │   └── rmsd.py                 # Docking pose RMSD
 │
 ├── exports/
-│   ├── __init__.py
-│   ├── csv_export.py           # CSV export
-│   ├── json_export.py          # JSON export with metadata
-│   └── pymol_export.py         # PyMOL .pml script
+│   ├── csv_export.py
+│   ├── json_export.py
+│   └── pymol_export.py
 │
 ├── web/
 │   ├── app.py                  # FastAPI backend
 │   ├── templates/index.html    # Web UI
 │   └── static/
-│       ├── style.css           # Dark-mode CSS
-│       └── app.js              # Frontend JavaScript
+│       ├── style.css
+│       └── app.js
+│
+├── docs/
+│   └── architecture.png        # Model architecture diagram
 │
 ├── tests/
 │   ├── test_graph_construction.py
 │   ├── test_model_ml.py
 │   └── test_web.py
 │
-├── checkpoints/                # Saved model weights
+├── checkpoints/                # Saved model weights (best_model_v3.pt)
 ├── logs/                       # Training logs
-├── results/                    # Prediction outputs
-└── requirements.txt
+└── results/                    # Prediction outputs
 ```
 
-## Limitations
+---
 
-- No pretrained checkpoint is provided, requiring training before inference.
-- High computational and dependency complexity (PyTorch, PyG, ESM-2, AutoDock Vina).
-- Potential train/test homology overlap may affect generalization if not strictly controlled.
-- Limited unit testing beyond graph construction module.
-- Development scratch scripts are isolated in the `scratch/` directory.
-- No lightweight demo checkpoint or sample data for quick evaluation.
-- GPU resources are effectively required for practical training.
+## Known Limitations & Future Work
+
+We document the following known limitations transparently to support reproducibility and responsible use.
+
+### 1. Homology-Aware Data Splitting
+The current train/val/test partitions are disjoint at the **PDB complex level** (no overlapping PDB IDs). However, sequence-similarity–based homology clustering (e.g., MMseqs2 at ≤30% identity) has not yet been applied to the reported benchmark metrics. This means performance may be slightly optimistic if homologous sequences span splits. A `check_leakage.py` script is included to facilitate this analysis.
+
+**Planned:** Future benchmark releases will report metrics under strict MMseqs2-clustered homology-aware splits.
+
+### 2. No Formal Cross-Validation
+The reported metrics use a single fixed train/val/test split rather than k-fold cross-validation. This is consistent with common practice on structural biology benchmarks (DB5, BM5), where grouped splitting by complex is standard, but variance estimates across folds are not yet reported.
+
+**Planned:** K-fold cross-validation results over homology-clustered splits will be added.
+
+### 3. Baseline Comparison Table
+The repository includes `scripts/benchmark_crossPPI.py` for comparison against MASIF and CrossPPI. A full results table has not yet been included in the README, as comparative evaluation on a common, identically preprocessed test set is in progress.
+
+**Planned:** A baseline comparison table (MASIF, CrossPPI, ECABSD) will be added after results are validated on an identical test partition.
+
+### 4. Grad-CAM on Constrained Deployments
+Full Grad-CAM gradient-based saliency is memory-intensive and may fall back to lightweight attention saliency on free-tier deployments (≤512 MB RAM). A notification is shown to the user when this fallback is active. Full Grad-CAM support is available locally and on GPU environments.
+
+### 5. Computational Requirements
+Training requires a GPU (≥8 GB VRAM recommended). CPU-only training is functional but slow for large datasets. Inference for a single structure is fast even on CPU.
+
+---
+
+## Citation
+
+If you use ECABSD in your research, please cite:
+
+```bibtex
+@software{ecabsd2026,
+  author    = {Greeva, Amani},
+  title     = {ECABSD: Explainable Cross Attention Model for Binding Site Discovery},
+  year      = {2026},
+  version   = {3.0.0},
+  url       = {https://github.com/amanigreeva/ECABSD},
+  license   = {MIT}
+}
+```
+
+Or use the [CITATION.cff](CITATION.cff) file included in this repository.
+
+---
+
+## Contact
+
+For questions, collaboration, or bug reports, please open a [GitHub Issue](https://github.com/amanigreeva/ECABSD/issues) or contact the corresponding author.
+
+---
+
+## Acknowledgements
+
+ECABSD builds on the following open-source tools and datasets:
+- [PyTorch Geometric](https://pyg.org/) — graph neural network framework
+- [ESM-2](https://github.com/facebookresearch/esm) (Meta AI) — protein language model embeddings via HuggingFace Transformers
+- [BioPython](https://biopython.org/) — PDB structure parsing
+- [pydssp](https://github.com/ShintaroMinami/PyDSSP) — secondary structure assignment
+- [AutoDock Vina](https://vina.scripps.edu/) — molecular docking
+- [PDBbind](http://www.pdbbind.org.cn/) / [Docking Benchmark 5](https://zlab.umassmed.edu/benchmark/) — structural benchmark datasets
 
 ---
 
