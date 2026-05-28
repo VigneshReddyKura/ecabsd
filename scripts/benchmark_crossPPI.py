@@ -5,7 +5,7 @@ Runs ECABSD predictions on standard PPI benchmark structures and
 compares performance against baseline methods.
 
 Usage:
-    python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model.pt
+    python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model_v3.pt
 """
 
 import os
@@ -40,7 +40,7 @@ BASELINE_RESULTS = {
 
 def run_benchmark(
     benchmark_dir: str = "data/raw/pdbs",
-    checkpoint_path: str = "checkpoints/best_model.pt",
+    checkpoint_path: str = "checkpoints/best_model_v3.pt",
     output_path: str = "results/benchmark.csv",
     threshold: float = 0.5,
 ):
@@ -177,7 +177,7 @@ def run_benchmark(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ECABSD CrossPPI Benchmark")
     parser.add_argument("--benchmark-dir", default="data/raw/pdbs")
-    parser.add_argument("--checkpoint", default="checkpoints/best_model.pt")
+    parser.add_argument("--checkpoint", default="checkpoints/best_model_v3.pt")
     parser.add_argument("--output", default="results/benchmark.csv")
     parser.add_argument("--threshold", type=float, default=0.5)
     args = parser.parse_args()
