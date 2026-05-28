@@ -33,7 +33,7 @@ training:
   chain_swap_prob: 0.5
   dice_weight: 0.5
   early_stopping_patience: 60
-  epochs: 120
+  epochs: 1
   focal_alpha: 0.75
   focal_gamma: 2.0
   gradient_clip: 1.0

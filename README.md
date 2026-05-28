@@ -31,22 +31,22 @@
 
 ## Overview
 
-ECABSD predicts which residues in a protein chain form the binding interface with another protein. It uses the new V2+ Overboost architecture:
+ECABSD predicts which residues in a protein chain form the binding interface with another protein. It uses the state-of-the-art V3 Graph Attention & Cross-Attention architecture:
 
-1. **Graph Construction** — each protein chain becomes a residue graph with distance cutoff edges
-2. **GCN Encoder** — 4-layer GATv2 stack (33 → 192 hidden dimensions)
-3. **SE(3) Refinement** — equivariant feature refinement block
-4. **Cross-Attention** — Multi-head attention between two protein chains with Global Context Pooling
-5. **Per-residue Classifier** — Deep MLP with sigmoid for binding probability
+1. **Graph Construction** — each protein chain becomes a residue graph with distance cutoff edges.
+2. **GATv2 Encoder** — 6-layer Graph Attention Network (GATv2) stack (33 → 256 hidden dimensions) with residual connections.
+3. **Global Context Pooling** — pooled global representation layer acting as dynamic refinement before cross-attention.
+4. **Cross-Attention** — Multi-head attention (4 heads) from target chain A to partner chain B.
+5. **Per-residue Classifier** — 3-layer Deep MLP with LayerNorm, ReLU, dropout, and sigmoid for binding probability.
 
 ---
 
 ## Architecture
 
 ```
-Protein A  ─→ [Graph Construction] ─→ [GCN × 4] ─→ [SE3 Refine] ─┐
-                                                                     ├─→ CrossAttention (8 heads) ─→ Classifier ─→ P(binding) per residue
-Protein B  ─→ [Graph Construction] ─→ [GCN × 4] ─→ [SE3 Refine] ─┘
+Protein A  ─→ [Graph Construction] ─→ [GATv2 × 6] ─┐
+                                                   ├─→ CrossAttention (4 heads) ─→ MLP Classifier ─→ P(binding) per residue
+Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─┘
 ```
 
 **Node features (33-dim):** ESM-2 Language Model embeddings + geometric features
@@ -57,17 +57,17 @@ Protein B  ─→ [Graph Construction] ─→ [GCN × 4] ─→ [SE3 Refine] ─
 
 ## Performance Benchmark
 
-The V2+ Overboost architecture achieves state-of-the-art predictive performance on the test set:
+The V3 Graph Attention & Cross-Attention architecture achieves outstanding predictive performance on the test set:
 
 | Metric | Score |
 |---|---|
-| **F1 Score** | `0.6351` |
-| **ROC-AUC** | `0.8977` |
-| **PR-AUC** | `0.6722` |
-| **Recall** | `0.6878` |
-| **Precision** | `0.5899` |
-| **Accuracy** | `0.8682` |
-| **MCC** | `0.5577` |
+| **F1 Score** | `0.7010` |
+| **ROC-AUC** | `0.9373` |
+| **PR-AUC** | `0.7462` |
+| **Recall** | `0.7756` |
+| **Precision** | `0.6396` |
+| **Accuracy** | `0.8989` |
+| **MCC** | `0.6452` |
 
 ---
 
@@ -366,8 +366,8 @@ ecabsd/
 │       ├── style.css           # Dark-mode CSS
 │       └── app.js              # Frontend JavaScript
 │
-├── notebooks/
-│   └── quickstart_1AY7.ipynb  # Quickstart Jupyter notebook
+├── archive/notebooks/          # Training and development Jupyter notebooks
+│   └── ECABSD_V3_Training.ipynb
 │
 ├── tests/
 │   ├── test_graph_construction.py
