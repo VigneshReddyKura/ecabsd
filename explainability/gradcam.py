@@ -49,9 +49,9 @@ class GradCAM:
         self._activations = None
         self._gradients = None
 
-        # V3: encoder.layers is a ModuleList of GATConv layers
+        # V3: gcn_encoder.convs is a ModuleList of GATv2Conv layers
         # Target the last one by default (index -1)
-        layer = model.encoder.layers[target_layer_idx]
+        layer = model.gcn_encoder.convs[target_layer_idx]
 
         # Register hooks
         self._fwd_hook = layer.register_forward_hook(self._fwd_hook_fn)

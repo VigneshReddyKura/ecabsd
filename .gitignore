@@ -27,8 +27,8 @@ logs/
 results/
 
 # Scratch & Archive
-scratch/
-archive/
+/scratch/
+/archive/
 *.pth
 
 # Sample PDB Exception

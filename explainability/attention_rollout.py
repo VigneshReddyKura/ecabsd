@@ -42,8 +42,8 @@ class AttentionRollout:
         self.head_fusion = head_fusion
         self._attention_map = None
 
-        # V3: cross-attention is stored as cross_attn_a_to_b.mha (nn.MultiheadAttention)
-        self._hook = model.cross_attn_a_to_b.mha.register_forward_hook(
+        # V3: cross-attention is stored as cross_attention.mha (nn.MultiheadAttention)
+        self._hook = model.cross_attention.mha.register_forward_hook(
             self._hook_fn
         )
 
