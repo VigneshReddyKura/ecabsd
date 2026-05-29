@@ -1,0 +1,154 @@
+# ECABSD: An Explainable Cross-Attention Framework for Residue-Level Protein-Protein Interaction Binding Site Discovery
+
+**Authors:** Anumala Manigreeva¹, D. Nayaneesh¹, Kantam Pavan Sai Reddy¹, Kura Vignesh Reddy¹, Vitta Karthikeya¹  
+¹ *Department of Computer Science and Engineering, Keshav Memorial Institute of Technology, Narayanaguda, Hyderabad, Telangana, India - 500029*  
+
+**Mentor:** Mr. Challa Sundeep Babu, *Assistant Professor, Department of CSE, KMIT*  
+
+---
+
+## Abstract
+
+* **Background:** Many biological processes depend on protein-protein interactions (PPIs), which are particularly important across biology, medicine, and biotechnology. It is essential to accurately predict the binding interfaces between protein pairs to prioritize candidate interactions in large-scale studies, understand disease mechanisms, and expedite drug discovery. The application of cross-attention mechanisms between target and partner protein sequences is often neglected in current computational models, which typically predict binding sites in isolation, limiting their capacity to accurately represent inter-protein dependencies. Furthermore, high class imbalance and lack of interpretability remain significant hurdles. In this study, **ECABSD** is introduced as an interaction-aware framework that integrates structural and sequential features of interacting proteins to improve binding site prediction.
+* **Methods:** To model intricate interactions between protein pairs, ECABSD uses a bidirectional cross-attention module and a graph-based feature-extraction approach combining Graph Attention Networks v2 (GATv2) and Evolutionary Scale Modeling (ESM-2) protein language models. By utilizing a hybrid Focal and Soft Dice loss function combined with dynamic thresholding, ECABSD effectively navigates class imbalance and prioritizes difficult boundary residues. Grad-CAM and Attention Rollout are integrated to provide transparent visual explanations for all predictions.
+* **Results:** The V3 model was evaluated on both standard random splits and strict homology-aware splits (≤30% sequence identity) using a hold-out test set containing non-overlapping protein complexes. On the standard split, ECABSD achieved an **F1-score of 0.7010**, **ROC-AUC of 0.9373**, and **PR-AUC of 0.7462**. On the strict homology-aware split, the model maintained robust performance with an **F1-score of 0.5797**, **ROC-AUC of 0.8928**, and **PR-AUC of 0.6077**.
+* **Conclusion:** The results highlight ECABSD's capability to predict inter-protein binding sites by leveraging an attention-based integration of sequence and structural features, proving effective for PPI site prediction and providing interpretable insights for downstream experimental validation.
+
+**Keywords:** Protein-Protein Interaction, Binding Site Discovery, Deep Learning, Graph Neural Networks, Transformer, ESM-2, Cross-Attention, Explainable AI (XAI)
+
+---
+
+## 1. Introduction
+
+Proteins are involved in major biological processes including signaling, immunological responses, and enzyme-related functions that drive chemical reactions. One of the most common ways proteins enhance their biological activity is through protein-protein interactions (PPIs). PPIs are a crucial component of protein activity modulation, enabling proteins to become functionally active in specific physiological contexts. When PPIs fail or are disrupted, loss of biological function, unchecked signaling, and multiple downstream consequences can occur; such dysfunctions are associated with several neurodegenerative diseases and cancer disorders. There is also substantial effort toward developing therapeutic modalities that specifically target these PPIs.
+
+Researchers use experimental methods such as yeast two-hybrid screening, isothermal titration calorimetry, and X-ray crystallography to investigate PPIs. Although these methods are valuable and robust, they are often expensive, slow, and labor-intensive. Computational methods have therefore gained traction as a faster way to estimate the binding interfaces of protein sequences and to prioritize interactions for laboratory validation.
+
+Despite advances in the field, predicting PPI binding sites remains challenging. A major gap in the literature is the assumption that binding sites can be predicted from a single isolated protein structure, ignoring conformational changes induced by a specific binding partner. In addition, most datasets are severely imbalanced, because binding sites make up only a small fraction of the protein surface, causing models to struggle with high false-positive or false-negative rates. Biological models also require trust and transparency, yet deep neural networks often behave as black boxes.
+
+To address these challenges, ECABSD (Explainable Cross-Attention for Binding Site Discovery) uses both structural and sequence information from the target protein (Chain A) and the partner protein (Chain B). On the structural side, the model uses GATv2 to capture residue-level interactions and topological relationships. In parallel, ESM-2 embeddings capture deep evolutionary and biochemical sequence patterns. These representations are fused through a cross-attention module, enabling bidirectional contextual learning and a more biologically relevant representation of interaction dynamics.
+
+---
+
+## 2. Method
+
+The ECABSD framework consists of three main modules:
+1. **Protein Feature Extraction Module:** Uses ESM-2 embeddings for sequence-level features and GATv2 layers for spatial graph features.
+2. **Cross-Fusion Module:** Integrates structural and contextual information from Chain A and Chain B.
+3. **Binding Site Prediction Module:** Outputs the binary binding probability for each residue.
+
+Model performance is evaluated using Accuracy, Precision, Recall, F1-Score, MCC, and AUC-ROC.
+
+### 2.2 Model Architecture Flow
+```
+Input PDB Structures 
+        ↓
+Graph Construction + ESM-2 Residue Embeddings
+        ↓
+GATv2 Structural Encoder (6 layers)
+        ↓
+Bidirectional Cross-Attention Fusion
+        ↓
+MLP Prediction Head (3 layers)
+        ↓
+Binding Probabilities + Explainability Heatmaps (Grad-CAM & Attention Rollout)
+```
+
+### 2.3 Protein Feature Extraction Module
+Protein structures are converted into spatial graphs where nodes represent residues. A distance-threshold approach is used to draw edges between structurally adjacent amino acids. Instead of simple binary adjacency, ECABSD extracts 5-dimensional edge features that encode exact Euclidean distances and geometric angles between the C-alpha atoms. To capture complex node relationships, the model applies six layers of GATv2. GATv2 provides dynamic attention weighting in which the attention coefficient is jointly conditioned on the query and key nodes, overcoming the static attention limitations of standard GATs. Residual connections, LayerNorm, and GELU activations are used between layers to prevent oversmoothing.
+
+To extract sequential and evolutionary information, ECABSD uses ESM-2 embeddings. These embeddings are projected into a lower-dimensional space with $d = 33$ to improve computational efficiency while retaining biochemical context. The ESM-2 embeddings are assigned as the initial node features $X$ before being processed by the GATv2 layers.
+
+### 2.4 Cross-Fusion Module
+To model interactions for binding site prediction, the cross-fusion module combines graph embeddings from Chain A and Chain B. It uses a transformer-based cross-attention mechanism to capture complex, non-local interactions between target and partner residues. Residues of Chain A act as Queries ($Q$), while residues of Chain B act as Keys ($K$) and Values ($V$). After cross-attention is applied, the module produces a context layer containing fused interaction representations. A global mean-pooled representation of the interaction graph is also projected and added to local residue features so that local binding predictions are informed by macro-structural context.
+
+### 2.5 Binding Site Prediction Module
+The binding site prediction module processes the fused embeddings to identify active binding residues. It uses a Multi-Layer Perceptron (MLP) with Layer Normalization, Dropout ($p = 0.3$), and ReLU activations. The final layer applies a Sigmoid activation to generate the probability $P(y_i = 1)$ for each residue. 
+
+The model minimizes a combined hybrid loss: 
+$$\mathcal{L} = 0.6 \times \mathcal{L}_{\text{Focal}} + 0.4 \times \mathcal{L}_{\text{Dice}}$$
+
+The Focal Loss addresses class imbalance by down-weighting easy non-binding residues, while the Soft Dice Loss directly optimizes overlap between the predicted mask and the true binding sites, which correlates strongly with the F1-score. Training uses the AdamW optimizer, a Cosine Annealing scheduler with Linear Warmup, and a dynamic Precision-Recall thresholding step that computes the optimal decision boundary at the end of each epoch.
+
+### 2.6 Datasets
+ECABSD is trained and evaluated on the Protein-Protein Docking Benchmark 5 (DB5), with future expansion planned toward larger datasets such as DIPS. To prevent data leakage, strict complex-level splitting and overlap detection scripts are applied across the training, validation, and test sets. Chain-swap augmentation is used during training by randomly swapping Chain A and Chain B with 50% probability, effectively doubling the dataset size and encouraging permutation invariance.
+
+---
+
+## 3. Results and Discussion
+
+ECABSD was evaluated on both standard random splits and strict homology-aware splits (≤30% sequence identity) using a hold-out test set containing non-overlapping protein complexes. Because PPI binding site prediction involves extreme class imbalance, accuracy alone is not sufficient. The main evaluation metrics are therefore F1-Score, Precision, Recall, Matthews Correlation Coefficient (MCC), and Area Under the Precision-Recall Curve (AUC-PR).
+
+### 3.2 Comparison with Baseline
+The architecture was compared with a legacy baseline model that relied on isolated chain predictions rather than cross-fusion. The baseline struggled with class imbalance and collapsed into a regime of severe overprediction, reaching Recall = 1.0, Precision = 0.167, and MCC = 0.0. By contrast, the cross-attention mechanism and hybrid Focal-Dice loss in ECABSD stabilized training. The V3 model achieved an F1-score of 0.7010 on the random split test set and 0.5797 on the strict homology-aware split test set, representing a significant improvement in class separation and robustness.
+
+### 3.3 Practical Prediction Behavior
+For practical wet-lab use, ECABSD is more suitable as a prioritization tool than as a replacement for experimental validation. The model shows higher recall than precision, meaning it tends to identify a broader set of candidate binding residues. This behavior supports screening applications, although threshold calibration and Top-K evaluation would improve high-confidence residue selection in future versions.
+
+#### Table 1: ECABSD (V3) Performance Metrics on the Test Dataset
+
+| Metric | Random Split | Homology-Filtered (≤30%) | Description |
+| :--- | :---: | :---: | :--- |
+| **Accuracy** | 0.8989 | 0.8828 | Overall correct predictions |
+| **Precision** | 0.6396 | 0.5305 | % of predicted binding sites that were correct |
+| **Recall (Sensitivity)** | 0.7756 | 0.6389 | % of actual binding sites successfully detected |
+| **F1-Score** | 0.7010 | 0.5797 | Harmonic mean of Precision and Recall |
+| **MCC** | 0.6452 | 0.5152 | Robust correlation coefficient for imbalanced data |
+| **AUC-ROC** | 0.9373 | 0.8928 | Area under the ROC curve |
+| **AUC-PR** | 0.7462 | 0.6077 | Area under the Precision-Recall curve |
+
+*The model evaluated 113,112 total residues in the test set.*
+
+---
+
+## 4. Explainability and Web Integration
+
+### 4.1 Explainable AI (XAI)
+To reduce the black-box nature of deep learning in biology, ECABSD supports two explainability paradigms:
+1. **Grad-CAM Saliency:** Computes gradients of the binding score with respect to input node features and highlights biochemical and structural regions that drive prediction.
+2. **Attention Rollout:** Extracts attention weights from the cross-fusion module, showing how residues of Chain A attend to residues of Chain B.
+
+### 4.2 FastAPI Deployment
+The model is deployed through a FastAPI web application (`web/app.py`). It accepts raw `.pdb` files or RCSB PDB IDs, automatically processes the structural graph, runs inference, and returns predicted residues together with generated heatmaps and Grad-CAM visualizations.
+
+---
+
+## 5. Limitations and Future Work
+
+Although ECABSD shows promising performance, several limitations remain. The model has been trained and evaluated primarily on DB5, which is smaller than large-scale interaction datasets. Precision remains moderate, indicating that false-positive residue predictions still occur. The current version also requires broader testing on unseen protein families and further calibration for small-interface cases.
+
+Future work includes:
+* Extending training to larger datasets such as DIPS or PINDER.
+* Adding threshold modes for precision-focused, recall-focused, and balanced prediction settings.
+* Evaluating Top-K precision after implementing a reproducible Top-K evaluation script.
+* Using ensemble prediction with the V2 baseline and V3 cross-attention model for stronger robustness.
+
+---
+
+## 6. Conclusion
+
+ECABSD presents an interaction-aware framework for predicting protein-protein binding sites. It integrates sequence-based ESM-2 embeddings with graph-based GATv2 representations and uses a cross-fusion mechanism to model interactions between target and partner proteins effectively. By combining complementary structural features, cross-attention fusion, and hybrid Focal-Dice loss optimization, ECABSD addresses extreme class imbalance in a biologically meaningful way. In addition to strong predictive performance, its integration of Grad-CAM and Attention Rollout adds interpretability that supports downstream biological validation. This makes ECABSD a promising foundation for virtual screening, protein design, and drug discovery applications.
+
+---
+
+## Abbreviations
+
+* **AUC-ROC:** Area Under the Receiver Operating Characteristic Curve
+* **CNN:** Convolutional Neural Network
+* **ESM-2:** Evolutionary Scale Modeling 2
+* **GATv2:** Graph Attention Network v2
+* **MLP:** Multi-Layer Perceptron
+* **PCC:** Pearson Correlation Coefficient
+* **PDB:** Protein Data Bank
+* **PPIs:** Protein-Protein Interactions
+* **XAI:** Explainable Artificial Intelligence
+
+---
+
+## Declarations
+
+### Availability of Data and Materials
+The code and dataset supporting the conclusions of this article are available in the GitHub repository [https://github.com/amanigreeva/ECABSD](https://github.com/amanigreeva/ECABSD).
+
+### References
+References should be added for ESM-2, GATv2, DB5, DIPS/PINDER, Focal Loss, Dice Loss, Grad-CAM, and Attention Rollout before formal submission.
