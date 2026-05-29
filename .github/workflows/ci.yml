@@ -42,6 +42,10 @@ jobs:
       - name: Install project dependencies
         run: pip install -r requirements.txt
 
+      - name: Download test PDB file
+        run: |
+          curl -s -L "https://files.rcsb.org/download/1AY7.pdb" -o 1AY7.pdb
+
       - name: Run tests
         run: pytest tests/ -v --tb=short
 
