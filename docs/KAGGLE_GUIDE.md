@@ -8,7 +8,7 @@ pipeline on Kaggle to produce publication-quality metrics.
 ## Prerequisites
 
 1. A [Kaggle account](https://www.kaggle.com) (free)
-2. GPU enabled: **Notebook Settings → Accelerator → GPU P100**
+2. GPU enabled: **Notebook Settings → Accelerator → GPU T4** (recommended for PyTorch 2.1+ compatibility)
 3. Internet enabled: **Notebook Settings → Internet → On**
 4. Optionally: a GitHub Personal Access Token (to push results back)
 
@@ -24,7 +24,7 @@ Upload `kaggle_ecabsd_pipeline.ipynb` from the root of this repo.
 ### Step 2 — Enable GPU & Internet
 
 In Notebook Settings (right sidebar):
-- **Accelerator**: GPU P100 ← required
+- **Accelerator**: GPU T4 (or P100 if PyTorch version is downgraded, but T4 is highly recommended) ← required
 - **Internet**: On ← required for pip install and git clone
 
 ### Step 3 — Run All Cells
