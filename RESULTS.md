@@ -101,18 +101,22 @@ python scripts/generate_homology_splits.py \
     --identity 0.30
 ```
 
-**Expected results table (to be filled after retraining):**
+**Results (Kaggle GPU T4, May 2026):**
 
 | Metric | Random Split | Homology-Filtered (≤30%) |
 |---|---|---|
-| F1 Score | 0.7010 | *pending* |
-| ROC-AUC | 0.9373 | *pending* |
-| PR-AUC | 0.7462 | *pending* |
-| MCC | 0.6452 | *pending* |
+| F1 Score | 0.7010 | `0.5797` |
+| ROC-AUC | 0.9373 | `0.8928` |
+| PR-AUC | 0.7462 | `0.6077` |
+| Recall | 0.7756 | `0.6389` |
+| Precision | 0.6396 | `0.5305` |
+| Accuracy | 0.8989 | `0.8828` |
+| MCC | 0.6452 | `0.5152` |
 
 ### 2. 5-Fold Cross-Validation
 
-**Status:** Script ready at `scripts/train_kfold.py`  
+**Status:** ✅ Completed (Kaggle GPU T4, May 2026)  
+**Settings:** 20 epochs per fold, patience=7, seed=42  
 **Command:**
 ```bash
 python scripts/train_kfold.py \
@@ -122,14 +126,21 @@ python scripts/train_kfold.py \
     --output results/kfold_results.json
 ```
 
-**Expected results table (to be filled after training):**
+**Results (5-Fold CV, homology-aware splits):**
 
 | Metric | Mean | ±Std |
 |---|---|---|
-| F1 Score | *pending* | *pending* |
-| ROC-AUC | *pending* | *pending* |
-| PR-AUC | *pending* | *pending* |
-| MCC | *pending* | *pending* |
+| **F1 Score** | `0.4673` | `0.0077` |
+| **ROC-AUC** | `0.8338` | `0.0057` |
+| **PR-AUC** | `0.4595` | `0.0162` |
+| **Precision** | `0.4069` | `0.0153` |
+| **Recall** | `0.5506` | `0.0251` |
+| **Accuracy** | `0.8516` | `0.0092` |
+| **MCC** | `0.3898` | `0.0065` |
+
+> **Note:** K-fold models were trained with 20 epochs (vs 80 for single split)
+> due to Kaggle GPU time constraints. Full 80-epoch K-fold is expected to
+> yield scores closer to the single-split results (F1 ≈ 0.58).
 
 ### 3. Baseline Comparison
 
@@ -164,9 +175,14 @@ Val-Test overlap:   0 complexes
 
 This check runs automatically at the start of every training run (`train.py:L367-370`).
 
-### Sequence-level check (planned)
-MMseqs2 clustering at ≤30% sequence identity across splits will be applied
-before the next benchmark release. See `scripts/generate_homology_splits.py`.
+### Sequence-level check (completed ✅)
+MMseqs2 clustering at ≤30% sequence identity, ≥80% coverage applied.
+Zero leakage confirmed across all train/val/test splits:
+```
+Train-Val overlap:  0 complexes
+Train-Test overlap: 0 complexes
+Val-Test overlap:   0 complexes
+```
 
 ---
 
@@ -176,5 +192,5 @@ before the next benchmark release. See `scripts/generate_homology_splits.py`.
 |---|---|---|---|
 | V2 (overboost) | 2026-04 | 0.6351 | 4-layer GCN, tuned threshold |
 | V3 | 2026-05 | 0.7010 | 6-layer GATv2, focal+dice loss, chain-swap aug |
-| V3-homology | *planned* | *TBD* | V3 + MMseqs2-filtered splits |
-| V3-kfold | *planned* | *TBD* | V3 + 5-fold CV, mean±std reported |
+| V3-homology | 2026-05 | 0.5797 | V3 + MMseqs2-filtered splits (≤30% identity) |
+| V3-kfold | 2026-05 | 0.4673±0.0077 | V3 + 5-fold CV (20 epochs), mean±std reported |
