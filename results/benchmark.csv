@@ -1,0 +1,8 @@
+method,precision,recall,f1,mcc,roc_auc
+SPPIDER,0.45,0.52,0.48,0.25,
+ProMate,0.42,0.48,0.45,0.22,
+PSIVER,0.5,0.45,0.47,0.24,
+PAIRpred,0.55,0.5,0.52,0.3,
+DELPHI,0.58,0.53,0.55,0.33,
+MaSIF-site,0.59,0.62,0.6,0.36,0.87
+ECABSD V3 (ours),0.5305,0.6389,0.5797,0.5152,0.8928

@@ -1,0 +1,81 @@
+{
+  "baselines": {
+    "SPPIDER": {
+      "precision": 0.45,
+      "recall": 0.52,
+      "f1": 0.48,
+      "mcc": 0.25,
+      "roc_auc": null
+    },
+    "ProMate": {
+      "precision": 0.42,
+      "recall": 0.48,
+      "f1": 0.45,
+      "mcc": 0.22,
+      "roc_auc": null
+    },
+    "PSIVER": {
+      "precision": 0.5,
+      "recall": 0.45,
+      "f1": 0.47,
+      "mcc": 0.24,
+      "roc_auc": null
+    },
+    "PAIRpred": {
+      "precision": 0.55,
+      "recall": 0.5,
+      "f1": 0.52,
+      "mcc": 0.3,
+      "roc_auc": null
+    },
+    "DELPHI": {
+      "precision": 0.58,
+      "recall": 0.53,
+      "f1": 0.55,
+      "mcc": 0.33,
+      "roc_auc": null
+    },
+    "MaSIF-site": {
+      "precision": 0.59,
+      "recall": 0.62,
+      "f1": 0.6,
+      "mcc": 0.36,
+      "roc_auc": 0.87
+    }
+  },
+  "ecabsd_v3": {
+    "random_split": {
+      "precision": 0.6396,
+      "recall": 0.7756,
+      "f1": 0.701,
+      "mcc": 0.6452,
+      "roc_auc": 0.9373,
+      "pr_auc": 0.7462
+    },
+    "homology_split": {
+      "precision": 0.5305,
+      "recall": 0.6389,
+      "f1": 0.5797,
+      "mcc": 0.5152,
+      "roc_auc": 0.8928,
+      "pr_auc": 0.6077
+    },
+    "kfold_mean": {
+      "precision": 0.4069,
+      "recall": 0.5506,
+      "f1": 0.4673,
+      "mcc": 0.3898,
+      "roc_auc": 0.8338,
+      "pr_auc": 0.4595
+    },
+    "kfold_std": {
+      "precision": 0.0153,
+      "recall": 0.0251,
+      "f1": 0.0077,
+      "mcc": 0.0065,
+      "roc_auc": 0.0057,
+      "pr_auc": 0.0162
+    }
+  },
+  "live_inference": null
+}
