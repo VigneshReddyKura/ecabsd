@@ -163,7 +163,7 @@ class ECABSDModelV3(nn.Module):
         batch_a = data_a.batch if hasattr(data_a, 'batch') and data_a.batch is not None \
                   else torch.zeros(data_a.num_nodes, dtype=torch.long, device=data_a.x.device)
         batch_b = data_b.batch if (data_b is not None and hasattr(data_b, 'batch') and data_b.batch is not None) \
-                  else batch_a
+                  else torch.zeros(h_b.shape[0], dtype=torch.long, device=h_b.device)
 
         h_a_list = unbatch(h_a, batch_a)
         h_b_list = unbatch(h_b, batch_b)
