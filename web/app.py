@@ -69,7 +69,7 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from models.ecabsd_model import ECABSDModel
+from models.ecabsd_v3_model import ECABSDModelV3 as ECABSDModel
 from models.graph_construction import build_residue_graph, get_residues, compute_binding_labels
 from Bio.PDB import PDBParser
 
