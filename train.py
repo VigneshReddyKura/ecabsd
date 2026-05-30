@@ -465,6 +465,12 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         }
         history.append(epoch_record)
 
+        # CRASH-SAFE: save history every epoch
+        history_path = os.path.join(pcfg["logs_dir"], "training_history_v3.json")
+        os.makedirs(pcfg["logs_dir"], exist_ok=True)
+        with open(history_path, "w") as _hf:
+            json.dump(history, _hf, indent=2)
+
         # Save best model on val F1
         current_f1 = val_metrics["f1"]
         if current_f1 > best_val_f1:
