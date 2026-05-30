@@ -29,6 +29,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
       - name: Install CPU-only PyTorch
         run: |
           pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
@@ -37,17 +40,23 @@ jobs:
         run: |
           pip install torch-geometric==2.7.0
           pip install torch-scatter torch-sparse torch-cluster \
-            --find-links https://data.pyg.org/whl/torch-2.1.0+cpu.html
+            --find-links https://data.pyg.org/whl/torch-2.1.0+cpu.html || \
+          pip install torch-scatter torch-sparse torch-cluster \
+            -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
 
       - name: Install project dependencies
         run: pip install -r requirements.txt
 
+      - name: Install test dependencies
+        run: pip install pytest pytest-asyncio httpx anyio
+
       - name: Download test PDB file
         run: |
           curl -s -L "https://files.rcsb.org/download/1AY7.pdb" -o 1AY7.pdb
+          ls -la 1AY7.pdb
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short
 
       - name: Upload test results
         if: always()
