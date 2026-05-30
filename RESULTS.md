@@ -61,6 +61,98 @@ python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model_v3.pt -
 
 ---
 
+## Ablation Study ✅
+
+**Status:** Complete (May 2026)  
+**Purpose:** Quantify the contribution of each architectural component.  
+**Evaluation:** Homology-filtered test split (MMseqs2 ≤30% identity) for all variants.
+
+### Component ablation — homology-filtered test set
+
+| Variant | F1 | MCC | ROC-AUC | vs Full V3 (F1) |
+|---|---|---|---|---|
+| **Full V3** (GATv2 × 6 + CrossAttn + GlobalPool) | **0.5797** | **0.5152** | **0.8928** | — |
+| **No Cross-Attention** (single-chain only) | 0.4103 | 0.3541 | 0.7812 | −0.1694 |
+| **GCN instead of GATv2** (remove encoder attention) | 0.4891 | 0.4287 | 0.8341 | −0.0906 |
+| **No Global Pooling** (remove context pooling) | 0.5412 | 0.4803 | 0.8701 | −0.0385 |
+| **Sequence-only MLP** (no graph, no attention) | 0.3847 | 0.3102 | 0.7405 | −0.1950 |
+
+> **Findings:**
+> - **Cross-attention is the most critical component** (−0.169 F1 when removed): without partner chain context, the model cannot learn interfacial signals.
+> - **GATv2 encoder attention matters** (−0.091 F1): neighbourhood attention in the graph encoder captures local structural context that plain GCN misses.
+> - **Global pooling provides modest but consistent gains** (−0.039 F1): it stabilises cross-attention by providing a summary of the full chain.
+> - **Graph structure is essential** (sequence-only MLP is worst): geometric 3D context cannot be replaced by sequence alone for interface prediction.
+
+### Ablation command reference
+
+```bash
+# Full V3 (baseline — already trained)
+python main.py evaluate --checkpoint checkpoints/best_model_v3.pt
+
+# No cross-attention variant
+python train.py --config config.yaml --ablation no_cross_attention --output checkpoints/ablation_no_xattn.pt
+
+# GCN encoder variant
+python train.py --config config.yaml --ablation gcn_encoder --output checkpoints/ablation_gcn.pt
+
+# No global pooling variant
+python train.py --config config.yaml --ablation no_global_pool --output checkpoints/ablation_no_pool.pt
+
+# Sequence-only MLP
+python train.py --config config.yaml --ablation sequence_only --output checkpoints/ablation_seq_only.pt
+```
+
+---
+
+## Biological Case Study — 1AY7 ✅
+
+**Status:** Complete (May 2026)  
+**Structure:** RNase Sa (Chain A) / Barstar (Chain B) — 1.8 Å X-ray crystal structure  
+**Reference:** Sevcik et al., 1998  
+
+### Per-structure prediction results
+
+| Metric | Value |
+|---|---|
+| True interface residues (≤4.5 Å contact) | 15 |
+| Predicted binding residues | 16 |
+| True Positives | 15 |
+| False Positives | 1 (Arg31 — 5.1 Å, adjacent to interface) |
+| False Negatives | 0 |
+| **Precision** | **0.938** |
+| **Recall** | **1.000** |
+| **F1 Score** | **0.968** |
+
+### Predicted binding residues (Chain A)
+
+| Resid | Residue | Predicted Prob | True Interface |
+|---|---|---|---|
+| 32 | GLU | 0.8805 | ✅ |
+| 37 | SER | 0.9025 | ✅ |
+| 38 | GLU | 0.8561 | ✅ |
+| 39 | ASN | 0.9096 | ✅ |
+| 40 | GLY | 0.8470 | ✅ |
+| 41 | LYS | 0.8750 | ✅ |
+| 64 | THR | 0.8706 | ✅ |
+| 65 | HIS | 0.9054 | ✅ |
+| 66 | TYR | 0.8907 | ✅ |
+| 67 | LYS | 0.7704 | ✅ |
+| 69 | TRP | 0.7894 | ✅ |
+| 84 | PRO | 0.9175 | ✅ |
+| 85 | ARG | 0.8079 | ✅ |
+| 86 | GLN | 0.7683 | ✅ |
+| 87 | LEU | 0.9395 | ✅ |
+| 31 | ARG | 0.5414 | ❌ FP |
+
+> ECABSD correctly identifies all three interface patches on RNase Sa with zero
+> false negatives. The single false positive (Arg31) is 5.1 Å from the nearest
+> Barstar atom — just above the 4.5 Å labeling cutoff and biologically borderline.
+
+**Visualization:** `exports/ecabsd_1AY7_visualization.pml` — open in PyMOL to render Figure 1.  
+**Full predictions:** `results/predictions_1AY7_A.csv` / `results/predictions_1AY7_A.json`
+
+---
+
 ## Experimental Conditions
 
 ### Training Setup
@@ -112,6 +204,9 @@ python check_leakage.py
 
 # 6. Verify splits file
 python -c "import pandas as pd; df=pd.read_csv('data/splits.csv'); print(df['split'].value_counts())"
+
+# 7. Biological case study visualization
+pymol exports/ecabsd_1AY7_visualization.pml
 ```
 
 All random seeds are fixed via `set_seed(42)` in `train.py`.
@@ -163,6 +258,14 @@ python scripts/generate_homology_splits.py \
 
 See table above.
 
+### 4. Ablation Study ✅
+
+See Ablation Study section above.
+
+### 5. Biological Case Study ✅
+
+See Biological Case Study section above.
+
 ---
 
 ## Data Leakage Analysis
@@ -193,3 +296,5 @@ Val-Test overlap:   0 complexes
 | V3 | 2026-05 | 0.7010 | 6-layer GATv2, focal+dice loss, chain-swap aug |
 | V3-homology | 2026-05 | 0.5797 | V3 + MMseqs2-filtered splits (≤30% identity) |
 | V3-kfold | 2026-05 | 0.4673±0.0077 | V3 + 5-fold CV (20 epochs), mean±std reported |
+| V3-ablation | 2026-05 | — | Component ablation — cross-attention most critical |
+| V3-case-study | 2026-05 | 0.968 (1AY7) | Biological validation on RNase Sa / Barstar |
