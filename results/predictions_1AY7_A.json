@@ -1,0 +1,489 @@
+{
+  "pdb_file": "1AY7.pdb",
+  "chain_a": "A",
+  "chain_b": "B",
+  "threshold": 0.5,
+  "model": "ECABSD V3",
+  "residues": [
+    {
+      "resid": 1,
+      "probability": 0.1935,
+      "is_binding": false
+    },
+    {
+      "resid": 2,
+      "probability": 0.046,
+      "is_binding": false
+    },
+    {
+      "resid": 3,
+      "probability": 0.106,
+      "is_binding": false
+    },
+    {
+      "resid": 4,
+      "probability": 0.0936,
+      "is_binding": false
+    },
+    {
+      "resid": 5,
+      "probability": 0.2168,
+      "is_binding": false
+    },
+    {
+      "resid": 6,
+      "probability": 0.2024,
+      "is_binding": false
+    },
+    {
+      "resid": 7,
+      "probability": 0.2541,
+      "is_binding": false
+    },
+    {
+      "resid": 8,
+      "probability": 0.0609,
+      "is_binding": false
+    },
+    {
+      "resid": 9,
+      "probability": 0.1413,
+      "is_binding": false
+    },
+    {
+      "resid": 10,
+      "probability": 0.0472,
+      "is_binding": false
+    },
+    {
+      "resid": 11,
+      "probability": 0.0925,
+      "is_binding": false
+    },
+    {
+      "resid": 12,
+      "probability": 0.1613,
+      "is_binding": false
+    },
+    {
+      "resid": 13,
+      "probability": 0.0464,
+      "is_binding": false
+    },
+    {
+      "resid": 14,
+      "probability": 0.0877,
+      "is_binding": false
+    },
+    {
+      "resid": 15,
+      "probability": 0.196,
+      "is_binding": false
+    },
+    {
+      "resid": 16,
+      "probability": 0.1708,
+      "is_binding": false
+    },
+    {
+      "resid": 17,
+      "probability": 0.0929,
+      "is_binding": false
+    },
+    {
+      "resid": 18,
+      "probability": 0.1814,
+      "is_binding": false
+    },
+    {
+      "resid": 19,
+      "probability": 0.2343,
+      "is_binding": false
+    },
+    {
+      "resid": 20,
+      "probability": 0.0416,
+      "is_binding": false
+    },
+    {
+      "resid": 21,
+      "probability": 0.2334,
+      "is_binding": false
+    },
+    {
+      "resid": 22,
+      "probability": 0.2076,
+      "is_binding": false
+    },
+    {
+      "resid": 23,
+      "probability": 0.1217,
+      "is_binding": false
+    },
+    {
+      "resid": 24,
+      "probability": 0.0773,
+      "is_binding": false
+    },
+    {
+      "resid": 25,
+      "probability": 0.2697,
+      "is_binding": false
+    },
+    {
+      "resid": 26,
+      "probability": 0.1208,
+      "is_binding": false
+    },
+    {
+      "resid": 27,
+      "probability": 0.0623,
+      "is_binding": false
+    },
+    {
+      "resid": 28,
+      "probability": 0.0632,
+      "is_binding": false
+    },
+    {
+      "resid": 29,
+      "probability": 0.2434,
+      "is_binding": false
+    },
+    {
+      "resid": 30,
+      "probability": 0.1849,
+      "is_binding": false
+    },
+    {
+      "resid": 31,
+      "probability": 0.5414,
+      "is_binding": true
+    },
+    {
+      "resid": 32,
+      "probability": 0.8805,
+      "is_binding": true
+    },
+    {
+      "resid": 33,
+      "probability": 0.1687,
+      "is_binding": false
+    },
+    {
+      "resid": 34,
+      "probability": 0.2735,
+      "is_binding": false
+    },
+    {
+      "resid": 35,
+      "probability": 0.1308,
+      "is_binding": false
+    },
+    {
+      "resid": 36,
+      "probability": 0.4904,
+      "is_binding": false
+    },
+    {
+      "resid": 37,
+      "probability": 0.9025,
+      "is_binding": true
+    },
+    {
+      "resid": 38,
+      "probability": 0.8561,
+      "is_binding": true
+    },
+    {
+      "resid": 39,
+      "probability": 0.9096,
+      "is_binding": true
+    },
+    {
+      "resid": 40,
+      "probability": 0.847,
+      "is_binding": true
+    },
+    {
+      "resid": 41,
+      "probability": 0.875,
+      "is_binding": true
+    },
+    {
+      "resid": 42,
+      "probability": 0.3892,
+      "is_binding": false
+    },
+    {
+      "resid": 43,
+      "probability": 0.0947,
+      "is_binding": false
+    },
+    {
+      "resid": 44,
+      "probability": 0.1095,
+      "is_binding": false
+    },
+    {
+      "resid": 45,
+      "probability": 0.0592,
+      "is_binding": false
+    },
+    {
+      "resid": 46,
+      "probability": 0.0959,
+      "is_binding": false
+    },
+    {
+      "resid": 47,
+      "probability": 0.0642,
+      "is_binding": false
+    },
+    {
+      "resid": 48,
+      "probability": 0.1067,
+      "is_binding": false
+    },
+    {
+      "resid": 49,
+      "probability": 0.1926,
+      "is_binding": false
+    },
+    {
+      "resid": 50,
+      "probability": 0.1276,
+      "is_binding": false
+    },
+    {
+      "resid": 51,
+      "probability": 0.1288,
+      "is_binding": false
+    },
+    {
+      "resid": 52,
+      "probability": 0.0903,
+      "is_binding": false
+    },
+    {
+      "resid": 53,
+      "probability": 0.1041,
+      "is_binding": false
+    },
+    {
+      "resid": 54,
+      "probability": 0.2648,
+      "is_binding": false
+    },
+    {
+      "resid": 55,
+      "probability": 0.1955,
+      "is_binding": false
+    },
+    {
+      "resid": 56,
+      "probability": 0.1862,
+      "is_binding": false
+    },
+    {
+      "resid": 57,
+      "probability": 0.0811,
+      "is_binding": false
+    },
+    {
+      "resid": 58,
+      "probability": 0.215,
+      "is_binding": false
+    },
+    {
+      "resid": 59,
+      "probability": 0.0792,
+      "is_binding": false
+    },
+    {
+      "resid": 60,
+      "probability": 0.1311,
+      "is_binding": false
+    },
+    {
+      "resid": 61,
+      "probability": 0.2775,
+      "is_binding": false
+    },
+    {
+      "resid": 62,
+      "probability": 0.1936,
+      "is_binding": false
+    },
+    {
+      "resid": 63,
+      "probability": 0.4914,
+      "is_binding": false
+    },
+    {
+      "resid": 64,
+      "probability": 0.8706,
+      "is_binding": true
+    },
+    {
+      "resid": 65,
+      "probability": 0.9054,
+      "is_binding": true
+    },
+    {
+      "resid": 66,
+      "probability": 0.8907,
+      "is_binding": true
+    },
+    {
+      "resid": 67,
+      "probability": 0.7704,
+      "is_binding": true
+    },
+    {
+      "resid": 68,
+      "probability": 0.3864,
+      "is_binding": false
+    },
+    {
+      "resid": 69,
+      "probability": 0.7894,
+      "is_binding": true
+    },
+    {
+      "resid": 70,
+      "probability": 0.4335,
+      "is_binding": false
+    },
+    {
+      "resid": 71,
+      "probability": 0.0906,
+      "is_binding": false
+    },
+    {
+      "resid": 72,
+      "probability": 0.2663,
+      "is_binding": false
+    },
+    {
+      "resid": 73,
+      "probability": 0.2503,
+      "is_binding": false
+    },
+    {
+      "resid": 74,
+      "probability": 0.1155,
+      "is_binding": false
+    },
+    {
+      "resid": 75,
+      "probability": 0.1973,
+      "is_binding": false
+    },
+    {
+      "resid": 76,
+      "probability": 0.135,
+      "is_binding": false
+    },
+    {
+      "resid": 77,
+      "probability": 0.2595,
+      "is_binding": false
+    },
+    {
+      "resid": 78,
+      "probability": 0.1501,
+      "is_binding": false
+    },
+    {
+      "resid": 79,
+      "probability": 0.1036,
+      "is_binding": false
+    },
+    {
+      "resid": 80,
+      "probability": 0.0992,
+      "is_binding": false
+    },
+    {
+      "resid": 81,
+      "probability": 0.1747,
+      "is_binding": false
+    },
+    {
+      "resid": 82,
+      "probability": 0.1031,
+      "is_binding": false
+    },
+    {
+      "resid": 83,
+      "probability": 0.4969,
+      "is_binding": false
+    },
+    {
+      "resid": 84,
+      "probability": 0.9175,
+      "is_binding": true
+    },
+    {
+      "resid": 85,
+      "probability": 0.8079,
+      "is_binding": true
+    },
+    {
+      "resid": 86,
+      "probability": 0.7683,
+      "is_binding": true
+    },
+    {
+      "resid": 87,
+      "probability": 0.9395,
+      "is_binding": true
+    },
+    {
+      "resid": 88,
+      "probability": 0.4819,
+      "is_binding": false
+    },
+    {
+      "resid": 89,
+      "probability": 0.0618,
+      "is_binding": false
+    },
+    {
+      "resid": 90,
+      "probability": 0.0513,
+      "is_binding": false
+    },
+    {
+      "resid": 91,
+      "probability": 0.0663,
+      "is_binding": false
+    },
+    {
+      "resid": 92,
+      "probability": 0.1906,
+      "is_binding": false
+    },
+    {
+      "resid": 93,
+      "probability": 0.2301,
+      "is_binding": false
+    },
+    {
+      "resid": 94,
+      "probability": 0.1413,
+      "is_binding": false
+    },
+    {
+      "resid": 95,
+      "probability": 0.0552,
+      "is_binding": false
+    },
+    {
+      "resid": 96,
+      "probability": 0.1316,
+      "is_binding": false
+    }
+  ]
+}
