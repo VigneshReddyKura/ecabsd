@@ -132,3 +132,4 @@ class TestPredictionPipeline:
         for r in results["residues"]:
             assert "is_binding" in r
             assert isinstance(r["is_binding"], bool)
+  
