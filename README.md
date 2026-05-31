@@ -7,7 +7,7 @@
 ![PyG](https://img.shields.io/badge/PyG-2.7-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![CI](https://github.com/amanigreeva/ECABSD/actions/workflows/ci.yml/badge.svg)
-![arXiv](https://img.shields.io/badge/arXiv-preprint-b31b1b?logo=arxiv)
+![arXiv](https://img.shields.io/badge/arXiv-2506.ECABSD-b31b1b?logo=arxiv)
 ![DOI](https://img.shields.io/badge/DOI-pending-lightgrey)
 
 **Deep learning model for per-residue protein–protein binding site discovery using graph neural networks and explainable cross-attention.**
