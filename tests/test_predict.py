@@ -73,9 +73,9 @@ class TestExports:
         }
 
     def test_json_export(self, sample_results, tmp_path):
-        from exports.json_export import export_to_json
+        from exports.json_export import export_json
         out_file = str(tmp_path / "test_output.json")
-        export_to_json(sample_results, out_file)
+        export_json(sample_results, out_file)
         assert os.path.exists(out_file)
         with open(out_file) as f:
             data = json.load(f)
@@ -83,18 +83,18 @@ class TestExports:
         assert len(data["residues"]) == 3
 
     def test_csv_export(self, sample_results, tmp_path):
-        from exports.csv_export import export_to_csv
+        from exports.csv_export import export_csv
         out_file = str(tmp_path / "test_output.csv")
-        export_to_csv(sample_results, out_file)
+        export_csv(sample_results, out_file)
         assert os.path.exists(out_file)
         with open(out_file) as f:
             content = f.read()
         assert "probability" in content.lower() or "residue" in content.lower()
 
     def test_pymol_export(self, sample_results, tmp_path):
-        from exports.pymol_export import export_to_pymol
+        from exports.pymol_export import export_pymol
         out_file = str(tmp_path / "test_output.pml")
-        export_to_pymol(sample_results, out_file)
+        export_pymol(sample_results, out_file)
         assert os.path.exists(out_file)
         with open(out_file) as f:
             content = f.read()
