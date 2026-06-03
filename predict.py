@@ -29,7 +29,6 @@ def run_prediction(
     threshold: float = None,
     output_path: str = None,
     config_path: str = "config.yaml",
-    model_version: str = "v3",
 ):
     """
     Predict binding sites for a single PDB structure.
@@ -59,7 +58,17 @@ def run_prediction(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if checkpoint_path is None:
-        checkpoint_path = "checkpoints/best_model_v3.pt" if model_version == "v3" else "checkpoints/best_model.pt"
+        checkpoint_path = "checkpoints/best_model_v3.pt"
+
+    norm_path = os.path.normpath(checkpoint_path)
+    default_norm_path = os.path.normpath("checkpoints/best_model_v3.pt")
+    if not os.path.exists(norm_path) and norm_path == default_norm_path:
+        print(f"[ECABSD] Checkpoint not found. Automatically downloading best_model_v3.pt...")
+        try:
+            from download_weights import download
+            download()
+        except Exception as e:
+            print(f"[ECABSD] WARNING: Failed to automatically download checkpoint: {e}")
 
     model = ECABSDModel(
         input_dim=mcfg.get("input_dim", mcfg.get("esm_dim", 33)),
@@ -264,7 +273,6 @@ if __name__ == "__main__":
                         help="Decision threshold (default: loaded from checkpoint)")
     parser.add_argument("--output", default=None)
     parser.add_argument("--config", default="config.yaml")
-    parser.add_argument("--model-version", type=str, choices=["v2", "v3"], default="v3", help="Ignored. V3 is now standard.")
     args = parser.parse_args()
 
     run_prediction(
@@ -275,5 +283,4 @@ if __name__ == "__main__":
         threshold=args.threshold,
         output_path=args.output,
         config_path=args.config,
-        model_version=args.model_version,
     )

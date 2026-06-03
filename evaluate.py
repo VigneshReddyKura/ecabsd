@@ -83,6 +83,16 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
 
     # Load checkpoint and recover saved threshold
     saved_threshold = cfg["prediction"].get("threshold", 0.5)
+    norm_path = os.path.normpath(checkpoint_path)
+    default_norm_path = os.path.normpath("checkpoints/best_model_v3.pt")
+    if not os.path.exists(norm_path) and norm_path == default_norm_path:
+        print(f"[ECABSD] Checkpoint not found. Automatically downloading best_model_v3.pt...")
+        try:
+            from download_weights import download
+            download()
+        except Exception as e:
+            print(f"[ECABSD] WARNING: Failed to automatically download checkpoint: {e}")
+
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])

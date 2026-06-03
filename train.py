@@ -168,7 +168,7 @@ def compute_metrics(all_labels, all_preds, all_probs=None) -> dict:
 # ---------------------------------------------------------------------------
 
 def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip,
-                    scaler, chain_swap_prob: float = 0.5):
+                    chain_swap_prob: float = 0.5):
     """
     Train one epoch. With chain_swap_prob probability, swap data_a and data_b
     so the model predicts binding sites on chain B instead of chain A.
@@ -216,12 +216,11 @@ def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip,
             optimizer.zero_grad()
             continue
 
-        scaler.scale(loss).backward()
+        # AMP is disabled because GATv2 layers in PyG can experience float16 precision overflow
+        loss.backward()
         if gradient_clip > 0:
-            scaler.unscale_(optimizer)
             nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-        scaler.step(optimizer)
-        scaler.update()
+        optimizer.step()
 
         total_loss += loss.item() * labels.size(0)
         probs = torch.sigmoid(logits)
@@ -398,8 +397,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
                                    milestones=[warmup_epochs])
     print(f"[ECABSD] LR: warmup {warmup_epochs} epochs -> cosine {cosine_epochs} epochs")
 
-    # AMP scaler (disabled — GATv2 float16 overflow)
-    scaler = torch.amp.GradScaler('cuda', enabled=False)
+
 
     # Resume from checkpoint
     start_epoch   = 0
@@ -408,8 +406,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         ckpt = torch.load(resume_from, map_location=device)
         model.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
-        if "scaler_state_dict" in ckpt:
-            scaler.load_state_dict(ckpt["scaler_state_dict"])
+        # Note: scaler was removed since AMP is permanently disabled due to float16 GATv2 overflow.
         start_epoch   = ckpt.get("epoch", 0) + 1
         best_val_loss = ckpt.get("best_val_loss", float("inf"))
         if "scheduler_state_dict" in ckpt:
@@ -439,7 +436,6 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         train_metrics = train_one_epoch(
             model, train_loader, optimizer, criterion, device,
             tcfg["gradient_clip"],
-            scaler=scaler,
             chain_swap_prob=tcfg.get("chain_swap_prob", 0.5),
         )
         val_metrics    = validate(model, val_loader, criterion, device)
@@ -483,7 +479,6 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
                     "epoch":                epoch,
                     "model_state_dict":     model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "scaler_state_dict":    scaler.state_dict(),
                     "scheduler_state_dict": scheduler.state_dict(),
                     "best_val_loss":        best_val_loss,
                     "best_val_f1":          best_val_f1,

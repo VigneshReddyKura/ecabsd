@@ -51,7 +51,7 @@ def predict(
     checkpoint: Path = typer.Option(
         "checkpoints/best_model_v3.pt", help="Model checkpoint"
     ),
-    threshold: float = typer.Option(0.5, help="Binding probability threshold"),
+    threshold: Optional[float] = typer.Option(None, help="Binding probability threshold"),
     output: Optional[Path] = typer.Option(None, help="Output file path"),
     config: Path = typer.Option("config.yaml", help="Path to config YAML file"),
 ):
@@ -76,7 +76,7 @@ def batch_predict(
     ),
     chain_a: str = typer.Option("A", help="Default chain A"),
     chain_b: Optional[str] = typer.Option(None, help="Default chain B"),
-    threshold: float = typer.Option(0.5, help="Binding probability threshold"),
+    threshold: Optional[float] = typer.Option(None, help="Binding probability threshold"),
     output_dir: Path = typer.Option("results/batch", help="Output directory"),
     config: Path = typer.Option("config.yaml", help="Path to config YAML file"),
 ):
