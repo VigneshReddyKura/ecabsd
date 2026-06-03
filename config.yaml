@@ -37,11 +37,8 @@ training:
   focal_alpha: 0.90
   focal_gamma: 2.0
   gradient_clip: 1.0
-  label_smoothing: 0.05
   learning_rate: 0.0003
   loss: combined
-  lr_factor: 0.5
-  lr_patience: 15
   lr_scheduler: cosine_warmup
   num_workers: 0
   seed: 42

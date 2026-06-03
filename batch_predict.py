@@ -25,7 +25,7 @@ def run_batch_prediction(
     checkpoint_path: str = "checkpoints/best_model_v3.pt",
     chain_a: str = "A",
     chain_b: str = None,
-    threshold: float = 0.5,
+    threshold: float = None,
     output_dir: str = "results/batch",
     config_path: str = "config.yaml",
 ):
@@ -144,7 +144,8 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", default="checkpoints/best_model_v3.pt")
     parser.add_argument("--chain-a", default="A")
     parser.add_argument("--chain-b", default=None)
-    parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--threshold", type=float, default=None,
+                        help="Decision threshold (default: loaded from checkpoint)")
     parser.add_argument("--output-dir", default="results/batch")
     parser.add_argument("--config", default="config.yaml")
     args = parser.parse_args()
