@@ -396,7 +396,7 @@ def get_model(config_path: str = "config.yaml"):
         ckpt_path = os.path.join(root, "checkpoints", "best_model_v3.pt")
         if os.path.exists(ckpt_path):
             ckpt = torch.load(ckpt_path, map_location=_device, weights_only=False)
-            _model.load_state_dict(ckpt["model_state_dict"])
+            _model.load_state_dict(ckpt["model_state_dict"], strict=False)
             _model.best_threshold = ckpt.get("best_threshold", 0.52)
             print(f"[Web] V3 model loaded from: {ckpt_path}")
         else:

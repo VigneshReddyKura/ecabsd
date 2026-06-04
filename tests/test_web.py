@@ -34,7 +34,7 @@ async def test_index_route(client):
 @skip_no_checkpoint
 @pytest.mark.anyio
 async def test_predict_route(client):
-    pdb_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '1AY7.pdb'))
+    pdb_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'sample', '1AY7.pdb'))
     assert os.path.exists(pdb_path)
     with open(pdb_path, "rb") as f:
         files = {"pdb_file": ("1AY7.pdb", f, "application/octet-stream")}
@@ -52,7 +52,7 @@ async def test_predict_route(client):
 @skip_no_checkpoint
 @pytest.mark.anyio
 async def test_explain_route(client):
-    pdb_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '1AY7.pdb'))
+    pdb_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'sample', '1AY7.pdb'))
     assert os.path.exists(pdb_path)
     with open(pdb_path, "rb") as f:
         files = {"pdb_file": ("1AY7.pdb", f, "application/octet-stream")}
@@ -71,7 +71,7 @@ async def test_explain_route_low_memory(client, monkeypatch):
     import web.app
     monkeypatch.setenv("IS_RENDER", "true")
     monkeypatch.setattr(web.app, "has_enough_memory", lambda min_free_mb=250: (False, 120.0))
-    pdb_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '1AY7.pdb'))
+    pdb_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'sample', '1AY7.pdb'))
     assert os.path.exists(pdb_path)
     with open(pdb_path, "rb") as f:
         files = {"pdb_file": ("1AY7.pdb", f, "application/octet-stream")}
