@@ -56,7 +56,7 @@ from train import (
     run_training, set_seed, load_config, compute_pos_weight,
     build_criterion, train_one_epoch, validate,
 )
-from models.ecabsd_model import ECABSDModel
+from models import ECABSDModel
 from data.dataset import BindingSiteDataset, collate_fn
 
 

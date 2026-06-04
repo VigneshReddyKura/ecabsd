@@ -11,7 +11,7 @@ import yaml
 import torch
 import numpy as np
 
-from models.ecabsd_model import ECABSDModel
+from models import ECABSDModel
 from models.graph_construction import build_residue_graph, get_residues
 from Bio.PDB import PDBParser
 

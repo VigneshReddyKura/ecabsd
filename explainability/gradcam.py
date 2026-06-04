@@ -21,7 +21,7 @@ import torch.nn as nn
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from models.ecabsd_model import ECABSDModel
+from models import ECABSDModel
 
 
 class GradCAM:
