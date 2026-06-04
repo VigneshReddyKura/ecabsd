@@ -24,7 +24,7 @@ from sklearn.metrics import (
     brier_score_loss,
 )
 
-from models import ECABSDModel
+from models.ecabsd_v3_model import ECABSDModelV3
 
 
 def load_config(config_path: str) -> dict:
@@ -72,7 +72,7 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
     print(f"[ECABSD] Evaluating on device: {device}")
 
     # Load model — must match training architecture exactly (V3)
-    model = ECABSDModel(
+    model = ECABSDModelV3(
         input_dim=mcfg.get("esm_dim", 33),
         hidden_dim=mcfg["hidden_dim"],
         num_heads=mcfg["num_heads"],
@@ -83,16 +83,6 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
 
     # Load checkpoint and recover saved threshold
     saved_threshold = cfg["prediction"].get("threshold", 0.5)
-    norm_path = os.path.normpath(checkpoint_path)
-    default_norm_path = os.path.normpath("checkpoints/best_model_v3.pt")
-    if not os.path.exists(norm_path) and norm_path == default_norm_path:
-        print(f"[ECABSD] Checkpoint not found. Automatically downloading best_model_v3.pt...")
-        try:
-            from download_weights import download
-            download()
-        except Exception as e:
-            print(f"[ECABSD] WARNING: Failed to automatically download checkpoint: {e}")
-
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])

@@ -19,7 +19,7 @@ from models.graph_construction import (
 )
 from Bio.PDB import PDBParser
 
-PDB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '1AY7.pdb'))
+PDB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'sample', '1AY7.pdb'))
 CHAIN_ID = 'A'
 
 # ──────────────────────────────────────────────

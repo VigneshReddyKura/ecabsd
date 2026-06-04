@@ -52,8 +52,9 @@ jobs:
 
       - name: Download test PDB file
         run: |
-          curl -s -L "https://files.rcsb.org/download/1AY7.pdb" -o 1AY7.pdb
-          ls -la 1AY7.pdb
+          mkdir -p data/sample
+          curl -s -L "https://files.rcsb.org/download/1AY7.pdb" -o data/sample/1AY7.pdb
+          ls -la data/sample/1AY7.pdb
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short

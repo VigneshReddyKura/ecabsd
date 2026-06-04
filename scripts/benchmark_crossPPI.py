@@ -68,7 +68,7 @@ def run_benchmark(
     # --- Live inference mode ---
     try:
         import torch
-        from models.ecabsd_model import ECABSDModel
+        from models import ECABSDModel
         from models.graph_construction import build_residue_graph
         from sklearn.metrics import precision_score, recall_score, f1_score, matthews_corrcoef
     except ImportError as e:

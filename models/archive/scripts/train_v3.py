@@ -14,7 +14,6 @@ import os
 import json
 import time
 import random
-import warnings
 import yaml
 import numpy as np
 import torch
@@ -32,7 +31,7 @@ from sklearn.metrics import (
     precision_recall_curve,
 )
 
-from models import ECABSDModel
+from models.ecabsd_v3_model import ECABSDModelV3
 from data.dataset import BindingSiteDataset, collate_fn
 
 
@@ -49,8 +48,8 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
-        p_t = torch.exp(-bce)
+        bce     = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+        p_t     = torch.exp(-bce)
         alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
         focal_w = alpha_t * (1 - p_t) ** self.gamma
         return (focal_w * bce).mean()
@@ -59,6 +58,7 @@ class FocalLoss(nn.Module):
 class SoftDiceLoss(nn.Module):
     """
     Soft Dice Loss — directly optimises the F1 / Dice coefficient.
+
     Unlike cross-entropy, Dice loss treats prediction as a soft mask
     and measures overlap, which directly corresponds to the F1 metric.
     """
@@ -68,29 +68,30 @@ class SoftDiceLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        probs = torch.sigmoid(logits)
+        probs        = torch.sigmoid(logits)
         intersection = (probs * targets).sum()
-        dice = (2.0 * intersection + self.smooth) / \
-               (probs.sum() + targets.sum() + self.smooth)
+        dice         = (2.0 * intersection + self.smooth) / \
+                       (probs.sum() + targets.sum() + self.smooth)
         return 1.0 - dice
 
 
 class CombinedLoss(nn.Module):
     """
     Focal + Soft-Dice combined loss.
+
     Focal handles class imbalance; Dice directly optimises F1.
     dice_weight = 0.4 → 60% focal + 40% dice works well in practice.
     """
 
     def __init__(self, focal_alpha=0.90, focal_gamma=2.0, dice_weight=0.4):
         super().__init__()
-        self.focal = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
-        self.dice  = SoftDiceLoss()
+        self.focal       = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
+        self.dice        = SoftDiceLoss()
         self.dice_weight = dice_weight
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         return (1 - self.dice_weight) * self.focal(logits, targets) + \
-               self.dice_weight * self.dice(logits, targets)
+                    self.dice_weight  * self.dice(logits, targets)
 
 
 def build_criterion(tcfg: dict, pos_weight: float, device: torch.device) -> nn.Module:
@@ -98,7 +99,7 @@ def build_criterion(tcfg: dict, pos_weight: float, device: torch.device) -> nn.M
     loss_name = tcfg.get("loss", "combined").lower()
     if loss_name == "combined":
         dw = tcfg.get("dice_weight", 0.4)
-        print(f"[ECABSD] Using CombinedLoss "
+        print(f"[ECABSD] Using CombinedLoss  "
               f"(focal_alpha={tcfg['focal_alpha']}, gamma={tcfg['focal_gamma']}, "
               f"dice_weight={dw})")
         return CombinedLoss(
@@ -107,11 +108,11 @@ def build_criterion(tcfg: dict, pos_weight: float, device: torch.device) -> nn.M
             dice_weight=dw,
         )
     elif loss_name == "focal":
-        print(f"[ECABSD] Using FocalLoss "
+        print(f"[ECABSD] Using FocalLoss  "
               f"(alpha={tcfg['focal_alpha']}, gamma={tcfg['focal_gamma']})")
         return FocalLoss(alpha=tcfg["focal_alpha"], gamma=tcfg["focal_gamma"])
     else:
-        print(f"[ECABSD] Using BCEWithLogitsLoss (pos_weight={pos_weight:.2f})")
+        print(f"[ECABSD] Using BCEWithLogitsLoss  (pos_weight={pos_weight:.2f})")
         return nn.BCEWithLogitsLoss(
             pos_weight=torch.tensor([pos_weight], device=device)
         )
@@ -168,74 +169,56 @@ def compute_metrics(all_labels, all_preds, all_probs=None) -> dict:
 # ---------------------------------------------------------------------------
 
 def train_one_epoch(model, loader, optimizer, criterion, device, gradient_clip,
-                    chain_swap_prob: float = 0.5):
+                    scaler, chain_swap_prob: float = 0.5):
     """
     Train one epoch. With chain_swap_prob probability, swap data_a and data_b
     so the model predicts binding sites on chain B instead of chain A.
     This doubles effective training data at zero cost.
-
-    If data_b.y is missing, augmentation is skipped and a visible warning is
-    emitted (rather than silently dropped) so dataset generation issues surface.
     """
     model.train()
     total_loss = 0.0
     all_labels, all_preds = [], []
-    swap_skip_count = 0   # FIX #2: track silent augmentation drops
 
     for sample in loader:
         data_a  = sample["data_a"].to(device)
         data_b  = sample["data_b"].to(device)
         labels  = sample["labels"].to(device)
 
-        # Chain-swap augmentation: swap A and B, use B's labels as target.
-        # FIX #2: emit a loud warning when data_b.y is missing so dataset
-        # generation issues are not silently swallowed.
+        # Chain-swap augmentation: swap A and B, use B's labels as target
         if chain_swap_prob > 0 and random.random() < chain_swap_prob:
+            # data_b.y holds binding labels for chain B (set by prepare_db5.py)
             if hasattr(data_b, 'y') and data_b.y is not None:
                 data_a, data_b = data_b, data_a
                 labels = data_a.y.float().to(device)
-            else:
-                swap_skip_count += 1
-                warnings.warn(
-                    f"[chain-swap] data_b.y is missing or None — augmentation "
-                    f"skipped for this sample (total skips this epoch: "
-                    f"{swap_skip_count}). Check that prepare_db5.py correctly "
-                    f"attaches chain-B labels (data.y) to every processed graph.",
-                    UserWarning,
-                    stacklevel=2,
-                )
 
         optimizer.zero_grad()
-        with torch.amp.autocast('cuda', enabled=False):  # AMP disabled: GATv2 float16 overflow
+        with torch.amp.autocast('cuda', enabled=False): # DISABLED AMP due to GATv2 float16 overflow
             logits, _ = model(data_a, data_b)
-            logits = logits.squeeze(-1)
+            logits    = logits.squeeze(-1)
             loss = criterion(logits, labels.float())
-
+        
         if torch.isnan(loss):
             print("  [WARN] NaN loss detected! Skipping batch to prevent crash...")
             optimizer.zero_grad()
             continue
 
-        # AMP is disabled because GATv2 layers in PyG can experience float16 precision overflow
-        loss.backward()
-        if gradient_clip > 0:
-            nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-        optimizer.step()
+        scaler.scale(loss).backward()
 
-        total_loss += loss.item() * labels.size(0)
-        probs = torch.sigmoid(logits)
+        if gradient_clip > 0:
+            scaler.unscale_(optimizer)
+            nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+
+        scaler.step(optimizer)
+        scaler.update()
+
+        total_loss  += loss.item() * labels.size(0)
+        probs        = torch.sigmoid(logits)
         binary_preds = (probs >= 0.5).long().cpu().numpy()
         all_labels.extend(labels.cpu().numpy().tolist())
         all_preds.extend(binary_preds.tolist())
 
-    # FIX #2: epoch-level summary so the issue is impossible to miss in logs
-    if swap_skip_count > 0:
-        print(f"  [chain-swap] WARNING: {swap_skip_count} sample(s) had no "
-              f"chain-B labels this epoch — augmentation was skipped for them. "
-              f"Investigate prepare_db5.py to ensure data.y is set for chain B.")
-
-    avg_loss = total_loss / max(len(all_labels), 1)
-    metrics = compute_metrics(all_labels, all_preds)
+    avg_loss        = total_loss / max(len(all_labels), 1)
+    metrics         = compute_metrics(all_labels, all_preds)
     metrics["loss"] = avg_loss
     return metrics
 
@@ -249,11 +232,12 @@ def validate(model, loader, criterion, device):
 
     for sample in loader:
         data_a  = sample["data_a"].to(device)
-        data_b  = sample["data_b"].to(device)
+        data_b  = sample["data_b"].to(device)   # always a Batch now
         labels  = sample["labels"].to(device)
 
         logits, _ = model(data_a, data_b)
-        logits = logits.squeeze(-1)
+        logits    = logits.squeeze(-1)
+
         loss = criterion(logits, labels.float())
         total_loss += loss.item() * labels.size(0)
 
@@ -261,22 +245,21 @@ def validate(model, loader, criterion, device):
         all_probs.extend(probs.cpu().numpy().tolist())
         all_labels.extend(labels.cpu().numpy().tolist())
 
-    avg_loss     = total_loss / max(len(all_labels), 1)
+    avg_loss      = total_loss / max(len(all_labels), 1)
     all_probs_np  = np.array(all_probs)
     all_labels_np = np.array(all_labels)
 
     # PR-curve threshold sweep (on val set — legally)
     if len(np.unique(all_labels_np)) > 1:
-        precisions, recalls, thresh_vals = precision_recall_curve(
-            all_labels_np, all_probs_np)
-        f1_vals  = 2 * (precisions * recalls) / (precisions + recalls + 1e-8)
-        best_idx = int(np.argmax(f1_vals[:-1]))
-        best_thr = float(thresh_vals[best_idx])
+        precisions, recalls, thresh_vals = precision_recall_curve(all_labels_np, all_probs_np)
+        f1_vals    = 2 * (precisions * recalls) / (precisions + recalls + 1e-8)
+        best_idx   = int(np.argmax(f1_vals[:-1]))
+        best_thr   = float(thresh_vals[best_idx])
     else:
         best_thr = 0.5
 
     all_preds = (all_probs_np >= best_thr).astype(int).tolist()
-    metrics = compute_metrics(all_labels, all_preds, all_probs)
+    metrics   = compute_metrics(all_labels, all_preds, all_probs)
     metrics["loss"]           = avg_loss
     metrics["best_threshold"] = best_thr
     return metrics
@@ -288,14 +271,13 @@ def validate(model, loader, criterion, device):
 
 def run_training(config_path: str = "config.yaml", resume_from: str = None):
     import subprocess
-
     print("[ECABSD] Running leakage check...")
     try:
         subprocess.check_call(["python", "check_leakage.py"])
     except subprocess.CalledProcessError:
         print("Training aborted due to leakage.")
         return
-
+        
     cfg  = load_config(config_path)
     tcfg = cfg["training"]
     mcfg = cfg["model"]
@@ -306,10 +288,10 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     print(f"[ECABSD] Training on device: {device}")
 
     os.makedirs(pcfg["checkpoints_dir"], exist_ok=True)
-    os.makedirs(pcfg["logs_dir"],        exist_ok=True)
+    os.makedirs(pcfg["logs_dir"], exist_ok=True)
 
     # Build model
-    model = ECABSDModel(
+    model = ECABSDModelV3(
         input_dim=mcfg.get("esm_dim", 33),
         hidden_dim=mcfg["hidden_dim"],
         num_heads=mcfg["num_heads"],
@@ -321,7 +303,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     total_params = sum(p.numel() for p in model.parameters())
     print(f"[ECABSD] Model parameters: {total_params:,}")
 
-    # AdamW optimizer
+    # AdamW optimizer (better generalisation than Adam)
     optimizer = AdamW(
         model.parameters(),
         lr=tcfg["learning_rate"],
@@ -334,7 +316,7 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     splits_csv    = cfg["data"]["splits_csv"]
 
     if not (os.path.exists(processed_dir) and os.path.exists(splits_csv)):
-        print("[ECABSD] ERROR: Processed data not found. Run prepare_db5.py first.")
+        print(f"[ECABSD] ERROR: Processed data not found. Run prepare_db5.py first.")
         return
 
     train_dataset = BindingSiteDataset(processed_dir, splits_csv, split="train")
@@ -347,23 +329,24 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     print(f"  Val Samples:   {len(val_dataset)}")
     print(f"  Test Samples:  {len(test_dataset)}")
 
-    # Verify graph dimensions on first sample
+    # Verify Graph Dimensions on first sample
     if len(train_dataset) > 0:
         sample = train_dataset[0]
         x_dim = sample["data_a"].x.shape[1]
         e_dim = sample["data_a"].edge_attr.shape[1]
-        print(f"  Graph Dims: x={x_dim}, edge_attr={e_dim}")
+        print(f"  Graph Dims:    x={x_dim}, edge_attr={e_dim}")
         if x_dim != 33 or e_dim != 5:
-            raise ValueError(
-                f"FATAL: Expected x=33, edge=5. Found x={x_dim}, edge={e_dim}")
+            raise ValueError(f"FATAL: Expected x=33, edge=5. Found x={x_dim}, edge={e_dim}")
 
-    # Verify leakage inline (belt-and-suspenders on top of check_leakage.py)
+    # Verify Leakage
     import pandas as pd
     df = pd.read_csv(splits_csv)
-    t  = set(df[df['split'] == 'train']['pdb_id'])
-    v  = set(df[df['split'] == 'val']['pdb_id'])
-    e  = set(df[df['split'] == 'test']['pdb_id'])
-    t_v = len(t & v); t_e = len(t & e); v_e = len(v & e)
+    t = set(df[df['split']=='train']['pdb_id'])
+    v = set(df[df['split']=='val']['pdb_id'])
+    e = set(df[df['split']=='test']['pdb_id'])
+    t_v = len(t & v)
+    t_e = len(t & e)
+    v_e = len(v & e)
     print(f"  Leakage Overlap: Train-Val={t_v}, Train-Test={t_e}, Val-Test={v_e}")
     if t_v > 0 or t_e > 0 or v_e > 0:
         raise ValueError("FATAL: Leakage overlap detected!")
@@ -389,45 +372,45 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     # Cosine-warmup LR scheduler
     warmup_epochs  = tcfg.get("warmup_epochs", 15)
     cosine_epochs  = max(tcfg["epochs"] - warmup_epochs, 1)
-    warmup_sched   = LinearLR(optimizer, start_factor=0.01, end_factor=1.0,
-                               total_iters=warmup_epochs)
+    warmup_sched   = LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_epochs)
     cosine_sched   = CosineAnnealingLR(optimizer, T_max=cosine_epochs, eta_min=1e-6)
-    scheduler      = SequentialLR(optimizer,
-                                   schedulers=[warmup_sched, cosine_sched],
-                                   milestones=[warmup_epochs])
-    print(f"[ECABSD] LR: warmup {warmup_epochs} epochs -> cosine {cosine_epochs} epochs")
+    scheduler      = SequentialLR(optimizer, schedulers=[warmup_sched, cosine_sched], milestones=[warmup_epochs])
 
+    print(f"[ECABSD] LR: warmup {warmup_epochs} epochs → cosine {cosine_epochs} epochs")
+    
+    # Initialize Mixed Precision Scaler (Disabled to prevent NaN in GATv2)
+    scaler = torch.amp.GradScaler('cuda', enabled=False)
 
-
-    # Resume from checkpoint
+    # Resume
     start_epoch   = 0
     best_val_loss = float("inf")
     if resume_from and os.path.exists(resume_from):
         ckpt = torch.load(resume_from, map_location=device)
         model.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
-        # Note: scaler was removed since AMP is permanently disabled due to float16 GATv2 overflow.
+        if "scaler_state_dict" in ckpt:
+            scaler.load_state_dict(ckpt["scaler_state_dict"])
         start_epoch   = ckpt.get("epoch", 0) + 1
         best_val_loss = ckpt.get("best_val_loss", float("inf"))
         if "scheduler_state_dict" in ckpt:
+            # Restore full scheduler state — LR will be exactly where it was
             scheduler.load_state_dict(ckpt["scheduler_state_dict"])
-            print("[ECABSD] Scheduler state restored from checkpoint.")
+            print(f"[ECABSD] Scheduler state restored from checkpoint.")
         else:
-            print(f"[ECABSD] No scheduler state in checkpoint. "
-                  f"Fast-forwarding {start_epoch} steps...")
+            # Old checkpoint without scheduler state — fast-forward manually
+            print(f"[ECABSD] No scheduler state in checkpoint. Fast-forwarding {start_epoch} steps...")
             for _ in range(start_epoch):
                 scheduler.step()
-        print(f"[ECABSD] Resumed from epoch {start_epoch} | "
-              f"LR={optimizer.param_groups[0]['lr']:.6f}")
+        print(f"[ECABSD] Resumed from epoch {start_epoch} | LR={optimizer.param_groups[0]['lr']:.6f}")
 
-    # Training loop
+    # Loop
     patience_counter = 0
     best_val_f1      = -1.0
     best_threshold   = 0.5
     history          = []
 
     print(f"\n{'='*60}")
-    print(f" ECABSD V3 Training — {tcfg['epochs']} epochs")
+    print(f"  ECABSD V3 Training — {tcfg['epochs']} epochs")
     print(f"{'='*60}\n")
 
     for epoch in range(start_epoch, tcfg["epochs"]):
@@ -436,15 +419,16 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         train_metrics = train_one_epoch(
             model, train_loader, optimizer, criterion, device,
             tcfg["gradient_clip"],
+            scaler=scaler,
             chain_swap_prob=tcfg.get("chain_swap_prob", 0.5),
         )
-        val_metrics    = validate(model, val_loader, criterion, device)
+        val_metrics   = validate(model, val_loader, criterion, device)
         best_threshold = val_metrics["best_threshold"]
+
         scheduler.step()
-
         elapsed = time.time() - t0
-        lr      = optimizer.param_groups[0]["lr"]
 
+        lr = optimizer.param_groups[0]["lr"]
         print(
             f"Epoch {epoch+1:03d}/{tcfg['epochs']} | "
             f"Train Loss: {train_metrics['loss']:.4f} F1: {train_metrics['f1']:.4f} | "
@@ -455,40 +439,38 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         )
 
         epoch_record = {
-            "epoch": epoch + 1, "train": train_metrics,
-            "val": val_metrics,  "lr": lr,
-            "time": elapsed,     "threshold": best_threshold,
+            "epoch": epoch + 1,
+            "train": train_metrics,
+            "val":   val_metrics,
+            "lr":    lr,
+            "time":  elapsed,
+            "threshold": best_threshold,
         }
         history.append(epoch_record)
-
-        # CRASH-SAFE: save history every epoch
-        history_path = os.path.join(pcfg["logs_dir"], "training_history_v3.json")
-        os.makedirs(pcfg["logs_dir"], exist_ok=True)
-        with open(history_path, "w") as _hf:
-            json.dump(history, _hf, indent=2)
 
         # Save best model on val F1
         current_f1 = val_metrics["f1"]
         if current_f1 > best_val_f1:
-            best_val_f1  = current_f1
-            best_val_loss = val_metrics["loss"]
+            best_val_f1      = current_f1
+            best_val_loss    = val_metrics["loss"]
             patience_counter = 0
-            ckpt_path = os.path.join(pcfg["checkpoints_dir"], "best_model_v3.pt")
+            ckpt_path        = os.path.join(pcfg["checkpoints_dir"], "best_model_v3.pt")
             torch.save(
                 {
-                    "epoch":                epoch,
-                    "model_state_dict":     model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "scheduler_state_dict": scheduler.state_dict(),
-                    "best_val_loss":        best_val_loss,
-                    "best_val_f1":          best_val_f1,
-                    "best_threshold":       best_threshold,
-                    "config":               cfg,
+                    "epoch":                 epoch,
+                    "model_state_dict":      model.state_dict(),
+                    "optimizer_state_dict":  optimizer.state_dict(),
+                    "scaler_state_dict":     scaler.state_dict(),
+                    "scheduler_state_dict":  scheduler.state_dict(),
+                    "best_val_loss":         best_val_loss,
+                    "best_val_f1":           best_val_f1,
+                    "best_threshold":        best_threshold,
+                    "config":                cfg,
                 },
                 ckpt_path,
             )
             print(f"  -> New best! val_F1={best_val_f1:.4f} | "
-                  f"AUC-ROC={val_metrics.get('auc_roc', 0):.4f} | "
+                  f"AUC-ROC={val_metrics.get('auc_roc',0):.4f} | "
                   f"threshold={best_threshold:.4f}")
         else:
             patience_counter += 1
@@ -509,27 +491,26 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
 
         # Early stopping on F1
         if patience_counter >= tcfg["early_stopping_patience"]:
-            print(f"\n[ECABSD] Early stopping at epoch {epoch+1} "
-                  f"(best val F1={best_val_f1:.4f})")
+            print(f"\n[ECABSD] Early stopping at epoch {epoch+1} (best val F1={best_val_f1:.4f})")
             break
 
-    # Save training history
+    # Save history
     history_path = os.path.join(pcfg["logs_dir"], "training_history_v3.json")
     with open(history_path, "w") as f:
         json.dump(history, f, indent=2)
 
-    # Write best threshold back to config
+    # Write best threshold to config
     cfg_out = load_config(config_path)
     cfg_out["prediction"]["threshold"] = round(best_threshold, 4)
     with open(config_path, "w") as f:
         yaml.dump(cfg_out, f, default_flow_style=False, sort_keys=False)
 
     print(f"\n{'='*60}")
-    print(f" Training complete.")
-    print(f" Best val F1:      {best_val_f1:.4f}")
-    print(f" Best val loss:    {best_val_loss:.4f}")
-    print(f" Best threshold:   {best_threshold:.4f}")
-    print(f" History:          {history_path}")
+    print(f"  Training complete.")
+    print(f"  Best val F1:    {best_val_f1:.4f}")
+    print(f"  Best val loss:  {best_val_loss:.4f}")
+    print(f"  Best threshold: {best_threshold:.4f}")
+    print(f"  History:        {history_path}")
     print(f"{'='*60}")
 
 
