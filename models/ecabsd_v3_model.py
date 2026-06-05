@@ -14,8 +14,27 @@ import torch.nn.functional as F
 from torch_geometric.utils import unbatch
 from torch_geometric.nn import GATv2Conv
 
-# Import the full bidirectional CrossAttention from cross_attention.py
-from .cross_attention import CrossAttention
+class CrossAttentionV3(nn.Module):
+    def __init__(self, embed_dim, num_heads=4, dropout=0.3):
+        super().__init__()
+        self.mha = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True)
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.ffn = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(embed_dim * 2, embed_dim)
+        )
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, query, key_val):
+        attn_out, attn_weights = self.mha(query, key_val, key_val)
+        out1 = self.norm1(query + self.dropout(attn_out))
+        ffn_out = self.ffn(out1)
+        out2 = self.norm2(out1 + self.dropout(ffn_out))
+        return out2, attn_weights
+
 
 
 class GCNEncoderV3(nn.Module):
@@ -105,13 +124,11 @@ class ECABSDModelV3(nn.Module):
             num_layers=num_gcn_layers,
         )
 
-        # Bidirectional cross-attention (CrossPPI-style)
-        # Chain A queries Chain B AND Chain B queries Chain A simultaneously
-        self.cross_attention = CrossAttention(
+        # Single-layer cross-attention matching checkpoint keys
+        self.cross_attention = CrossAttentionV3(
             embed_dim=hidden_dim,
             num_heads=num_heads,
             dropout=dropout,
-            num_layers=xattn_layers,
         )
 
         # Global context: mean-pool the cross-attended chain A → project → add to local features
