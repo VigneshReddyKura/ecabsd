@@ -93,14 +93,14 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
         except Exception as e:
             print(f"[ECABSD] WARNING: Failed to automatically download checkpoint: {e}")
 
-    if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location=device)
+    if os.path.exists(norm_path):
+        checkpoint = torch.load(norm_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])
         saved_threshold = checkpoint.get("best_threshold", saved_threshold)
-        print(f"[ECABSD] Loaded checkpoint from: {checkpoint_path}")
+        print(f"[ECABSD] Loaded checkpoint from: {norm_path}")
         print(f"[ECABSD] Using saved threshold: {saved_threshold:.4f}")
     else:
-        print(f"[ECABSD] WARNING: No checkpoint found at {checkpoint_path}")
+        print(f"[ECABSD] WARNING: No checkpoint found at {norm_path}")
         print(f"[ECABSD] Running with random weights for demonstration.")
 
     model.eval()
