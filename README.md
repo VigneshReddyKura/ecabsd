@@ -383,10 +383,6 @@ See [RESULTS.md](RESULTS.md) for the full reproducibility record.
 
 ## Visual Results
 
-### Architecture Overview
-
-![ECABSD Architecture](docs/architecture.png)
-
 ### Performance at a Glance
 
 | Split | F1 | ROC-AUC | MCC |
