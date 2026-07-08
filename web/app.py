@@ -462,7 +462,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         }
 
     @app.post("/predict")
-    async def predict(
+    def predict(
         pdb_file: Optional[UploadFile] = File(None),
         pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),
@@ -856,7 +856,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             cleanup_memory()
 
     @app.post("/explain")
-    async def explain(
+    def explain(
         pdb_file: Optional[UploadFile] = File(None),
         pdb_id: Optional[str] = Form(None),
         chain_a: str = Form("A"),

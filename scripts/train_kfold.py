@@ -174,7 +174,7 @@ def run_kfold(
         for epoch in range(tcfg["epochs"]):
             train_one_epoch(
                 model, train_loader, optimizer, criterion, device,
-                tcfg["gradient_clip"], scaler,
+                tcfg["gradient_clip"],
                 chain_swap_prob=tcfg.get("chain_swap_prob", 0.5),
             )
             val_metrics = validate(model, val_loader, criterion, device)
