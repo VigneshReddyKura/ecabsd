@@ -92,6 +92,7 @@ class GradCAM:
         self.model.eval()
 
         # Requires gradient computation
+        data_a.x = data_a.x.float().detach().clone()
         data_a.x.requires_grad_(True)
 
         # Forward pass
@@ -102,30 +103,77 @@ class GradCAM:
         if target_residue_idx is not None:
             score = pred[target_residue_idx]
         else:
-            # Mean binding probability (global explanation)
-            score = pred.mean()
+            # Sum binding probability — more numerically stable than mean
+            # for graphs of wildly different sizes (avoids scale compression).
+            score = pred.sum()
 
         self.model.zero_grad()
         score.backward()
 
-        # Activations: (N, hidden_dim)
-        activations = self._activations.cpu().numpy()
-        # Gradients: (N, hidden_dim)
-        gradients = self._gradients.cpu().numpy()
+        # ── Vectorized Grad-CAM ──────────────────────────────────────────
+        # Activations: (N, hidden_dim)  |  Gradients: (N, hidden_dim)
+        activations = self._activations.cpu().float().numpy()  # ensure float32
+        gradients   = self._gradients.cpu().float().numpy()
 
-        # Global average pooling of gradients → importance weights per channel
-        alpha = gradients.mean(axis=0)  # (hidden_dim,)
+        # Global average-pool gradients → per-channel importance weight  (hidden_dim,)
+        alpha = gradients.mean(axis=0)
 
-        # Weighted combination of activations
-        saliency = np.dot(activations, alpha)  # (N,)
+        # Weighted combination using fast matmul (equivalent to dot but faster)
+        saliency = activations @ alpha  # (N,)  — one vectorized op
 
-        # Apply ReLU (we only care about features that increase the score)
-        saliency = np.maximum(saliency, 0)
+        # ReLU: keep only features that positively contribute
+        np.maximum(saliency, 0, out=saliency)
 
-        # Normalize to [0, 1]
-        if saliency.max() > saliency.min():
-            saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min())
+        # Normalize to [0, 1] in-place
+        s_min, s_max = saliency.min(), saliency.max()
+        if s_max > s_min:
+            saliency = (saliency - s_min) / (s_max - s_min)
+        else:
+            saliency = np.zeros_like(saliency)
 
+        return saliency
+
+    def batch_compute(self, data_a, data_b=None, target_indices=None):
+        """
+        Compute Grad-CAM saliency for multiple target residues at once.
+
+        Instead of calling `compute` N times (N backward passes), this method
+        computes a single aggregated backward pass over all requested targets,
+        which is significantly faster for large-scale explainability runs.
+
+        Parameters
+        ----------
+        data_a : torch_geometric.data.Data
+        data_b : torch_geometric.data.Data, optional
+        target_indices : list of int, optional
+            Residue indices to explain. None → global mean explanation.
+
+        Returns
+        -------
+        saliency : np.ndarray  shape (N_a,)
+        """
+        self.model.eval()
+        data_a.x = data_a.x.float().detach().clone()
+        data_a.x.requires_grad_(True)
+
+        pred, _ = self.model(data_a, data_b)
+        pred = pred.squeeze(-1)  # (N_a,)
+
+        if target_indices is not None and len(target_indices) > 0:
+            score = pred[target_indices].sum()   # single backward for all targets
+        else:
+            score = pred.sum()
+
+        self.model.zero_grad()
+        score.backward()
+
+        activations = self._activations.cpu().float().numpy()
+        gradients   = self._gradients.cpu().float().numpy()
+        alpha       = gradients.mean(axis=0)
+        saliency    = activations @ alpha
+        np.maximum(saliency, 0, out=saliency)
+        s_min, s_max = saliency.min(), saliency.max()
+        saliency = (saliency - s_min) / (s_max - s_min + 1e-8)
         return saliency
 
     def plot(

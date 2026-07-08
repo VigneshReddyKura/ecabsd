@@ -145,23 +145,53 @@ conda activate ecabsd
 git clone https://github.com/amanigreeva/ECABSD.git
 cd ecabsd
 
-pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cpu
 pip install torch-geometric==2.7.0
-pip install torch-scatter torch-sparse torch-cluster --find-links https://data.pyg.org/whl/torch-2.1.0+cpu.html
+pip install torch-scatter torch-sparse torch-cluster --find-links https://data.pyg.org/whl/torch-2.2.2+cpu.html
 pip install -r requirements.txt
 ```
 
 ### Option C — GPU (CUDA 11.8)
 
 ```bash
-pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# Step 1: Install CUDA-enabled PyTorch (requires NVIDIA GPU + CUDA 11.8 drivers)
+pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu118
+
+# Step 2: Install PyG with CUDA support
 pip install torch-geometric==2.7.0
-pip install torch-scatter torch-sparse torch-cluster --find-links https://data.pyg.org/whl/torch-2.1.0+cu118.html
+pip install torch-scatter torch-sparse torch-cluster \
+    --find-links https://data.pyg.org/whl/torch-2.2.2+cu118.html
+
+# Step 3: Install remaining dependencies
 pip install -r requirements.txt
 ```
 
-> [!NOTE]
-> GPU is **strongly recommended** for training (NVIDIA GPU with ≥8 GB VRAM). Inference on a single structure runs on CPU in seconds.
+### Option D — GPU (CUDA 12.1)
+
+```bash
+# Step 1: Install CUDA 12.1 PyTorch (e.g., RTX 40xx series, A100, H100)
+pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+
+# Step 2: Install PyG with CUDA support
+pip install torch-geometric==2.7.0
+pip install torch-scatter torch-sparse torch-cluster \
+    --find-links https://data.pyg.org/whl/torch-2.2.2+cu121.html
+
+# Step 3: Install remaining dependencies
+pip install -r requirements.txt
+```
+
+> [!IMPORTANT]
+> **GPU is strongly recommended for training.** A GPU with ≥8 GB VRAM (e.g., NVIDIA RTX 3080, A100) reduces training time from ~12 hours (CPU) to ~45 minutes. Inference on a single structure runs in seconds on CPU.
+
+> [!TIP]
+> Verify your CUDA setup before training:
+> ```python
+> import torch
+> print(torch.cuda.is_available())   # True if GPU is detected
+> print(torch.cuda.get_device_name(0))  # e.g., 'NVIDIA A100-SXM4-40GB'
+> ```
+
 
 ---
 
@@ -254,11 +284,28 @@ python scripts/download_pdbbind.py --benchmark
 ### Step 2: Prepare dataset
 
 ```bash
+# Full dataset (DB5 + DIPS, ~3800 complexes)
 python scripts/prepare_dataset.py \
     --pdb-dir data/raw/pdbs \
     --output-dir data/processed \
+    --cutoff 4.5 \
+    --train-ratio 0.70 \
+    --val-ratio 0.15 \
+    --seed 42 \
+    --threads 4
+
+# Quick smoke-test with a single PDB
+python scripts/prepare_dataset.py \
+    --pdb-dir data/sample \
+    --output-dir data/processed_test \
     --cutoff 4.5
 ```
+
+This will:
+- Build per-residue graph `.pt` files in `data/processed/`
+- Write `data/splits.csv` with `pdb_id, chain_a, chain_b, split` columns
+- Print a summary of binding vs non-binding residue counts
+
 
 ### Step 3: Train
 
@@ -333,6 +380,22 @@ Verifies zero PDB-level overlap across splits. Runs automatically at start of ev
 See [RESULTS.md](RESULTS.md) for the full reproducibility record.
 
 ---
+
+## Visual Results
+
+### Architecture Overview
+
+![ECABSD Architecture](docs/architecture.png)
+
+### Performance at a Glance
+
+| Split | F1 | ROC-AUC | MCC |
+|---|---|---|---|
+| Random 70/15/15 | 0.7010 | 0.9373 | 0.6452 |
+| Homology-filtered (≤30% id) | 0.5797 | 0.8928 | 0.5152 |
+| 5-Fold CV (homology-aware) | 0.4673±0.008 | 0.8338±0.006 | 0.3898±0.007 |
+
+> Full evaluation outputs including confusion matrix, ROC/PR curves, and per-fold results are available in [`RESULTS.md`](RESULTS.md).
 
 ## Explainability
 
@@ -459,12 +522,11 @@ ecabsd/
 │
 ├── docs/
 │   ├── architecture.png        # Model architecture diagram
-│   ├── ECABSD_RESEARCH_PAPER.md
-│   ├── ECABSD_RESEARCH_PAPER.pdf
+│   ├── ECABSD_RESEARCH_PAPER.pdf  # Published research paper (PDF)
+│   ├── ECABSD_Paper_Cleaned.docx  # Editable research paper (DOCX)
 │   ├── CASE_STUDY_1AY7.md
 │   ├── KAGGLE_GUIDE.md
-│   ├── kaggle_ecabsd_pipeline.ipynb  # Kaggle training notebook
-│   └── figures/                # ROC, PR, ablation charts
+│   └── kaggle_ecabsd_pipeline.ipynb  # Kaggle training notebook
 │
 ├── results/
 │   ├── benchmark.csv           # Baseline comparison table
@@ -481,7 +543,9 @@ ecabsd/
 │   ├── test_graph_construction.py
 │   ├── test_model_ml.py
 │   ├── test_predict.py
-│   └── test_web.py
+│   ├── test_web.py
+│   ├── test_explainability.py   ← Grad-CAM + Attention Rollout tests
+│   └── test_docking.py          ← Docking preprocessing tests
 │
 ├── checkpoints/
 │   └── best_model_v3.pt        # Trained V3 checkpoint (epoch 120)
