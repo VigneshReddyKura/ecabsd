@@ -337,7 +337,7 @@ See [RESULTS.md](RESULTS.md) for the full reproducibility record.
 ## Explainability
 
 ```python
-from models.ecabsd_model import ECABSDModel
+from models.ecabsd_v3_model import ECABSDModel
 from models.graph_construction import build_residue_graph
 from explainability.attention_rollout import explain_prediction
 from explainability.gradcam import explain_with_gradcam
@@ -388,7 +388,6 @@ python main.py export --results results/predictions_1AY7_A.json --format pymol
 
 ```
 ecabsd/
-├── 1AY7.pdb                    # Sample PDB structure
 ├── config.yaml                 # Central configuration
 ├── main.py                     # Entry point
 ├── cli.py                      # Typer CLI
@@ -397,28 +396,42 @@ ecabsd/
 ├── predict.py                  # Single-structure prediction
 ├── batch_predict.py            # Batch prediction
 ├── check_leakage.py            # Homology overlap checker
+├── download_weights.py         # Auto-download checkpoint
 ├── environment.yml             # Conda environment (pinned)
+├── pyproject.toml              # Package metadata
+├── requirements.txt            # pip dependencies
 ├── CITATION.cff                # Citation metadata
 │
 ├── models/
 │   ├── __init__.py
-│   ├── ecabsd_model.py         # V3 model (GATv2 + cross-attention + MLP)
-│   ├── graph_construction.py   # PDB → residue graph builder
-│   └── archive/                # Legacy modules (gcn, se3, encoder, etc.)
+│   ├── ecabsd_v3_model.py      # V3 model (GATv2 + cross-attention + MLP)
+│   ├── cross_attention.py      # Bidirectional cross-attention module
+│   ├── encoder.py              # Feature encoder
+│   └── graph_construction.py   # PDB → residue graph builder
 │
 ├── data/
 │   ├── splits.csv              # Full dataset: 3,816 PDB complexes + split labels
 │   ├── splits_homology.csv     # MMseqs2-clustered homology-aware splits
 │   ├── dataset.py              # PyG Dataset
-│   ├── raw/                    # Raw PDB files
-│   └── processed/              # Preprocessed .pt graphs
+│   ├── sample/1AY7.pdb         # Sample PDB for quick testing
+│   ├── raw/                    # Raw PDB files (gitignored)
+│   └── processed/              # Preprocessed .pt graphs (gitignored)
 │
 ├── scripts/
 │   ├── prepare_dataset.py      # PDB → labeled graphs
 │   ├── download_pdbbind.py     # Download PDB structures
+│   ├── download_pdbs.py        # Batch PDB downloader
+│   ├── download_benchmarks.py  # Download benchmark datasets
 │   ├── benchmark_crossPPI.py   # Comparative baseline benchmarking
 │   ├── generate_homology_splits.py  # MMseqs2 split generation
-│   └── train_kfold.py          # 5-fold cross-validation
+│   ├── build_ppi_dataset.py    # Build PPI dataset from raw PDBs
+│   ├── check_leakage_mmseqs.py # MMseqs2 leakage check
+│   ├── filter_dips_mmseqs.py   # DIPS dataset filtering
+│   ├── prepare_db5.py          # Docking Benchmark 5 preparation
+│   ├── prepare_kaggle_dips.py  # Kaggle DIPS preparation
+│   ├── recover_graphs.py       # Graph recovery utility
+│   ├── train_kfold.py          # 5-fold cross-validation
+│   └── kaggle_train_pipeline.sh # Kaggle training shell script
 │
 ├── explainability/
 │   ├── __init__.py
@@ -427,11 +440,12 @@ ecabsd/
 │
 ├── docking/
 │   ├── __init__.py
-│   ├── vina_runner.py
-│   ├── docking_input.py
-│   └── rmsd.py
+│   ├── vina_runner.py          # AutoDock Vina runner
+│   ├── docking_input.py        # Binding box computation
+│   └── rmsd.py                 # RMSD utilities
 │
 ├── exports/
+│   ├── __init__.py
 │   ├── csv_export.py
 │   ├── json_export.py
 │   └── pymol_export.py
@@ -443,18 +457,36 @@ ecabsd/
 │       ├── style.css
 │       └── app.js
 │
+├── docs/
+│   ├── architecture.png        # Model architecture diagram
+│   ├── ECABSD_RESEARCH_PAPER.md
+│   ├── ECABSD_RESEARCH_PAPER.pdf
+│   ├── CASE_STUDY_1AY7.md
+│   ├── KAGGLE_GUIDE.md
+│   ├── kaggle_ecabsd_pipeline.ipynb  # Kaggle training notebook
+│   └── figures/                # ROC, PR, ablation charts
+│
 ├── results/
 │   ├── benchmark.csv           # Baseline comparison table
 │   ├── benchmark.json          # Full benchmark summary
-│   └── kfold_results.json      # 5-fold CV results
+│   ├── metrics.json            # Test set evaluation metrics
+│   ├── confusion_matrix.png    # Confusion matrix plot
+│   ├── kfold_results.json      # 5-fold CV results
+│   ├── predictions_1AY7_A.csv  # Sample prediction output (CSV)
+│   ├── predictions_1AY7_A.json # Sample prediction output (JSON)
+│   └── 1AY7/                   # Per-structure results + PyMOL script
 │
 ├── tests/
+│   ├── test_encoder.py
 │   ├── test_graph_construction.py
 │   ├── test_model_ml.py
+│   ├── test_predict.py
 │   └── test_web.py
 │
-├── checkpoints/                # best_model_v3.pt
-├── logs/                       # training_history_v3.json
+├── checkpoints/
+│   └── best_model_v3.pt        # Trained V3 checkpoint (epoch 120)
+├── logs/
+│   └── training_history_v3.json
 └── RESULTS.md                  # Full reproducibility record
 ```
 

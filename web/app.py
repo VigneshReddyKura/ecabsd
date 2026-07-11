@@ -454,13 +454,11 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         """Health check endpoint."""
         device = "cuda" if torch.cuda.is_available() else "cpu"
         root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        v2_ready = os.path.exists(os.path.join(root, "checkpoints", "best_model.pt"))
         v3_ready = os.path.exists(os.path.join(root, "checkpoints", "best_model_v3.pt"))
         return {
             "status": "ok",
             "device": device,
-            "v2_available": v2_ready,
-            "v3_available": v3_ready,
+            "model_ready": v3_ready,
         }
 
     @app.post("/predict")

@@ -1,6 +1,6 @@
 """
 ECABSD Models Package
-Equivariant Cross-Attention for Binding Site Detection
+Explainable Cross-Attention for Binding Site Detection — V3
 """
 
 from .ecabsd_v3_model import ECABSDModelV3, GCNEncoderV3, ECABSDModel

@@ -19,7 +19,7 @@ pipeline on Kaggle to produce publication-quality metrics.
 ### Step 1 — Upload the notebook to Kaggle
 
 Go to [kaggle.com/code](https://www.kaggle.com/code) → **New Notebook** →  
-Upload `kaggle_ecabsd_pipeline.ipynb` from the root of this repo.
+Upload `docs/kaggle_ecabsd_pipeline.ipynb` from this repo.
 
 ### Step 2 — Enable GPU & Internet
 
@@ -111,7 +111,6 @@ After the run completes:
    - `best_model_v3.pt` — trained checkpoint
    - `test_metrics.json` — test set metrics
    - `kfold_results.json` — k-fold CV metrics
-   - `kfold_results.txt` — human-readable summary
 
 3. Copy `best_model_v3.pt` to your local `checkpoints/` folder
 4. Update `RESULTS.md` with the new numbers

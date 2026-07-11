@@ -1,0 +1,391 @@
+{
+  "pdb_file": "1AY7.pdb",
+  "chain": "A",
+  "method": "gradcam_saliency",
+  "residues": [
+    {
+      "index": 0,
+      "gradcam_score": 0.18308429419994354
+    },
+    {
+      "index": 1,
+      "gradcam_score": 0.23751451075077057
+    },
+    {
+      "index": 2,
+      "gradcam_score": 0.3231375217437744
+    },
+    {
+      "index": 3,
+      "gradcam_score": 0.2859923541545868
+    },
+    {
+      "index": 4,
+      "gradcam_score": 0.5231658220291138
+    },
+    {
+      "index": 5,
+      "gradcam_score": 0.43243351578712463
+    },
+    {
+      "index": 6,
+      "gradcam_score": 0.9190641045570374
+    },
+    {
+      "index": 7,
+      "gradcam_score": 0.778364360332489
+    },
+    {
+      "index": 8,
+      "gradcam_score": 0.8612358570098877
+    },
+    {
+      "index": 9,
+      "gradcam_score": 0.5902629494667053
+    },
+    {
+      "index": 10,
+      "gradcam_score": 0.5751421451568604
+    },
+    {
+      "index": 11,
+      "gradcam_score": 1.0
+    },
+    {
+      "index": 12,
+      "gradcam_score": 0.8880428671836853
+    },
+    {
+      "index": 13,
+      "gradcam_score": 0.4896030128002167
+    },
+    {
+      "index": 14,
+      "gradcam_score": 0.4518885910511017
+    },
+    {
+      "index": 15,
+      "gradcam_score": 0.8968707323074341
+    },
+    {
+      "index": 16,
+      "gradcam_score": 0.48674216866493225
+    },
+    {
+      "index": 17,
+      "gradcam_score": 0.6381933689117432
+    },
+    {
+      "index": 18,
+      "gradcam_score": 0.42585188150405884
+    },
+    {
+      "index": 19,
+      "gradcam_score": 0.36964067816734314
+    },
+    {
+      "index": 20,
+      "gradcam_score": 0.31692400574684143
+    },
+    {
+      "index": 21,
+      "gradcam_score": 0.24318721890449524
+    },
+    {
+      "index": 22,
+      "gradcam_score": 0.16455751657485962
+    },
+    {
+      "index": 23,
+      "gradcam_score": 0.42012467980384827
+    },
+    {
+      "index": 24,
+      "gradcam_score": 0.16716910898685455
+    },
+    {
+      "index": 25,
+      "gradcam_score": 0.20285840332508087
+    },
+    {
+      "index": 26,
+      "gradcam_score": 0.15924231708049774
+    },
+    {
+      "index": 27,
+      "gradcam_score": 0.16007880866527557
+    },
+    {
+      "index": 28,
+      "gradcam_score": 0.15241974592208862
+    },
+    {
+      "index": 29,
+      "gradcam_score": 0.1574345976114273
+    },
+    {
+      "index": 30,
+      "gradcam_score": 0.12613554298877716
+    },
+    {
+      "index": 31,
+      "gradcam_score": 0.2676699459552765
+    },
+    {
+      "index": 32,
+      "gradcam_score": 0.28612226247787476
+    },
+    {
+      "index": 33,
+      "gradcam_score": 0.2163863182067871
+    },
+    {
+      "index": 34,
+      "gradcam_score": 0.08637936413288116
+    },
+    {
+      "index": 35,
+      "gradcam_score": 0.07182326912879944
+    },
+    {
+      "index": 36,
+      "gradcam_score": 0.21191838383674622
+    },
+    {
+      "index": 37,
+      "gradcam_score": 0.1505637913942337
+    },
+    {
+      "index": 38,
+      "gradcam_score": 0.16818144917488098
+    },
+    {
+      "index": 39,
+      "gradcam_score": 0.025858493521809578
+    },
+    {
+      "index": 40,
+      "gradcam_score": 0.0
+    },
+    {
+      "index": 41,
+      "gradcam_score": 0.050523120909929276
+    },
+    {
+      "index": 42,
+      "gradcam_score": 0.05582914128899574
+    },
+    {
+      "index": 43,
+      "gradcam_score": 0.09546039253473282
+    },
+    {
+      "index": 44,
+      "gradcam_score": 0.08105213940143585
+    },
+    {
+      "index": 45,
+      "gradcam_score": 0.050436243414878845
+    },
+    {
+      "index": 46,
+      "gradcam_score": 0.05495103821158409
+    },
+    {
+      "index": 47,
+      "gradcam_score": 0.013892097398638725
+    },
+    {
+      "index": 48,
+      "gradcam_score": 0.04641486331820488
+    },
+    {
+      "index": 49,
+      "gradcam_score": 0.033175066113471985
+    },
+    {
+      "index": 50,
+      "gradcam_score": 0.08208707720041275
+    },
+    {
+      "index": 51,
+      "gradcam_score": 0.19046835601329803
+    },
+    {
+      "index": 52,
+      "gradcam_score": 0.20976263284683228
+    },
+    {
+      "index": 53,
+      "gradcam_score": 0.30424073338508606
+    },
+    {
+      "index": 54,
+      "gradcam_score": 0.3978928327560425
+    },
+    {
+      "index": 55,
+      "gradcam_score": 0.396815687417984
+    },
+    {
+      "index": 56,
+      "gradcam_score": 0.6566241383552551
+    },
+    {
+      "index": 57,
+      "gradcam_score": 0.35074907541275024
+    },
+    {
+      "index": 58,
+      "gradcam_score": 0.30402570962905884
+    },
+    {
+      "index": 59,
+      "gradcam_score": 0.23525899648666382
+    },
+    {
+      "index": 60,
+      "gradcam_score": 0.02518315613269806
+    },
+    {
+      "index": 61,
+      "gradcam_score": 0.011111583560705185
+    },
+    {
+      "index": 62,
+      "gradcam_score": 0.04455137997865677
+    },
+    {
+      "index": 63,
+      "gradcam_score": 0.06201516464352608
+    },
+    {
+      "index": 64,
+      "gradcam_score": 0.1471889317035675
+    },
+    {
+      "index": 65,
+      "gradcam_score": 0.14036165177822113
+    },
+    {
+      "index": 66,
+      "gradcam_score": 0.1619817316532135
+    },
+    {
+      "index": 67,
+      "gradcam_score": 0.42927929759025574
+    },
+    {
+      "index": 68,
+      "gradcam_score": 0.4588097929954529
+    },
+    {
+      "index": 69,
+      "gradcam_score": 0.17440582811832428
+    },
+    {
+      "index": 70,
+      "gradcam_score": 0.12566623091697693
+    },
+    {
+      "index": 71,
+      "gradcam_score": 0.29429930448532104
+    },
+    {
+      "index": 72,
+      "gradcam_score": 0.17853431403636932
+    },
+    {
+      "index": 73,
+      "gradcam_score": 0.06431429833173752
+    },
+    {
+      "index": 74,
+      "gradcam_score": 0.01272402424365282
+    },
+    {
+      "index": 75,
+      "gradcam_score": 0.06176818907260895
+    },
+    {
+      "index": 76,
+      "gradcam_score": 0.38718461990356445
+    },
+    {
+      "index": 77,
+      "gradcam_score": 0.2365797907114029
+    },
+    {
+      "index": 78,
+      "gradcam_score": 0.21387885510921478
+    },
+    {
+      "index": 79,
+      "gradcam_score": 0.3344118595123291
+    },
+    {
+      "index": 80,
+      "gradcam_score": 0.34486374258995056
+    },
+    {
+      "index": 81,
+      "gradcam_score": 0.2129162698984146
+    },
+    {
+      "index": 82,
+      "gradcam_score": 0.299783855676651
+    },
+    {
+      "index": 83,
+      "gradcam_score": 0.1803189516067505
+    },
+    {
+      "index": 84,
+      "gradcam_score": 0.18627877533435822
+    },
+    {
+      "index": 85,
+      "gradcam_score": 0.17948488891124725
+    },
+    {
+      "index": 86,
+      "gradcam_score": 0.013613921590149403
+    },
+    {
+      "index": 87,
+      "gradcam_score": 0.14461077749729156
+    },
+    {
+      "index": 88,
+      "gradcam_score": 0.30251121520996094
+    },
+    {
+      "index": 89,
+      "gradcam_score": 0.33066830039024353
+    },
+    {
+      "index": 90,
+      "gradcam_score": 0.2810206115245819
+    },
+    {
+      "index": 91,
+      "gradcam_score": 0.34296634793281555
+    },
+    {
+      "index": 92,
+      "gradcam_score": 0.37955164909362793
+    },
+    {
+      "index": 93,
+      "gradcam_score": 0.7894818782806396
+    },
+    {
+      "index": 94,
+      "gradcam_score": 0.48856791853904724
+    },
+    {
+      "index": 95,
+      "gradcam_score": 0.88222736120224
+    }
+  ]
+}

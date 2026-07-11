@@ -200,7 +200,7 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
     print(f"{'='*50}\n")
 
     # Save metrics
-    metrics_path = os.path.join(results_dir, "metrics_v3.json")
+    metrics_path = os.path.join(results_dir, "metrics.json")
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
     print(f"  Metrics saved to: {metrics_path}")
@@ -226,7 +226,7 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
                 })
     
     if failures:
-        fail_path = os.path.join(results_dir, "failure_analysis.json")
+        fail_path = os.path.join(results_dir, "failed_structures.json")
         with open(fail_path, "w") as f:
             json.dump(failures, f, indent=2)
         print(f"  [Failure Analysis] Found {len(failures)} poorly performing structures. Logged to: {fail_path}")

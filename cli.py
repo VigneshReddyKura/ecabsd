@@ -3,7 +3,7 @@ ECABSD CLI — Command-line interface for all pipelines.
 
 Usage:
     python cli.py train
-    python cli.py evaluate --checkpoint checkpoints/best_model.pt
+    python cli.py evaluate --checkpoint checkpoints/best_model_v3.pt
     python cli.py predict --pdb 1AY7.pdb --chain-a A --chain-b B
     python cli.py batch-predict --input-dir data/raw/pdbs
     python cli.py export --format csv --results results/predictions.json

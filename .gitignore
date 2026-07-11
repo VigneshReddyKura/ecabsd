@@ -1,41 +1,68 @@
+# Python
 __pycache__/
 *.pyc
-.pytest_cache/
+*.pyo
+*.pyd
 *.egg-info/
+.eggs/
+
+# Environments
 .env
 .venv/
 env/
 venv/
+venv310/
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.bak
-venv310/
-data/processed/
+
+# Testing
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# Data (large, gitignored — use scripts/download_pdbbind.py to regenerate)
 data/raw/
+data/processed/
 data/db5_processed/
 data/db5_splits.csv
-*.pt
-checkpoints/
-.DS_Store
-*.zip
-*.pdb
 data/BM5-clean/
-generate_v1_notebook.py
-test_novel_pdb.py
-logs/
-results/
 
-# Scratch & Archive
-/scratch/
-/archive/
+# Large binary archives
+*.zip
 *.pth
 
-# Sample PDB Exception
-!1AY7.pdb
-
-# Pretrained Checkpoint Exception
-!checkpoints/
+# Checkpoints — keep only best_model_v3.pt
 checkpoints/*
-!checkpoints/best_model.pt
-!checkpoints/.gitkeep
+!checkpoints/best_model_v3.pt
+
+# Cache directories
+checkpoints/.cache/
+
+# Logs — keep training history
+logs/*
+!logs/training_history_v3.json
+
+# Results — keep reference outputs
+results/*
+!results/benchmark.csv
+!results/benchmark.json
+!results/metrics.json
+!results/confusion_matrix.png
+!results/kfold_results.json
+!results/predictions_1AY7_A.csv
+!results/predictions_1AY7_A.json
+!results/1AY7/
+!results/1BRS/
+!results/2PTC/
+
+# PDB files — sample kept via data/sample/
+*.pdb
+!data/sample/*.pdb
+
+# Archive
+models/archive/
