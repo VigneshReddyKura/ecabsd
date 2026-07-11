@@ -1,0 +1,34 @@
+.git
+.github
+.gitignore
+.gitattributes
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+env
+venv
+venv310
+.vscode
+.idea
+*.swp
+*.bak
+*.zip
+*.log
+
+# Large data directories
+data/raw/
+data/processed/
+data/db5_processed/
+data/BM5-clean/
+
+# Exclude local checkpoints and logs to avoid bloating the image
+checkpoints/*
+!checkpoints/.gitkeep
+logs/*
+!logs/.gitkeep
+results/*
+!results/.gitkeep

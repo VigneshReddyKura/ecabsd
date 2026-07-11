@@ -1,0 +1,28 @@
+# Set default behavior to automatically normalize line endings to LF on commit
+* text=auto eol=lf
+
+# Force specific text files to keep LF line endings
+*.py text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.cff text eol=lf
+Makefile text eol=lf
+
+# Declare binary files to prevent Git from corrupting them with line ending conversion
+*.pt binary
+*.pth binary
+*.pdf binary
+*.docx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdbqt binary
+*.pdb binary
