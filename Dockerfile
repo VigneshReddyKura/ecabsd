@@ -9,7 +9,12 @@ ENV PYTHONUNBUFFERED=1 \
 # Set the working directory in the container
 WORKDIR /app
 
+# Create a non-root group and user for security
+RUN groupadd -g 10001 appgroup && \
+    useradd -u 10001 -g appgroup -m -s /bin/bash appuser
+
 # Install system dependencies needed for compilation, downloading files, and PyG
+# Clean up apt caches to minimize image size
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
@@ -34,12 +39,22 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy the rest of the application code
 COPY . /app/
 
+# Grant ownership to the non-root user
+RUN chown -R appuser:appgroup /app
+
+# Switch to the non-root user
+USER appuser
+
 # Pre-download the best model weights during the build phase
 # This prevents downloading weights on every startup and speeds up container launches
 RUN python download_weights.py
 
 # Expose the default FastAPI port
 EXPOSE 8000
+
+# Add a HEALTHCHECK to verify application is responding
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl --fail http://localhost:8000/health || exit 1
 
 # Start the web server
 CMD ["python", "web/app.py"]

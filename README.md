@@ -195,6 +195,36 @@ pip install -r requirements.txt
 
 ---
 
+## Docker Usage
+
+You can run the web application locally without installing Python or dependencies on your machine by using Docker and Docker Compose.
+
+### 1. Run using Docker Compose (Recommended)
+Build and start the web interface on `http://localhost:8000`:
+```bash
+docker compose up --build -d
+```
+To view logs:
+```bash
+docker compose logs -f
+```
+To stop the container:
+```bash
+docker compose down
+```
+
+### 2. Run using Docker CLI
+Build the image:
+```bash
+docker build -t ecabsd .
+```
+Run the container:
+```bash
+docker run -p 8000:8000 --name ecabsd_app -d ecabsd
+```
+
+---
+
 ## Quick Start
 
 ### 1. Predict binding sites on 1AY7.pdb
@@ -247,6 +277,87 @@ python main.py batch-predict --input-dir data/raw/pdbs --output-dir results/batc
 # Export to PyMOL script
 python main.py export --results results/predictions_1AY7_A.json --format pymol
 ```
+
+---
+
+## API Documentation
+
+FastAPI exposes endpoints for automated prediction and explainability workflows.
+
+### 1. Predict Endpoint (`POST /predict`)
+Predict binding sites from an uploaded PDB file or a 4-letter PDB ID.
+
+**Example Request (`curl`):**
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -F "pdb_id=1AY7" \
+  -F "chain_a=A" \
+  -F "chain_b=B" \
+  -F "threshold=auto" \
+  -F "mode=threshold"
+```
+
+**Example Response (`JSON`):**
+```json
+{
+  "status": "success",
+  "filename": "1AY7.pdb",
+  "chain_a": "A",
+  "chain_b": "B",
+  "threshold": 0.52,
+  "binding_residues_count": 14,
+  "total_residues": 96,
+  "prediction_quality": "Healthy Moderate Interface",
+  "heatmap_url": "data:image/png;base64,...",
+  "residues": [
+    {
+      "index": 0,
+      "resname": "ALA",
+      "resid": 5,
+      "chain": "A",
+      "probability": 0.1245,
+      "is_binding": false
+    }
+  ]
+}
+```
+
+### 2. Explain Endpoint (`POST /explain`)
+Get attention rollout and Grad-CAM saliency scores to explain predictions.
+
+**Example Request (`curl`):**
+```bash
+curl -X POST "http://localhost:8000/explain" \
+  -F "pdb_id=1AY7" \
+  -F "chain_a=A" \
+  -F "chain_b=B"
+```
+
+**Example Response (`JSON`):**
+```json
+{
+  "status": "success",
+  "attention_image": "data:image/png;base64,...",
+  "gradcam_image": "data:image/png;base64,...",
+  "overlap_percentage": 78.5
+}
+```
+
+---
+
+## Deployment Guide
+
+This project can be deployed to cloud services like Render, Railway, or Google Cloud Run.
+
+### Deploying to Render (Recommended)
+1. Connect your repository to Render.
+2. Select **Web Service** and choose **Docker** as the environment.
+3. Use the following environment variables:
+   - `PORT`: `8000` (Render will override this dynamically)
+   - `IS_RENDER`: `true`
+   - `RENDER`: `true`
+4. The service will build from the `Dockerfile` and run securely.
+*(Alternatively, use the provided `render.yaml` configuration for one-click setup.)*
 
 ---
 

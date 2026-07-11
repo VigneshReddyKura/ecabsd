@@ -57,11 +57,18 @@ jobs:
           curl -s -L "https://files.rcsb.org/download/1AY7.pdb" -o data/sample/1AY7.pdb
           ls -la data/sample/1AY7.pdb
 
+      - name: Download model weights
+        run: |
+          python download_weights.py
+
+      - name: Download AutoDock Vina
+        run: |
+          sudo wget -q https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.5/vina_1.2.5_linux_x86_64 -O /usr/local/bin/vina
+          sudo chmod +x /usr/local/bin/vina
+
       - name: Run tests
         run: |
-          python -m pytest tests/ -v --tb=short \
-            --ignore=tests/test_explainability.py \
-            --ignore=tests/test_docking.py
+          python -m pytest tests/ -v --tb=short
 
       - name: Upload test results
         if: always()

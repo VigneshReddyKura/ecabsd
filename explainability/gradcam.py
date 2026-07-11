@@ -46,8 +46,8 @@ class GradCAM:
 
     def __init__(self, model: ECABSDModel, target_layer_idx: int = -1):
         self.model = model
-        self._activations = None
-        self._gradients = None
+        self._activations_list = []
+        self._gradients_list = []
 
         # V3: gcn_encoder.convs is a ModuleList of GATv2Conv layers
         # Target the last one by default (index -1)
@@ -59,11 +59,11 @@ class GradCAM:
 
     def _fwd_hook_fn(self, module, input, output):
         """Capture forward activations."""
-        self._activations = output.detach()
+        self._activations_list.append(output.detach())
 
     def _bwd_hook_fn(self, module, grad_input, grad_output):
         """Capture backward gradients."""
-        self._gradients = grad_output[0].detach()
+        self._gradients_list.append(grad_output[0].detach())
 
     def remove_hooks(self):
         """Remove all hooks."""
@@ -95,6 +95,10 @@ class GradCAM:
         data_a.x = data_a.x.float().detach().clone()
         data_a.x.requires_grad_(True)
 
+        # Clear hook lists before forward and backward pass
+        self._activations_list.clear()
+        self._gradients_list.clear()
+
         # Forward pass
         pred, _ = self.model(data_a, data_b)
         pred = pred.squeeze(-1)  # (N_a,)
@@ -112,8 +116,10 @@ class GradCAM:
 
         # ── Vectorized Grad-CAM ──────────────────────────────────────────
         # Activations: (N, hidden_dim)  |  Gradients: (N, hidden_dim)
-        activations = self._activations.cpu().float().numpy()  # ensure float32
-        gradients   = self._gradients.cpu().float().numpy()
+        # Chain A is processed first in the forward pass -> activations_list[0]
+        # Chain A is processed last in the backward pass -> gradients_list[-1]
+        activations = self._activations_list[0].cpu().float().numpy()  # ensure float32
+        gradients   = self._gradients_list[-1].cpu().float().numpy()
 
         # Global average-pool gradients → per-channel importance weight  (hidden_dim,)
         alpha = gradients.mean(axis=0)
@@ -156,6 +162,10 @@ class GradCAM:
         data_a.x = data_a.x.float().detach().clone()
         data_a.x.requires_grad_(True)
 
+        # Clear hook lists before forward and backward pass
+        self._activations_list.clear()
+        self._gradients_list.clear()
+
         pred, _ = self.model(data_a, data_b)
         pred = pred.squeeze(-1)  # (N_a,)
 
@@ -167,8 +177,10 @@ class GradCAM:
         self.model.zero_grad()
         score.backward()
 
-        activations = self._activations.cpu().float().numpy()
-        gradients   = self._gradients.cpu().float().numpy()
+        # Chain A is processed first in the forward pass -> activations_list[0]
+        # Chain A is processed last in the backward pass -> gradients_list[-1]
+        activations = self._activations_list[0].cpu().float().numpy()
+        gradients   = self._gradients_list[-1].cpu().float().numpy()
         alpha       = gradients.mean(axis=0)
         saliency    = activations @ alpha
         np.maximum(saliency, 0, out=saliency)

@@ -135,19 +135,25 @@ class TestVinaRunner:
         runner = VinaRunner(vina_executable="vina")
         assert runner.vina_executable == "vina"
 
-    def test_run_docking_callable(self):
+    def test_dock_callable(self):
         runner = VinaRunner(vina_executable="vina")
-        assert callable(runner.run_docking)
+        assert callable(runner.dock)
 
-    def test_run_docking_raises_on_missing_executable(self, tmp_path):
-        """If the Vina binary doesn't exist, run_docking must raise an informative error."""
+    def test_dock_handles_missing_executable(self, tmp_path):
+        """If the Vina binary doesn't exist, dock must handle it and return a dictionary with error info."""
         runner = VinaRunner(vina_executable="nonexistent_vina_binary_xyz")
-        config_path = str(tmp_path / "vina.conf")
-        with open(config_path, "w") as f:
-            f.write("receptor = r.pdbqt\n")
+        receptor = str(tmp_path / "receptor.pdbqt")
+        ligand = str(tmp_path / "ligand.pdbqt")
+        # Create empty files to pass the existence check
+        with open(receptor, "w") as f:
+            f.write("")
+        with open(ligand, "w") as f:
+            f.write("")
 
-        with pytest.raises(Exception):
-            runner.run_docking(
-                config_path=config_path,
-                output_dir=str(tmp_path),
-            )
+        result = runner.dock(
+            receptor_pdbqt=receptor,
+            ligand_pdbqt=ligand,
+            center=(0.0, 0.0, 0.0),
+            box_size=(10.0, 10.0, 10.0),
+        )
+        assert result["error"] == "vina_not_found"
