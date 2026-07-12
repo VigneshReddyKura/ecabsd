@@ -5,7 +5,7 @@
    "metadata": {},
    "source": [
     "# ECABSD Model Training & Validation Workflow\n",
-    "Use this notebook to run GPU checks, train models, track experiments, run validations, and download results in one click."
+    "Use this notebook to run GPU checks, download benchmark datasets, train models, run validations, and download results in one click."
    ]
   },
   {
@@ -41,7 +41,7 @@
     "# 3. Install Correct PyTorch & Package Dependencies\n",
     "# Installs PyTorch followed by PyTorch Geometric and scientific packages\n",
     "!pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121\n",
-    "!pip install -q torch-geometric biopython transformers pydssp psutil pyyaml wandb scipy scikit-learn matplotlib seaborn"
+    "!pip install -q torch-geometric biopython transformers pydssp psutil pyyaml scipy scikit-learn matplotlib seaborn"
    ]
   },
   {
@@ -50,19 +50,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 4. Login to Weights & Biases (Optional Experiment Tracking)\n",
-    "# Ensure training.use_wandb is set to true in config.yaml to track runs\n",
-    "import wandb\n",
-    "wandb.login()"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# 5. Verify Setup via Unit Tests\n",
+    "# 4. Verify Setup via Unit Tests\n",
     "!python -m pytest tests/"
    ]
   },
@@ -72,7 +60,29 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 6. Train the GNN model\n",
+    "# 5. Download DB5.5 Dataset structures\n",
+    "# Downloads the official docking benchmark complexes (~100MB)\n",
+    "!python scripts/download_benchmarks.py --output-dir data/raw/db5"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 6. Preprocess raw structures into GNN Graphs\n",
+    "# Builds PyG graphs with binding site labels. Takes about 2 minutes.\n",
+    "!python scripts/prepare_dataset.py --pdb-dir data/raw/db5/benchmark5.5/structures --output-dir data/processed --threads 4"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 7. Train the GNN model\n",
     "# Saves model checkpoint best_model_v3.pt and report curves (loss, ROC, PR, CM) to results/training_report/\n",
     "!python train.py --config config.yaml"
    ]
@@ -83,7 +93,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 7. Run Hyperparameter Tuning (Optional)\n",
+    "# 8. Run Hyperparameter Tuning (Optional)\n",
     "# Searches parameter space (learning rate, layers, heads, etc.)\n",
     "!python scripts/hyperparameter_search.py"
    ]
@@ -94,7 +104,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 8. Run Model Ablation Study (Optional)\n",
+    "# 9. Run Model Ablation Study (Optional)\n",
     "# Compares GNN-only, ESM2-8M, and ESM2-650M architectures\n",
     "!python scripts/run_ablation.py"
    ]
@@ -105,7 +115,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 9. Run Scientific Validation Suite\n",
+    "# 10. Run Scientific Validation Suite\n",
     "# Runs bootstrapping (CIs) and Wilcoxon statistical significance test\n",
     "!python scripts/scientific_validation.py\n",
     "\n",
@@ -125,17 +135,9 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 10. Package and Download Results\n",
+    "# 11. Package and Download Results\n",
     "# Zips results (including training_report, figures, stats) and model checkpoints\n",
-    "!zip -r ecabsd_experiment_results.zip results/ checkpoints/\n",
-    "\n",
-    "from google.colab import files\n",
-    "import os\n",
-    "if os.path.exists(\"ecabsd_experiment_results.zip\"):\n",
-    "    print(\"Packaging complete! Downloading experiment archive...\")\n",
-    "    files.download(\"ecabsd_experiment_results.zip\")\n",
-    "else:\n",
-    "    print(\"Archive zip file not found.\")"
+    "!zip -r ecabsd_experiment_results.zip results/ checkpoints/"
    ]
   }
  ],
