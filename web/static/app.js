@@ -277,6 +277,16 @@ function renderResults(data) {
     ${qualityCardHtml}
   `;
 
+  // Dynamic Recommendation
+  const recPanel = document.getElementById('recommendation-panel');
+  const recText = document.getElementById('recommendation-text');
+  if (recPanel && recText && data.recommendation) {
+    recPanel.style.display = 'block';
+    recText.textContent = data.recommendation;
+  } else if (recPanel) {
+    recPanel.style.display = 'none';
+  }
+
   // Explainability Cards (Heatmap & Grad-CAM)
   const explainCard = document.getElementById('explain-card');
   const heatmapImg = document.getElementById('heatmap-img');

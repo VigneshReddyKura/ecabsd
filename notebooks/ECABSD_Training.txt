@@ -26,7 +26,7 @@
    "outputs": [],
    "source": [
     "# 2. Install PyTorch Geometric and dependencies\n",
-    "!pip install -q torch-geometric biopython transformers pydssp psutil pyyaml"
+    "!pip install -q torch-geometric biopython transformers pydssp psutil pyyaml wandb"
    ]
   },
   {

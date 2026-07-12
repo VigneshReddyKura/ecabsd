@@ -800,6 +800,15 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             else:
                 gradcam_allowed = True
 
+            # Generate actionable recommendation based on prediction quality
+            recommendation = "Predictions are stable and cluster near known interfacial regions. Ready for PyMOL export or docking overlays."
+            if quality in ["Low-confidence underprediction", "Low-confidence / Needs Review"]:
+                recommendation = "Recommendation: Inspect Grad-CAM visualization because model confidence is low. Ensure model weights are fully trained and input files are not corrupted."
+            elif quality == "Underprediction / Tight Interface":
+                recommendation = "Recommendation: Model predicted a very small/tight binding site. Verify if this corresponds to a specialized hotspot, or consider lowering the decision threshold."
+            elif quality in ["Broad Interface / Needs Review", "Overprediction"]:
+                recommendation = "Recommendation: Inspect Grad-CAM visualization because the predicted interface is unusually large. Consider increasing the probability threshold."
+
             response_payload = {
                 "status": "success",
                 "pdb_file": filename,
@@ -811,6 +820,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 "binding_residues_count": binding_count,
                 "binding_ratio": round(binding_ratio, 4),
                 "prediction_quality": quality,
+                "recommendation": recommendation,
                 "confidence": confidence,
                 "warning_msg": warning_msg,
                 "is_1brs": is_1brs,

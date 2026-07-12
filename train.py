@@ -282,6 +282,125 @@ def validate(model, loader, criterion, device):
     return metrics
 
 
+def save_training_report(model, loader, device, best_threshold, best_val_f1, best_val_loss, history, pcfg, cfg):
+    """
+    Generate and save a comprehensive training report containing:
+    - Loss and F1 curves
+    - ROC and PR curves
+    - Confusion Matrix
+    - Metrics report JSON
+    - Config file copy
+    """
+    report_dir = os.path.join("results", "training_report")
+    os.makedirs(report_dir, exist_ok=True)
+    
+    # 1. Save config copy
+    with open(os.path.join(report_dir, "config.yaml"), "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
+        
+    # 2. Plot Loss and F1 curves
+    import matplotlib.pyplot as plt
+    epochs = [h["epoch"] for h in history]
+    train_losses = [h["train"]["loss"] for h in history]
+    val_losses = [h["val"]["loss"] for h in history]
+    train_f1s = [h["train"]["f1"] for h in history]
+    val_f1s = [h["val"]["f1"] for h in history]
+    
+    plt.figure(figsize=(12, 5))
+    
+    # Loss subplot
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, label="Train Loss", color="#4f46e5", linewidth=2)
+    plt.plot(epochs, val_losses, label="Val Loss", color="#10b981", linewidth=2)
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training & Validation Loss")
+    plt.legend()
+    plt.grid(True, linestyle="--", alpha=0.5)
+    
+    # F1 subplot
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, train_f1s, label="Train F1", color="#4f46e5", linewidth=2)
+    plt.plot(epochs, val_f1s, label="Val F1", color="#10b981", linewidth=2)
+    plt.xlabel("Epoch")
+    plt.ylabel("F1 Score")
+    plt.title("Training & Validation F1 Score")
+    plt.legend()
+    plt.grid(True, linestyle="--", alpha=0.5)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(report_dir, "loss_f1_curves.png"), dpi=150)
+    plt.close()
+    
+    # 3. Gather predictions on loader for ROC, PR, Confusion Matrix
+    model.eval()
+    all_labels, all_probs = [], []
+    with torch.no_grad():
+        for sample in loader:
+            data_a = sample["data_a"].to(device)
+            data_b = sample["data_b"].to(device)
+            labels = sample["labels"].to(device)
+            logits, _ = model(data_a, data_b)
+            probs = torch.sigmoid(logits.squeeze(-1))
+            all_probs.extend(probs.cpu().numpy().tolist())
+            all_labels.extend(labels.cpu().numpy().tolist())
+            
+    all_labels_np = np.array(all_labels)
+    all_probs_np = np.array(all_probs)
+    all_preds_np = (all_probs_np >= best_threshold).astype(int)
+    
+    # Compute metrics
+    m = compute_metrics(all_labels, all_preds_np.tolist(), all_probs)
+    m["best_val_f1"] = best_val_f1
+    m["best_val_loss"] = best_val_loss
+    m["best_threshold"] = best_threshold
+    
+    with open(os.path.join(report_dir, "metrics.json"), "w") as f:
+        json.dump(m, f, indent=2)
+        
+    # Plot ROC & PR Curves side-by-side
+    from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix, ConfusionMatrixDisplay
+    
+    if len(np.unique(all_labels_np)) > 1:
+        fpr, tpr, _ = roc_curve(all_labels_np, all_probs_np)
+        prec, rec, _ = precision_recall_curve(all_labels_np, all_probs_np)
+        
+        plt.figure(figsize=(12, 5))
+        
+        # ROC subplot
+        plt.subplot(1, 2, 1)
+        plt.plot(fpr, tpr, color="#4f46e5", label=f"ROC (AUC = {m['auc_roc']:.4f})", linewidth=2)
+        plt.plot([0, 1], [0, 1], color="#94a3b8", linestyle="--")
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.title("ROC Curve")
+        plt.legend(loc="lower right")
+        plt.grid(True, linestyle="--", alpha=0.5)
+        
+        # PR subplot
+        plt.subplot(1, 2, 2)
+        plt.plot(rec, prec, color="#10b981", label=f"PR (AUC = {m['auc_pr']:.4f})", linewidth=2)
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        plt.title("Precision-Recall Curve")
+        plt.legend(loc="lower left")
+        plt.grid(True, linestyle="--", alpha=0.5)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(report_dir, "roc_pr_curves.png"), dpi=150)
+        plt.close()
+        
+    # 4. Plot Confusion Matrix
+    cm = confusion_matrix(all_labels_np, all_preds_np)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Non-Binding", "Binding"])
+    disp.plot(cmap="Blues")
+    plt.title("Confusion Matrix")
+    plt.savefig(os.path.join(report_dir, "confusion_matrix.png"), dpi=150)
+    plt.close()
+    
+    print(f"[ECABSD] Training report generated and saved to {report_dir}/")
+
+
 # ---------------------------------------------------------------------------
 # Main training entry point
 # ---------------------------------------------------------------------------
@@ -421,6 +540,30 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         print(f"[ECABSD] Resumed from epoch {start_epoch} | "
               f"LR={optimizer.param_groups[0]['lr']:.6f}")
 
+    # Initialize wandb if enabled
+    use_wandb = tcfg.get("use_wandb", False)
+    if use_wandb:
+        try:
+            import wandb
+            try:
+                import subprocess
+                commit_id = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
+            except Exception:
+                commit_id = "unknown"
+            
+            wandb.init(
+                project="ECABSD", 
+                config={
+                    "model_config": mcfg,
+                    "train_config": tcfg,
+                    "git_commit": commit_id
+                }
+            )
+            print("[ECABSD] Weights & Biases experiment tracking enabled.")
+        except ImportError:
+            print("[ECABSD] WARNING: wandb package not installed. Skipping W&B tracking.")
+            use_wandb = False
+
     # Training loop
     patience_counter = 0
     best_val_f1      = -1.0
@@ -462,6 +605,26 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         }
         history.append(epoch_record)
 
+        # Log to wandb if enabled
+        if use_wandb:
+            try:
+                import wandb
+                wandb.log({
+                    "epoch": epoch + 1,
+                    "train_loss": train_metrics["loss"],
+                    "train_f1": train_metrics["f1"],
+                    "train_mcc": train_metrics.get("mcc", 0),
+                    "val_loss": val_metrics["loss"],
+                    "val_f1": val_metrics["f1"],
+                    "val_mcc": val_metrics.get("mcc", 0),
+                    "val_auc_roc": val_metrics.get("auc_roc", 0),
+                    "val_auc_pr": val_metrics.get("auc_pr", 0),
+                    "learning_rate": lr,
+                    "best_threshold": best_threshold
+                })
+            except Exception:
+                pass
+
         # CRASH-SAFE: save history every epoch
         history_path = os.path.join(pcfg["logs_dir"], "training_history_v3.json")
         os.makedirs(pcfg["logs_dir"], exist_ok=True)
@@ -491,6 +654,12 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
             print(f"  -> New best! val_F1={best_val_f1:.4f} | "
                   f"AUC-ROC={val_metrics.get('auc_roc', 0):.4f} | "
                   f"threshold={best_threshold:.4f}")
+            if use_wandb:
+                try:
+                    import wandb
+                    wandb.save(ckpt_path)
+                except Exception:
+                    pass
         else:
             patience_counter += 1
 
@@ -532,6 +701,35 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
     print(f" Best threshold:   {best_threshold:.4f}")
     print(f" History:          {history_path}")
     print(f"{'='*60}")
+
+    # Generate automatic experiment report using best saved checkpoint
+    best_ckpt_path = os.path.join(pcfg["checkpoints_dir"], "best_model_v3.pt")
+    if os.path.exists(best_ckpt_path):
+        try:
+            print("[ECABSD] Generating training report curves...")
+            best_ckpt = torch.load(best_ckpt_path, map_location=device)
+            model.load_state_dict(best_ckpt["model_state_dict"])
+            save_training_report(
+                model=model,
+                loader=val_loader,
+                device=device,
+                best_threshold=best_threshold,
+                best_val_f1=best_val_f1,
+                best_val_loss=best_val_loss,
+                history=history,
+                pcfg=pcfg,
+                cfg=cfg
+            )
+        except Exception as e:
+            print(f"[ECABSD] WARNING: Failed to generate auto training report: {e}")
+
+    # Finalize wandb
+    if use_wandb:
+        try:
+            import wandb
+            wandb.finish()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
