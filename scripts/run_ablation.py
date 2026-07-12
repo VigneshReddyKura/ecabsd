@@ -19,9 +19,12 @@ def get_esm_embeddings_by_model(sequence: str, model_name: str) -> torch.Tensor:
     global _esm_models_cache
     if model_name not in _esm_models_cache:
         import sys
-        # Prevent Windows DLL crash and Kaggle import crash during torchvision loading
-        sys.modules['torchvision'] = None
-        sys.modules['torchvision.transforms'] = None
+        # Override transformers import check to bypass broken torchvision imports
+        try:
+            import transformers.utils.import_utils as import_utils
+            import_utils.is_vision_available = lambda: False
+        except Exception:
+            pass
         from transformers import EsmModel, AutoTokenizer
         print(f"[Ablation] Loading model weights: {model_name}...")
         tokenizer = AutoTokenizer.from_pretrained(model_name)
