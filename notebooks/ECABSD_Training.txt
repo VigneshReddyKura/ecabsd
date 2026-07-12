@@ -4,8 +4,8 @@
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "# ECABSD Model Training Notebook\n",
-    "Use this notebook to train the ECABSD V3 model on a Google Colab T4 GPU."
+    "# ECABSD Model Training & Validation Workflow\n",
+    "Use this notebook to run GPU checks, train models, track experiments, run validations, and download results in one click."
    ]
   },
   {
@@ -14,7 +14,20 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 1. Clone the personal repository\n",
+    "# 1. GPU Availability Check\n",
+    "import torch\n",
+    "print(\"CUDA available:\", torch.cuda.is_available())\n",
+    "if torch.cuda.is_available():\n",
+    "    print(\"GPU Device Name:\", torch.cuda.get_device_name(0))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 2. Clone Repository\n",
     "!git clone https://github.com/amanigreeva/ECABSD.git\n",
     "%cd ECABSD"
    ]
@@ -25,8 +38,10 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 2. Install PyTorch Geometric and dependencies\n",
-    "!pip install -q torch-geometric biopython transformers pydssp psutil pyyaml wandb"
+    "# 3. Install Correct PyTorch & Package Dependencies\n",
+    "# Installs PyTorch followed by PyTorch Geometric and scientific packages\n",
+    "!pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121\n",
+    "!pip install -q torch-geometric biopython transformers pydssp psutil pyyaml wandb scipy scikit-learn matplotlib seaborn"
    ]
   },
   {
@@ -35,7 +50,19 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 3. Run unit tests to check setup\n",
+    "# 4. Login to Weights & Biases (Optional Experiment Tracking)\n",
+    "# Ensure training.use_wandb is set to true in config.yaml to track runs\n",
+    "import wandb\n",
+    "wandb.login()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 5. Verify Setup via Unit Tests\n",
     "!python -m pytest tests/"
    ]
   },
@@ -45,7 +72,8 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 4. Run the GNN training script\n",
+    "# 6. Train the GNN model\n",
+    "# Saves model checkpoint best_model_v3.pt and report curves (loss, ROC, PR, CM) to results/training_report/\n",
     "!python train.py --config config.yaml"
    ]
   },
@@ -55,16 +83,59 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "# 5. Download the trained checkpoint\n",
+    "# 7. Run Hyperparameter Tuning (Optional)\n",
+    "# Searches parameter space (learning rate, layers, heads, etc.)\n",
+    "!python scripts/hyperparameter_search.py"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 8. Run Model Ablation Study (Optional)\n",
+    "# Compares GNN-only, ESM2-8M, and ESM2-650M architectures\n",
+    "!python scripts/run_ablation.py"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 9. Run Scientific Validation Suite\n",
+    "# Runs bootstrapping (CIs) and Wilcoxon statistical significance test\n",
+    "!python scripts/scientific_validation.py\n",
+    "\n",
+    "# Runs detailed error profiling (isolates easiest/hardest complexes)\n",
+    "!python scripts/error_analysis.py\n",
+    "\n",
+    "# Runs biological hotspot mappings (correlates Grad-CAM with interface contact burial)\n",
+    "!python scripts/hotspot_validation.py\n",
+    "\n",
+    "# Runs Expected Calibration Error analysis and outputs Reliability Diagram plots\n",
+    "!python scripts/calibration_analysis.py"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 10. Package and Download Results\n",
+    "# Zips results (including training_report, figures, stats) and model checkpoints\n",
+    "!zip -r ecabsd_experiment_results.zip results/ checkpoints/\n",
+    "\n",
     "from google.colab import files\n",
     "import os\n",
-    "\n",
-    "checkpoint_path = 'checkpoints/best_model_v3.pt'\n",
-    "if os.path.exists(checkpoint_path):\n",
-    "    print('Training complete! Downloading checkpoint...')\n",
-    "    files.download(checkpoint_path)\n",
+    "if os.path.exists(\"ecabsd_experiment_results.zip\"):\n",
+    "    print(\"Packaging complete! Downloading experiment archive...\")\n",
+    "    files.download(\"ecabsd_experiment_results.zip\")\n",
     "else:\n",
-    "    print('Checkpoint not found. Check training logs.')"
+    "    print(\"Archive zip file not found.\")"
    ]
   }
  ],
