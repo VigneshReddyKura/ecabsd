@@ -120,7 +120,11 @@ def prepare_dataset(pdb_dir, output_dir, distance_cutoff, train_ratio, val_ratio
     os.makedirs(output_dir, exist_ok=True)
     random.seed(seed)
 
-    pdb_files = sorted(list(set(glob.glob(os.path.join(pdb_dir, "*.pdb")) + glob.glob(os.path.join(pdb_dir, "*.PDB")))))
+    # Search recursively to find PDB files in nested directories (like benchmark5.5/structures)
+    pdb_files = sorted(list(set(
+        glob.glob(os.path.join(pdb_dir, "**/*.pdb"), recursive=True) + 
+        glob.glob(os.path.join(pdb_dir, "**/*.PDB"), recursive=True)
+    )))
     if not pdb_files:
         print(f"[ERROR] No PDB files found in: {pdb_dir}")
         return
