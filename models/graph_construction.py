@@ -264,6 +264,11 @@ def build_residue_graph(pdb_path: str, chain_id: str) -> Data:
     if len(residues) > 800:
         raise ValueError(f"Chain {chain_id}: {len(residues)} residues — above maximum 800")
 
+    # Secondary structure via pydssp
+    backbone     = get_backbone_coords(residues)
+    coord_tensor = torch.tensor(backbone).unsqueeze(0)
+    ss_labels    = pydssp.assign(coord_tensor)[0]
+
     # Extract sequence for ESM-2 embeddings
     three_to_one = {
         'ALA':'A', 'ARG':'R', 'ASN':'N', 'ASP':'D', 'CYS':'C',
@@ -279,10 +284,13 @@ def build_residue_graph(pdb_path: str, chain_id: str) -> Data:
         print(f"[WARN] Failed to get ESM embeddings for chain {chain_id}: {e}. Falling back to random features.")
         x = torch.randn(len(residues), 1280)
 
-    # Build edges
+    # Build edges and structural features
     edge_index, edge_attr, ca_coords = get_edges(residues, cutoff=GRAPH_CUTOFF)
+    x_structural = get_node_features(residues, ss_labels, ca_coords)
 
     data               = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+    data.x_structural  = x_structural
+    data.sequence      = sequence
     data.num_residues  = len(residues)
     data.protein_len   = len(residues)
     data.chain_id      = chain_id
