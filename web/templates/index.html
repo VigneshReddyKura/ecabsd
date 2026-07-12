@@ -284,6 +284,33 @@
         </div>
       </div>
 
+      <!-- 3D Molecular Viewer -->
+      <div class="card viewer-card" id="viewer-card" style="margin-bottom: 24px; display: none;">
+        <div class="card-header">
+          <div class="card-icon" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">👁️</div>
+          <h3 class="card-title">Interactive 3D Molecular Structure</h3>
+          <div class="viewer-controls" style="margin-left: auto; display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-outline" id="style-cartoon-btn" style="padding: 4px 8px; font-size: 0.75rem;">Cartoon</button>
+            <button class="btn btn-sm btn-outline" id="style-sphere-btn" style="padding: 4px 8px; font-size: 0.75rem;">Sphere</button>
+            <button class="btn btn-sm btn-outline" id="style-stick-btn" style="padding: 4px 8px; font-size: 0.75rem;">Stick</button>
+          </div>
+        </div>
+        <div style="padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; background: rgba(0,0,0,0.15); border-bottom: 1px solid var(--border);">
+          <!-- Docking file upload -->
+          <div class="form-group" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+            <label class="form-label" for="dock-ligand-input" style="margin: 0; font-size: 0.8rem; color: var(--text-dim);">Overlay Ligand PDB:</label>
+            <input type="file" id="dock-ligand-input" accept=".pdb,.pdbqt" style="font-size: 0.8rem; color: var(--text-muted); background: transparent; border: none;" />
+            <button class="btn btn-sm btn-primary" id="run-dock-btn" style="padding: 4px 10px; font-size: 0.75rem;" disabled>⚡ Run Docking</button>
+          </div>
+          <span id="dock-status" style="font-size: 0.8rem; color: var(--green); font-weight: 500;"></span>
+        </div>
+        <div id="3d-viewer" style="width: 100%; height: 500px; position: relative; background: #0b0f19;"></div>
+        <div style="padding: 12px 20px; background: rgba(0,0,0,0.15); font-size: 0.8rem; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
+          <span><strong>Color Legend:</strong> <span style="color: #ef4444; font-weight: bold;">■ Predicted Binding Sites</span> | <span style="color: #4b5563; font-weight: bold;">■ Target Chain</span> | <span style="color: #0d9488; font-weight: bold;">■ Partner Chain</span> | <span style="color: #fbbf24; font-weight: bold;">■ Docked Ligand</span></span>
+          <button class="btn btn-sm btn-primary" id="download-bfactor-pdb-btn" style="padding: 4px 12px; font-size: 0.8rem;">⬇ Download B-factor PDB</button>
+        </div>
+      </div>
+
       <!-- Results Table -->
       <div class="card table-card">
         <div class="card-header">
@@ -327,6 +354,8 @@
 
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- 3Dmol.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

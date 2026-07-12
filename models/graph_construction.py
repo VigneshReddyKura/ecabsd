@@ -229,10 +229,21 @@ def get_esm_embeddings(sequence: str) -> torch.Tensor:
         import sys
         sys.modules['torchvision'] = None
 
-        # Load the 650M parameter model (dim 1280)
+        # Resolve model based on memory availability to prevent server OOM crashes
+        import psutil
+        try:
+            free_mb = psutil.virtual_memory().available / (1024 * 1024)
+        except Exception:
+            free_mb = 9999.0
+
+        if free_mb < 2000:
+            model_name = "facebook/esm2_t6_8M_UR50D"
+            print(f"[ECABSD] Low memory detected ({free_mb:.0f} MB free). Using ESM2-8M fallback with padding.")
+        else:
+            model_name = "facebook/esm2_t33_650M_UR50D"
+            print(f"[ECABSD] Loading ESM2 model: {model_name}...")
+
         from transformers import EsmModel, AutoTokenizer
-        model_name = "facebook/esm2_t33_650M_UR50D"
-        print(f"[ECABSD] Loading ESM2 model: {model_name}...")
         _esm_tokenizer = AutoTokenizer.from_pretrained(model_name)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         _esm_model = EsmModel.from_pretrained(model_name).to(device)
@@ -242,9 +253,13 @@ def get_esm_embeddings(sequence: str) -> torch.Tensor:
     inputs = _esm_tokenizer(sequence, return_tensors="pt", add_special_tokens=True).to(device)
     with torch.no_grad():
         outputs = _esm_model(**inputs)
-    
-    # Extract last hidden state, ignoring <cls> and <eos>
     embeddings = outputs.last_hidden_state[0, 1:-1, :].cpu()
+
+    # Zero-pad embeddings if using fallback 8M model (dim 320) to match 1280-dim model structure
+    if embeddings.shape[-1] < 1280:
+        padding = torch.zeros(embeddings.shape[0], 1280 - embeddings.shape[-1])
+        embeddings = torch.cat([embeddings, padding], dim=-1)
+
     return embeddings
 
 

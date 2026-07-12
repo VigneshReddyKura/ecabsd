@@ -82,11 +82,15 @@ def run_prediction(
     # Resolve threshold: CLI arg > checkpoint value > config value
     cfg_threshold = cfg["prediction"].get("threshold", 0.5)
     if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location=device)
-        model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-        ckpt_threshold = checkpoint.get("best_threshold", cfg_threshold)
-        print(f"[ECABSD] Loaded model from: {checkpoint_path}")
-        print(f"[ECABSD] Checkpoint threshold: {ckpt_threshold:.4f}")
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+            ckpt_threshold = checkpoint.get("best_threshold", cfg_threshold)
+            print(f"[ECABSD] Loaded model from: {checkpoint_path}")
+            print(f"[ECABSD] Checkpoint threshold: {ckpt_threshold:.4f}")
+        except (RuntimeError, ValueError) as e:
+            print(f"[ECABSD] WARNING: Incompatible checkpoint at {checkpoint_path} ({e}). Using random weights.")
+            ckpt_threshold = cfg_threshold
     else:
         print(f"[ECABSD] WARNING: No checkpoint at {checkpoint_path}. Using random weights.")
         ckpt_threshold = cfg_threshold

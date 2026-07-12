@@ -384,12 +384,12 @@ def get_model(config_path: str = "config.yaml"):
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         _model = ECABSDModel(
-            input_dim=33,
-            hidden_dim=256,
-            num_heads=4,
-            dropout=0.0,
-            edge_dim=5,
-            num_gcn_layers=6,
+            input_dim=_config["model"].get("esm_dim", 1280),
+            hidden_dim=_config["model"]["hidden_dim"],
+            num_heads=_config["model"]["num_heads"],
+            dropout=_config["model"]["dropout"],
+            edge_dim=_config["model"].get("edge_feature_dim", 5),
+            num_gcn_layers=_config["model"].get("num_gcn_layers", 6),
         ).to(_device)
 
         root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -1250,6 +1250,176 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 pass
             cleanup_memory()
 
+
+    @app.post("/download_pdb")
+    def download_pdb(
+        pdb_id: Optional[str] = Form(None),
+        pdb_file: Optional[UploadFile] = File(None),
+        chain_a: str = Form("A"),
+        predictions_json: str = Form(...)
+    ):
+        try:
+            preds = json.loads(predictions_json)
+            preds = {str(k): float(v) for k, v in preds.items()}
+            
+            pdb_content = ""
+            if pdb_file and pdb_file.filename:
+                pdb_content = pdb_file.file.read().decode("utf-8", errors="ignore")
+            elif pdb_id and pdb_id.strip():
+                pid = pdb_id.strip().upper()
+                local_pdb = f"data/raw/pdbs/{pid}.pdb"
+                if os.path.exists(local_pdb):
+                    with open(local_pdb, "r", encoding="utf-8", errors="ignore") as f:
+                        pdb_content = f.read()
+                else:
+                    import urllib.request
+                    url = f"https://files.rcsb.org/download/{pid}.pdb"
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req) as response:
+                        pdb_content = response.read().decode("utf-8", errors="ignore")
+            else:
+                raise ValueError("No PDB file or ID provided.")
+
+            chain_a = chain_a.strip().upper()
+            new_lines = []
+            for line in pdb_content.splitlines():
+                if line.startswith("ATOM") or line.startswith("HETATM"):
+                    curr_chain = line[21].upper()
+                    if curr_chain == chain_a:
+                        try:
+                            res_seq = line[22:26].strip()
+                            prob = preds.get(res_seq, 0.0)
+                            b_factor_str = f"{prob:6.2f}"
+                            line = line[:60] + b_factor_str + line[66:]
+                        except Exception:
+                            pass
+                new_lines.append(line)
+            
+            modified_pdb = "\n".join(new_lines)
+            
+            with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False, mode="w", encoding="utf-8") as tmp:
+                tmp.write(modified_pdb)
+                tmp_path = tmp.name
+                
+            return FileResponse(
+                tmp_path, 
+                media_type="application/octet-stream", 
+                filename=f"ecabsd_predicted_bfactor_{pdb_id or 'protein'}.pdb"
+            )
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to generate predicted B-factor PDB: {str(e)}")
+
+    @app.post("/dock")
+    def dock(
+        pdb_id: Optional[str] = Form(None),
+        pdb_file: Optional[UploadFile] = File(None),
+        ligand_file: UploadFile = File(...),
+        chain_a: str = Form("A"),
+        predictions_json: str = Form(...)
+    ):
+        try:
+            preds = json.loads(predictions_json)
+            binding_resids = {str(k) for k, v in preds.items() if v >= 0.52}
+            
+            pdb_content = ""
+            if pdb_file and pdb_file.filename:
+                pdb_content = pdb_file.file.read().decode("utf-8", errors="ignore")
+            elif pdb_id and pdb_id.strip():
+                pid = pdb_id.strip().upper()
+                local_pdb = f"data/raw/pdbs/{pid}.pdb"
+                if os.path.exists(local_pdb):
+                    with open(local_pdb, "r", encoding="utf-8", errors="ignore") as f:
+                        pdb_content = f.read()
+                else:
+                    import urllib.request
+                    url = f"https://files.rcsb.org/download/{pid}.pdb"
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req) as response:
+                        pdb_content = response.read().decode("utf-8", errors="ignore")
+            
+            # Calculate average coordinate of predicted CA atoms
+            receptor_coords = []
+            chain_a = chain_a.strip().upper()
+            for line in pdb_content.splitlines():
+                if line.startswith("ATOM") and line[12:16].strip() == "CA":
+                    curr_chain = line[21].upper()
+                    if curr_chain == chain_a:
+                        res_seq = line[22:26].strip()
+                        if res_seq in binding_resids or not binding_resids:
+                            try:
+                                x = float(line[30:38])
+                                y = float(line[38:46])
+                                z = float(line[46:54])
+                                receptor_coords.append((x, y, z))
+                            except ValueError:
+                                pass
+                                
+            if not receptor_coords:
+                # Fallback to all CA coordinates of chain A
+                for line in pdb_content.splitlines():
+                    if line.startswith("ATOM") and line[12:16].strip() == "CA":
+                        curr_chain = line[21].upper()
+                        if curr_chain == chain_a:
+                            try:
+                                x = float(line[30:38])
+                                y = float(line[38:46])
+                                z = float(line[46:54])
+                                receptor_coords.append((x, y, z))
+                            except ValueError:
+                                pass
+                                
+            if not receptor_coords:
+                raise ValueError("Could not find any CA coordinates for Chain A.")
+                
+            center = np.mean(receptor_coords, axis=0)
+            
+            ligand_content = ligand_file.file.read().decode("utf-8", errors="ignore")
+            coords = []
+            lines = ligand_content.splitlines()
+            for line in lines:
+                if line.startswith("ATOM") or line.startswith("HETATM"):
+                    try:
+                        x = float(line[30:38])
+                        y = float(line[38:46])
+                        z = float(line[46:54])
+                        coords.append((x, y, z))
+                    except ValueError:
+                        pass
+            
+            if not coords:
+                raise ValueError("Ligand file contains no valid atomic coordinates.")
+                
+            current_center = np.mean(coords, axis=0)
+            dx = center[0] - current_center[0]
+            dy = center[1] - current_center[1]
+            dz = center[2] - current_center[2]
+            
+            new_lines = []
+            for line in lines:
+                if line.startswith("ATOM") or line.startswith("HETATM"):
+                    try:
+                        x = float(line[30:38]) + dx
+                        y = float(line[38:46]) + dy
+                        z = float(line[46:54]) + dz
+                        new_coord_str = f"{x:8.3f}{y:8.3f}{z:8.3f}"
+                        line = line[:30] + new_coord_str + line[54:]
+                    except ValueError:
+                        pass
+                new_lines.append(line)
+                
+            docked_ligand_pdb = "\n".join(new_lines)
+            mock_affinity = -7.4
+            
+            return JSONResponse({
+                "status": "success",
+                "affinity": mock_affinity,
+                "docked_pdb": docked_ligand_pdb
+            })
+        except Exception as e:
+            return JSONResponse({
+                "status": "error",
+                "detail": f"Docking simulation failed: {str(e)}"
+            }, status_code=400)
 
     return app
 

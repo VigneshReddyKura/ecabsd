@@ -336,6 +336,37 @@ function renderResults(data) {
 
   // Table
   renderTable(data.residues, showAllResidues);
+
+  // 3D Molecular Viewer
+  const viewerCard = document.getElementById('viewer-card');
+  if (viewerCard) {
+    viewerCard.style.display = 'block';
+    
+    // Load structure
+    if (selectedFile) {
+      let reader = new FileReader();
+      reader.onload = function(e) {
+        receptorPdbString = e.target.result;
+        init3DViewer(receptorPdbString, data.chain_a, data.chain_b, data.residues);
+      };
+      reader.readAsText(selectedFile);
+    } else {
+      const pid = pdbId.value.trim().toUpperCase();
+      fetch(`https://files.rcsb.org/download/${pid}.pdb`)
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to fetch PDB from RCSB");
+          return res.text();
+        })
+        .then(text => {
+          receptorPdbString = text;
+          init3DViewer(receptorPdbString, data.chain_a, data.chain_b, data.residues);
+        })
+        .catch(err => {
+          console.error("3D Viewer PDB fetch failed:", err);
+          showError("Could not fetch structure from RCSB for 3D Molecular Viewer.");
+        });
+    }
+  }
 }
 
 // ── Chart ──────────────────────────────────────
@@ -690,3 +721,208 @@ function showError(msg) {
 }
 
 toastClose.addEventListener('click', () => { errorToast.hidden = true; });
+
+// ── 3D Molecular Viewer & Docking Overlay ──────
+let viewer3D = null;
+let receptorPdbString = null;
+let dockedLigandPdbString = null;
+
+function init3DViewer(pdbString, chainAId, chainBId, residues) {
+  const container = document.getElementById('3d-viewer');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  viewer3D = $3Dmol.createViewer($(container), { backgroundColor: '#0b0f19' });
+  viewer3D.addModel(pdbString, 'pdb');
+  
+  applyViewerStyle('cartoon', chainAId, chainBId, residues);
+  viewer3D.zoomTo();
+  viewer3D.render();
+  
+  // Reset Docking Controls
+  const dockLigandInput = document.getElementById('dock-ligand-input');
+  const runDockBtn = document.getElementById('run-dock-btn');
+  const dockStatus = document.getElementById('dock-status');
+  
+  if (dockLigandInput) dockLigandInput.value = '';
+  if (runDockBtn) {
+    runDockBtn.disabled = true;
+    runDockBtn.textContent = '⚡ Run Docking';
+  }
+  if (dockStatus) dockStatus.textContent = '';
+  dockedLigandPdbString = null;
+  setActiveStyleButton('style-cartoon-btn');
+}
+
+function applyViewerStyle(styleType, chainAId, chainBId, residues) {
+  if (!viewer3D) return;
+  
+  let styleObj = {};
+  if (styleType === 'cartoon') styleObj = { cartoon: { color: '#4b5563' } };
+  else if (styleType === 'sphere') styleObj = { sphere: { color: '#4b5563', scale: 0.8 } };
+  else if (styleType === 'stick') styleObj = { stick: { color: '#4b5563', radius: 0.3 } };
+  
+  viewer3D.setStyle({ model: 0 }, styleObj);
+  
+  // Style partner chain B
+  if (chainBId) {
+    let partnerStyle = {};
+    if (styleType === 'cartoon') partnerStyle = { cartoon: { color: '#0d9488' } };
+    else if (styleType === 'sphere') partnerStyle = { sphere: { color: '#0d9488', scale: 0.8 } };
+    else if (styleType === 'stick') partnerStyle = { stick: { color: '#0d9488', radius: 0.3 } };
+    viewer3D.setStyle({ model: 0, chain: chainBId }, partnerStyle);
+  }
+  
+  // Style predicted binding residues
+  residues.forEach(res => {
+    if (res.is_binding) {
+      let activeStyle = {};
+      if (styleType === 'cartoon') activeStyle = { cartoon: { color: '#ef4444' } };
+      else if (styleType === 'sphere') activeStyle = { sphere: { color: '#ef4444', scale: 1.0 } };
+      else if (styleType === 'stick') activeStyle = { stick: { color: '#ef4444', radius: 0.4 } };
+      viewer3D.setStyle({ model: 0, chain: res.chain, resi: res.resid }, activeStyle);
+    }
+  });
+  
+  // Style Model 1 (Docked Ligand) if present
+  if (viewer3D.models && viewer3D.models[1]) {
+    viewer3D.setStyle({ model: 1 }, { stick: { color: '#fbbf24', radius: 0.35 } });
+  }
+  
+  viewer3D.render();
+}
+
+function setActiveStyleButton(styleId) {
+  ['style-cartoon-btn', 'style-sphere-btn', 'style-stick-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      if (id === styleId) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+}
+
+// Event Listeners for 3D Viewer styles
+document.getElementById('style-cartoon-btn').addEventListener('click', () => {
+  if (!currentResults) return;
+  setActiveStyleButton('style-cartoon-btn');
+  applyViewerStyle('cartoon', currentResults.chain_a, currentResults.chain_b, currentResults.residues);
+});
+
+document.getElementById('style-sphere-btn').addEventListener('click', () => {
+  if (!currentResults) return;
+  setActiveStyleButton('style-sphere-btn');
+  applyViewerStyle('sphere', currentResults.chain_a, currentResults.chain_b, currentResults.residues);
+});
+
+document.getElementById('style-stick-btn').addEventListener('click', () => {
+  if (!currentResults) return;
+  setActiveStyleButton('style-stick-btn');
+  applyViewerStyle('stick', currentResults.chain_a, currentResults.chain_b, currentResults.residues);
+});
+
+// Download B-factor PDB file
+document.getElementById('download-bfactor-pdb-btn').addEventListener('click', async () => {
+  if (!currentResults) return;
+  
+  let predsMap = {};
+  currentResults.residues.forEach(r => {
+    predsMap[r.resid.toString()] = r.probability;
+  });
+  
+  const formData = new FormData();
+  if (selectedFile) {
+    formData.append('pdb_file', selectedFile);
+  } else {
+    formData.append('pdb_id', pdbId.value.trim().toUpperCase());
+  }
+  formData.append('chain_a', currentResults.chain_a);
+  formData.append('predictions_json', JSON.stringify(predsMap));
+  
+  try {
+    const response = await fetch(`${API_BASE}/download_pdb`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!response.ok) throw new Error("Server failed to generate B-factor PDB.");
+    
+    const blob = await response.blob();
+    const pid = pdbId.value.trim().toUpperCase() || 'predicted_bfactor';
+    triggerDownload(blob, `ecabsd_bfactor_${pid}.pdb`);
+  } catch (err) {
+    showError(err.message || "Failed to download B-factor PDB.");
+  }
+});
+
+// Docking Overlay controls
+const dockLigandInput = document.getElementById('dock-ligand-input');
+const runDockBtn = document.getElementById('run-dock-btn');
+const dockStatus = document.getElementById('dock-status');
+
+if (dockLigandInput) {
+  dockLigandInput.addEventListener('change', () => {
+    if (dockLigandInput.files && dockLigandInput.files.length > 0) {
+      runDockBtn.disabled = false;
+    } else {
+      runDockBtn.disabled = true;
+    }
+  });
+}
+
+if (runDockBtn) {
+  runDockBtn.addEventListener('click', async () => {
+    if (!currentResults || !dockLigandInput.files || dockLigandInput.files.length === 0) return;
+    
+    runDockBtn.disabled = true;
+    runDockBtn.textContent = 'Docking...';
+    dockStatus.textContent = 'Aligning ligand to binding interface...';
+    
+    let predsMap = {};
+    currentResults.residues.forEach(r => {
+      predsMap[r.resid.toString()] = r.probability;
+    });
+    
+    const formData = new FormData();
+    if (selectedFile) {
+      formData.append('pdb_file', selectedFile);
+    } else {
+      formData.append('pdb_id', pdbId.value.trim().toUpperCase());
+    }
+    formData.append('chain_a', currentResults.chain_a);
+    formData.append('predictions_json', JSON.stringify(predsMap));
+    formData.append('ligand_file', dockLigandInput.files[0]);
+    
+    try {
+      const response = await fetch(`${API_BASE}/dock`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      if (data.status === 'success') {
+        dockedLigandPdbString = data.docked_pdb;
+        
+        // Remove existing ligand model if present
+        if (viewer3D.models && viewer3D.models[1]) {
+          viewer3D.removeModel(viewer3D.models[1]);
+        }
+        
+        // Load docked ligand model
+        const ligandModel = viewer3D.addModel(dockedLigandPdbString, 'pdb');
+        viewer3D.setStyle({ model: 1 }, { stick: { color: '#fbbf24', radius: 0.35 } });
+        viewer3D.zoomTo();
+        viewer3D.render();
+        
+        dockStatus.innerHTML = `✓ Docking overlay complete! affinity: <strong style="color:var(--yellow);">${data.affinity} kcal/mol</strong>`;
+      } else {
+        throw new Error(data.detail || "Docking alignment failed.");
+      }
+    } catch (err) {
+      showError(err.message || "Docking simulation failed.");
+      dockStatus.textContent = '';
+    } finally {
+      runDockBtn.disabled = false;
+      runDockBtn.textContent = '⚡ Run Docking';
+    }
+  });
+}
