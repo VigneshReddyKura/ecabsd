@@ -65,9 +65,9 @@ def test_get_residues_skips_hetatm():
 # ──────────────────────────────────────────────
 
 def test_node_feature_shape():
-    """Each residue must produce exactly 33 features (20 AA + 3 SS + other descriptors)."""
+    """Each residue must produce exactly 1280 features (ESM-2 embeddings)."""
     graph = build_residue_graph(PDB_PATH, CHAIN_ID)
-    assert graph.x.shape[1] == 33, f"Expected 33 features, got {graph.x.shape[1]}"
+    assert graph.x.shape[1] == 1280, f"Expected 1280 features, got {graph.x.shape[1]}"
 
 def test_node_feature_count_matches_residues():
     """Number of node feature rows must equal number of residues."""
@@ -81,15 +81,27 @@ def test_node_features_are_float():
 
 def test_one_hot_is_valid():
     """Each residue's AA one-hot (first 20 dims) must sum to exactly 1."""
-    graph = build_residue_graph(PDB_PATH, CHAIN_ID)
-    one_hot_part = graph.x[:, :20]
+    parser = PDBParser(QUIET=True)
+    structure = parser.get_structure("protein", PDB_PATH)
+    chain = structure[0][CHAIN_ID]
+    residues, _ = get_residues(chain)
+    ca_coords = [r['CA'].get_vector().get_array() for r in residues]
+    ss_labels = ['-'] * len(residues)
+    x = get_node_features(residues, ss_labels, ca_coords)
+    one_hot_part = x[:, :20]
     row_sums = one_hot_part.sum(dim=1)
     assert torch.all(row_sums == 1.0), "Some residues have invalid one-hot encoding"
 
 def test_ss_one_hot_is_valid():
     """Each residue's SS one-hot (dims 20 to 22) must sum to exactly 1."""
-    graph = build_residue_graph(PDB_PATH, CHAIN_ID)
-    ss_part = graph.x[:, 20:23]
+    parser = PDBParser(QUIET=True)
+    structure = parser.get_structure("protein", PDB_PATH)
+    chain = structure[0][CHAIN_ID]
+    residues, _ = get_residues(chain)
+    ca_coords = [r['CA'].get_vector().get_array() for r in residues]
+    ss_labels = ['-'] * len(residues)
+    x = get_node_features(residues, ss_labels, ca_coords)
+    ss_part = x[:, 20:23]
     row_sums = ss_part.sum(dim=1)
     assert torch.all(row_sums == 1.0), "Some residues have invalid SS encoding"
 

@@ -14,7 +14,7 @@ def test_encoder_forward():
     
     # Initialize V3 encoder (matches config.yaml)
     model = GCNEncoderV3(
-        input_dim=33,
+        input_dim=1280,
         hidden_dim=256,
         edge_dim=5,
         num_heads=4,

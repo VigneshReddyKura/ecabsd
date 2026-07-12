@@ -10,7 +10,7 @@ import torch
 from torch_geometric.data import Data
 
 
-ESM_DIM    = 33
+ESM_DIM    = 1280
 EDGE_DIM   = 5
 HIDDEN_DIM = 256
 NUM_HEADS  = 4

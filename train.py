@@ -353,9 +353,10 @@ def run_training(config_path: str = "config.yaml", resume_from: str = None):
         x_dim = sample["data_a"].x.shape[1]
         e_dim = sample["data_a"].edge_attr.shape[1]
         print(f"  Graph Dims: x={x_dim}, edge_attr={e_dim}")
-        if x_dim != 33 or e_dim != 5:
+        expected_x_dim = mcfg.get("esm_dim", 1280)
+        if x_dim != expected_x_dim or e_dim != 5:
             raise ValueError(
-                f"FATAL: Expected x=33, edge=5. Found x={x_dim}, edge={e_dim}")
+                f"FATAL: Expected x={expected_x_dim}, edge=5. Found x={x_dim}, edge={e_dim}")
 
     # Verify leakage inline (belt-and-suspenders on top of check_leakage.py)
     import pandas as pd

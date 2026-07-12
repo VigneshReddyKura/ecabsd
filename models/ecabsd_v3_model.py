@@ -40,12 +40,12 @@ class CrossAttentionV3(nn.Module):
 class GCNEncoderV3(nn.Module):
     """
     6-layer GATv2 encoder with residual connections, LayerNorm, and GELU.
-    Input: 33-dim ESM-2 + geometric node features, 5-dim edge features.
+    Input: 1280-dim ESM-2 features, projected to 256-dim.
     Output: 256-dim per-residue embeddings.
     """
     def __init__(
         self,
-        input_dim: int = 33,
+        input_dim: int = 1280,
         hidden_dim: int = 256,
         edge_dim: int = 5,
         num_heads: int = 4,
@@ -55,6 +55,13 @@ class GCNEncoderV3(nn.Module):
         super().__init__()
         assert hidden_dim % num_heads == 0, "hidden_dim must be divisible by num_heads"
 
+        self.input_proj = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout)
+        )
+
         head_dim = hidden_dim // num_heads
         self.drop = nn.Dropout(dropout)
         self.num_layers = num_layers
@@ -63,25 +70,23 @@ class GCNEncoderV3(nn.Module):
         self.norms = nn.ModuleList()
 
         for i in range(num_layers):
-            in_dim = input_dim if i == 0 else hidden_dim
             if i == num_layers - 1:
                 self.convs.append(
-                    GATv2Conv(in_dim, hidden_dim, heads=1, edge_dim=edge_dim, dropout=dropout, concat=False)
+                    GATv2Conv(hidden_dim, hidden_dim, heads=1, edge_dim=edge_dim, dropout=dropout, concat=False)
                 )
             else:
                 self.convs.append(
-                    GATv2Conv(in_dim, head_dim, heads=num_heads, edge_dim=edge_dim, dropout=dropout, concat=True)
+                    GATv2Conv(hidden_dim, head_dim, heads=num_heads, edge_dim=edge_dim, dropout=dropout, concat=True)
                 )
                 self.norms.append(nn.LayerNorm(hidden_dim))
 
     def forward(self, x, edge_index, edge_attr):
-        h = x
+        h = self.input_proj(x)
         for i, conv in enumerate(self.convs):
             h_new = conv(h, edge_index, edge_attr)
             if i < self.num_layers - 1:
                 h_new = F.gelu(self.norms[i](h_new))
-                if i > 0:
-                    h_new = h_new + h
+                h_new = h_new + h
                 h = self.drop(h_new)
             else:
                 h = h_new + h
@@ -94,7 +99,7 @@ class ECABSDModelV3(nn.Module):
 
     Parameters
     ----------
-    input_dim     : Node feature dimension (33 = ESM-2 projected)
+    input_dim     : Node feature dimension (1280 = ESM-2 650M)
     hidden_dim    : Hidden dimension throughout (256)
     num_heads     : Attention heads for GATv2 and cross-attention (4)
     dropout       : Dropout probability (0.3)
@@ -104,7 +109,7 @@ class ECABSDModelV3(nn.Module):
     """
     def __init__(
         self,
-        input_dim: int = 33,
+        input_dim: int = 1280,
         hidden_dim: int = 256,
         num_heads: int = 4,
         dropout: float = 0.3,

@@ -30,7 +30,7 @@ class TestGraphConstruction:
     def test_build_graph_chain_a(self):
         from models.graph_construction import build_residue_graph
         graph = build_residue_graph(SAMPLE_PDB, 'A')
-        assert graph.x.shape[1] == 33
+        assert graph.x.shape[1] == 1280
         assert graph.edge_index.shape[0] == 2
         assert graph.edge_attr.shape[1] == 5
 

@@ -13,7 +13,7 @@ docking:
 model:
   dropout: 0.3
   edge_feature_dim: 5
-  esm_dim: 33
+  esm_dim: 1280
   graph_cutoff: 10.0
   hidden_dim: 256
   num_gcn_layers: 6

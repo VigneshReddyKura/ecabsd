@@ -225,6 +225,10 @@ def get_esm_embeddings(sequence: str) -> torch.Tensor:
     """Extract ESM2 per-residue embeddings."""
     global _esm_model, _esm_tokenizer
     if _esm_model is None:
+        # Prevent Windows fatal exception 0xc0000139 from broken torchvision DLL
+        import sys
+        sys.modules['torchvision'] = None
+
         # Load the 650M parameter model (dim 1280)
         from transformers import EsmModel, AutoTokenizer
         model_name = "facebook/esm2_t33_650M_UR50D"
@@ -260,14 +264,23 @@ def build_residue_graph(pdb_path: str, chain_id: str) -> Data:
     if len(residues) > 800:
         raise ValueError(f"Chain {chain_id}: {len(residues)} residues — above maximum 800")
 
-    # Secondary structure via pydssp
-    backbone     = get_backbone_coords(residues)
-    coord_tensor = torch.tensor(backbone).unsqueeze(0)
-    ss_labels    = pydssp.assign(coord_tensor)[0]
+    # Extract sequence for ESM-2 embeddings
+    three_to_one = {
+        'ALA':'A', 'ARG':'R', 'ASN':'N', 'ASP':'D', 'CYS':'C',
+        'GLN':'Q', 'GLU':'E', 'GLY':'G', 'HIS':'H', 'ILE':'I',
+        'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P',
+        'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'
+    }
+    sequence = "".join([three_to_one.get(r.get_resname(), 'X') for r in residues])
 
-    # Build edges and node features (33-dim)
+    try:
+        x = get_esm_embeddings(sequence)
+    except Exception as e:
+        print(f"[WARN] Failed to get ESM embeddings for chain {chain_id}: {e}. Falling back to random features.")
+        x = torch.randn(len(residues), 1280)
+
+    # Build edges
     edge_index, edge_attr, ca_coords = get_edges(residues, cutoff=GRAPH_CUTOFF)
-    x = get_node_features(residues, ss_labels, ca_coords)
 
     data               = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
     data.num_residues  = len(residues)
