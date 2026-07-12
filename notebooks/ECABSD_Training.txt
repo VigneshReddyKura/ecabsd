@@ -72,8 +72,8 @@
    "outputs": [],
    "source": [
     "# 6. Preprocess raw structures into GNN Graphs\n",
-    "# Builds PyG graphs with binding site labels. Takes about 2 minutes.\n",
-    "!python scripts/prepare_dataset.py --pdb-dir data/raw/db5/benchmark5.5/structures --output-dir data/processed --threads 4"
+    "# Builds PyG graphs with binding site labels. Runs sequentially on GPU to avoid CUDA errors.\n",
+    "!python scripts/prepare_dataset.py --pdb-dir data/raw/db5/benchmark5.5/structures --output-dir data/processed --threads 1"
    ]
   },
   {

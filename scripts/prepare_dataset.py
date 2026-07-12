@@ -130,12 +130,19 @@ def prepare_dataset(pdb_dir, output_dir, distance_cutoff, train_ratio, val_ratio
     successful = []
     all_errors = []
 
-    with ProcessPoolExecutor(max_workers=threads) as executor:
-        futures = {executor.submit(process_single_pdb, f, output_dir, distance_cutoff): f for f in pdb_files}
-        for future in tqdm(as_completed(futures), total=len(pdb_files), desc="Processing PDBs"):
-            results, errors = future.result()
+    if threads <= 1:
+        print("[ECABSD] Running sequentially in main process to avoid CUDA multiprocessing conflicts...")
+        for f in tqdm(pdb_files, desc="Processing PDBs"):
+            results, errors = process_single_pdb(f, output_dir, distance_cutoff)
             successful.extend(results)
             all_errors.extend(errors)
+    else:
+        with ProcessPoolExecutor(max_workers=threads) as executor:
+            futures = {executor.submit(process_single_pdb, f, output_dir, distance_cutoff): f for f in pdb_files}
+            for future in tqdm(as_completed(futures), total=len(pdb_files), desc="Processing PDBs"):
+                results, errors = future.result()
+                successful.extend(results)
+                all_errors.extend(errors)
 
     # Group by PDB ID so all chains of the same complex stay in the same split
     complexes = list(set([s["pdb_id"] for s in successful]))
