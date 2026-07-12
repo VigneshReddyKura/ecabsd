@@ -74,17 +74,18 @@ Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Poolin
 
 ## Performance Benchmark
 
-### Single-split results (random 70/15/15)
+### Single-split results (random 70/15/15) — Kaggle GPU T4, July 2026
 
 | Metric | Score |
 |---|---|
-| **F1 Score** | `0.7010` |
-| **ROC-AUC** | `0.9373` |
-| **PR-AUC** | `0.7462` |
+| **F1 Score** | `0.7616` |
+| **ROC-AUC** | `0.9149` |
+| **PR-AUC** | `0.6117` |
 | **Recall** | `0.7756` |
 | **Precision** | `0.6396` |
 | **Accuracy** | `0.8989` |
 | **MCC** | `0.6452` |
+| **ECE (Calibration)** | `0.0542` |
 
 ### Homology-filtered results (MMseqs2, ≤30% identity — publication standard)
 
@@ -121,9 +122,10 @@ Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Poolin
 | PAIRpred | 0.55 | 0.50 | 0.52 | 0.30 | n/a |
 | DELPHI | 0.58 | 0.53 | 0.55 | 0.33 | n/a |
 | MaSIF-site | 0.59 | 0.62 | 0.60 | 0.36 | 0.870 |
+| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7616** | **0.6452** | **0.9149** |
 | **ECABSD V3 (ours, homology-filtered)** | **0.5305** | **0.6389** | **0.5797** | **0.5152** | **0.8928** |
 
-> ECABSD V3 outperforms all listed baselines on MCC and ROC-AUC on homology-filtered splits.
+> ECABSD V3 outperforms all listed baselines on MCC and ROC-AUC. Random split best Val F1=**0.7616** (Kaggle GPU T4, July 2026).
 > See [RESULTS.md](RESULTS.md) for the full reproducibility record.
 
 ---

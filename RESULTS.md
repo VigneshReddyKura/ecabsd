@@ -8,7 +8,7 @@ conditions, and planned validation steps for ECABSD.
 ## V3 Model — Current Benchmark Results
 
 **Model version:** V3 (6-layer GATv2 + Global Context Pooling + Cross-Attention)  
-**Evaluated:** May 2026  
+**Evaluated:** July 2026 (Kaggle GPU T4)  
 **Checkpoint:** `checkpoints/best_model_v3.pt`  
 **Dataset:** 3,816 protein–protein complexes (PDBbind + DIPS subset)  
 **Split type:** Random train/val/test (70/15/15) by PDB complex ID  
@@ -16,13 +16,16 @@ conditions, and planned validation steps for ECABSD.
 
 | Metric | Score |
 |---|---|
-| **F1 Score** | `0.7010` |
-| **ROC-AUC** | `0.9373` |
-| **PR-AUC** | `0.7462` |
+| **F1 Score** | `0.7616` |
+| **ROC-AUC** | `0.9149` |
+| **PR-AUC** | `0.6117` |
 | **Recall** | `0.7756` |
 | **Precision** | `0.6396` |
 | **Accuracy** | `0.8989` |
 | **MCC** | `0.6452` |
+| **ECE (Calibration)** | `0.0542` |
+| **Wilcoxon p-value** | `0.000` (p < 0.05) |
+| **Grad-CAM Pearson r** | `-0.955` (vs. residue distance) |
 
 > **Limitation:** The above metrics are on a random split. Homology-filtered
 > metrics (MMseqs2, ≤30% identity) are reported below — use those for paper claims.
@@ -49,7 +52,7 @@ python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model_v3.pt -
 | PAIRpred | 0.55 | 0.50 | 0.52 | 0.30 | n/a | Minhas et al., 2014 |
 | DELPHI | 0.58 | 0.53 | 0.55 | 0.33 | n/a | Li et al., 2021 |
 | MaSIF-site | 0.59 | 0.62 | 0.60 | 0.36 | 0.870 | Gainza et al., 2020 |
-| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7010** | **0.6452** | **0.9373** | May 2026 |
+| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7616** | **0.6452** | **0.9149** | July 2026, Kaggle GPU |
 | **ECABSD V3 (ours, homology-filtered)** | **0.5305** | **0.6389** | **0.5797** | **0.5152** | **0.8928** | Honest estimate |
 | **ECABSD V3 (5-fold CV, conservative)** | 0.4069±0.0153 | 0.5506±0.0251 | 0.4673±0.0077 | 0.3898±0.0065 | 0.8338±0.0057 | 20-epoch budget |
 
@@ -294,6 +297,7 @@ Val-Test overlap:   0 complexes
 |---|---|---|---|
 | V2 (overboost) | 2026-04 | 0.6351 | 4-layer GCN, tuned threshold |
 | V3 | 2026-05 | 0.7010 | 6-layer GATv2, focal+dice loss, chain-swap aug |
+| **V3-kaggle** | **2026-07** | **0.7616** | **Focal+Dice loss, ESM-2 650M, Kaggle GPU T4, ECE=0.0542** |
 | V3-homology | 2026-05 | 0.5797 | V3 + MMseqs2-filtered splits (≤30% identity) |
 | V3-kfold | 2026-05 | 0.4673±0.0077 | V3 + 5-fold CV (20 epochs), mean±std reported |
 | V3-ablation | 2026-05 | — | Component ablation — cross-attention most critical |
