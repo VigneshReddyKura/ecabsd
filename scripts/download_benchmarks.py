@@ -11,13 +11,19 @@ def download_db5(output_dir):
     os.makedirs(output_dir, exist_ok=True)
     
     # URL for Benchmark 5 structures
-    url = "https://zlab.umassmed.edu/benchmark/benchmark5.5_structures.tgz"
-    tar_path = os.path.join(output_dir, "benchmark5.5_structures.tgz")
+    url = "https://zlab.umassmed.edu/benchmark/benchmark5.5.tgz"
+    fallback_url = "https://zenodo.org/record/8318025/files/benchmark5.5.tgz?download=1"
+    tar_path = os.path.join(output_dir, "benchmark5.5.tgz")
     
     if not os.path.exists(tar_path):
         print(f"Downloading DB5 from {url}...")
-        urllib.request.urlretrieve(url, tar_path)
-        print("Download complete.")
+        try:
+            urllib.request.urlretrieve(url, tar_path)
+            print("Download complete.")
+        except Exception as e:
+            print(f"Official download failed: {e}. Trying Zenodo fallback mirror...")
+            urllib.request.urlretrieve(fallback_url, tar_path)
+            print("Download from mirror complete.")
     else:
         print(f"Archive {tar_path} already exists. Skipping download.")
         
