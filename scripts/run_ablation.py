@@ -127,7 +127,8 @@ class AblationDatasetWrapper(torch.utils.data.Dataset):
         return {
             "data_a": data_a,
             "data_b": data_b,
-            "labels": sample["labels"]
+            "labels": sample["labels"],
+            "pdb_id": sample["pdb_id"]
         }
 
 def train_ablation_variant(variant_mode, epochs=2):
