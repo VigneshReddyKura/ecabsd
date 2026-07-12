@@ -190,7 +190,7 @@ if __name__ == "__main__":
     parser.add_argument("--train-ratio", type=float, default=0.7)
     parser.add_argument("--val-ratio", type=float, default=0.15)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--threads", type=int, default=8, help="Number of parallel processes")
+    parser.add_argument("--threads", type=int, default=1, help="Number of parallel processes")
     args = parser.parse_args()
 
     prepare_dataset(args.pdb_dir, args.output_dir, args.cutoff, args.train_ratio, args.val_ratio, args.seed, args.threads)
