@@ -225,10 +225,6 @@ def get_esm_embeddings(sequence: str) -> torch.Tensor:
     """Extract ESM2 per-residue embeddings."""
     global _esm_model, _esm_tokenizer
     if _esm_model is None:
-        # Prevent Windows fatal exception 0xc0000139 from broken torchvision DLL
-        import sys
-        sys.modules['torchvision'] = None
-
         # Resolve model based on memory availability to prevent server OOM crashes
         import psutil
         try:
