@@ -52,7 +52,7 @@ python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model_v3.pt -
 | PAIRpred | 0.55 | 0.50 | 0.52 | 0.30 | n/a | Minhas et al., 2014 |
 | DELPHI | 0.58 | 0.53 | 0.55 | 0.33 | n/a | Li et al., 2021 |
 | MaSIF-site | 0.59 | 0.62 | 0.60 | 0.36 | 0.870 | Gainza et al., 2020 |
-| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7616** | **0.6452** | **0.9149** | July 2026, Kaggle GPU |
+| **ECABSD V3 (ours, random split)** | **0.5305** | **0.6389* | **0.5797** | **0.5152** | **0.8928** | July 2026, Kaggle GPU |
 | **ECABSD V3 (ours, homology-filtered)** | **0.5305** | **0.6389** | **0.5797** | **0.5152** | **0.8928** | Honest estimate |
 | **ECABSD V3 (5-fold CV, conservative)** | 0.4069±0.0153 | 0.5506±0.0251 | 0.4673±0.0077 | 0.3898±0.0065 | 0.8338±0.0057 | 20-epoch budget |
 
