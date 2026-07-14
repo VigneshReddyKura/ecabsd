@@ -1,0 +1,66 @@
+# ECABSD Upgrade Prompt: Pushing to Top-Tier SOTA (Nature/Bioinformatics Standard)
+
+You are a Senior ML Engineer, Bioinformatics Researcher, and MLOps Expert. Your task is to execute a 4-phase upgrade of the ECABSD project to push it to state-of-the-art (SOTA) scientific quality for top-tier publication.
+
+---
+
+## Phase 1: Model Development & Architecture (Revised)
+
+1. **Evolutionary Feature Upgrade**:
+   - Replace the current 8M ESM-2 embeddings (33-dim) with the 650M parameter ESM-2 model (`esm2_t33_650M_UR50D` which outputs 1280-dim embeddings).
+   - Implement a projection layer in `models/ecabsd_v3_model.py` to project 1280-dim node features down to the GNN hidden dimension (256-dim).
+2. **Loss Optimization for Imbalance**:
+   - Implement Focal Loss or Class-Balanced Loss to address the high class imbalance (binding residues are <15% of the structure).
+3. **Hyperparameter Optimization**:
+   - Run systematic search (Grid/Random/Bayesian) over: Learning Rate, Hidden Dimension, Number of GAT Layers, Attention Heads, Dropout, and Weight Decay to maximize validation F1 and MCC.
+4. **Ablation Study**:
+   - Conduct ablation experiments evaluating components incrementally (e.g., GNN only vs. GNN + Cross Attention vs. GNN + Cross Attention + ESM embeddings vs. Full V3 model) to prove the marginal utility of each architectural module.
+5. **Robust Training**:
+   - Configure a training script optimized for high-end GPUs supporting mixed precision (`torch.amp`).
+   - Run 5-fold cross-validation on the homology-filtered splits (`splits_homology.csv`) for a full 80-epoch training run to ensure peak convergence.
+
+---
+
+## Phase 2: Scientific Validation & Rigor (Revised)
+
+1. **Unbound Protein Generalization**:
+   - Evaluate the trained model on unbound structures using the Docking Benchmark 5.5 (DB5.5) dataset.
+   - Generate metrics (F1, MCC, ROC-AUC) showing how well the model predicts interface residues when proteins change shape.
+2. **Statistical Significance**:
+   - Report confidence intervals and run statistical tests (e.g., p-values comparing performance gains against baselines) to verify that improvements are statistically significant and not due to chance.
+3. **Biological Hotspot & Mutation Analysis**:
+   - Conduct case studies on reference complexes (e.g. Barnase-Barstar 1BRS).
+   - Verify that residues with high Grad-CAM explainability scores match experimentally verified binding hotspots (alanine-scanning hotspots).
+4. **Error Analysis**:
+   - Analyze failures (False Positives, False Negatives) and document characteristics of difficult protein complexes (e.g., highly flexible regions, transient interfaces) to demonstrate scientific rigor.
+5. **SOTA Baselines**:
+   - Create a pipeline comparing ECABSD V3 directly against modern baselines: PeSTo, Delphi, MaSIF-site, and EquiBind.
+
+---
+
+## Phase 3: Web Platform & Interactive UI (Revised)
+
+1. **Interactive 3D Protein Viewer**:
+   - Integrate `3Dmol.js` or `NGL Viewer` into `web/templates/index.html`.
+   - Enable users to view the uploaded protein in 3D, with the predicted binding site residues colored dynamically in real-time.
+2. **3D Docking Overlay**:
+   - Allow users to execute AutoDock Vina and visualize the resulting ligand docking poses directly inside the browser's 3D viewer.
+3. **Download Options**:
+   - Allow researchers to export predictions in multiple formats: predicted residues list, raw Grad-CAM scores, CSV files, JSON payloads, and PDB files with prediction values mapped to the B-factor column for custom 3D visualization.
+4. **Inference Latency Optimization**:
+   - Optimize GNN and ESM feature extraction inference time (e.g., batching, CPU thread tuning, model quantization) while maintaining high prediction quality.
+
+---
+
+## Phase 4: Publication & Public Release (New)
+
+1. **Benchmark and Metrics Compilation**:
+   - Assemble final evaluation tables showing comparative metrics on random, homology-filtered, and cross-validation splits.
+2. **Reproducibility Package**:
+   - Package all scripts, environment configurations, and preprocessed graph files so that third-party researchers can replicate your training and evaluation in one click.
+3. **Zenodo Release & DOI**:
+   - Upload the best-performing checkpoints to Zenodo to obtain a permanent, citable digital object identifier (DOI) for academic reference.
+4. **Academic Documentation & Draft**:
+   - Compile architecture diagrams, ablation result charts, ROC/PR curves, a demo video showing the web interface, and prepare the draft of the research paper.
+5. **GitHub Release v1.0**:
+   - Merge the stable codebase, tag the release `v1.0.0`, and create a release record containing links to model weights and paper preprint drafts.
