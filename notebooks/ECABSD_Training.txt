@@ -432,7 +432,7 @@
     "cfg['data']['processed_dir'] = PROCESSED_DIR\n",
     "cfg['data']['splits_csv']    = ACTIVE_SPLITS\n",
     "cfg['paths']['checkpoints_dir'] = '/kaggle/working/checkpoints'\n",
-    "cfg['paths']['logs_dir']        = '/kaggle/working/logs'\n     cfg['model']['esm_dim']        = 1280\n",
+    "cfg['paths']['logs_dir']        = '/kaggle/working/logs'\ncfg['model']['esm_dim']        = 1280\n",
     "\n",
     "# Kaggle-tuned training params\n",
     "cfg['training']['epochs']   = 80    # within 9h limit\n",
