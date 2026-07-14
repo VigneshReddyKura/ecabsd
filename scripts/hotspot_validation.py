@@ -76,7 +76,7 @@ def run_hotspot_validation(config_path="config.yaml"):
     contact_changes = np.array(contact_changes)
 
     # Load model and calculate Grad-CAM saliency
-    model_loaded = False
+    is_mock_saliency = True
     checkpoint_path = os.path.join(cfg["paths"]["checkpoints_dir"], "best_model_v3.pt")
     
     if os.path.exists(checkpoint_path):
@@ -100,11 +100,12 @@ def run_hotspot_validation(config_path="config.yaml"):
             gradcam = GradCAM(model, target_layer_idx=-1)
             saliency = gradcam.compute(data_a, data_b)
             gradcam.remove_hooks()
-            model_loaded = True
+            is_mock_saliency = False
         except Exception as e:
             print(f"[WARN] Failed to run Grad-CAM on checkpoint: {e}. Falling back to mock saliency.")
             
-    if not model_loaded:
+    if is_mock_saliency:
+        print("[WARN] Using mock saliency (from distance) — re-run after Kaggle training for real Grad-CAM.")
         # Mock saliency based on actual distance: closer residues have higher scores + noise
         noise = np.random.normal(0, 0.08, len(residues_a))
         saliency = np.clip(1.0 - (min_distances / 12.0) + noise, 0, 1)
@@ -126,6 +127,8 @@ def run_hotspot_validation(config_path="config.yaml"):
 
     report = {
         "pdb_id": "1AY7",
+        "is_mock_saliency": is_mock_saliency,
+        "note": "MOCK saliency from distance — re-run after Kaggle training" if is_mock_saliency else "Real Grad-CAM from model checkpoint",
         "correlations": {
             "saliency_vs_interfacial_distance": {
                 "pearson_r": float(pearson_dist),

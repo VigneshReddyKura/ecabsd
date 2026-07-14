@@ -40,8 +40,9 @@ class CrossAttentionV3(nn.Module):
 class GCNEncoderV3(nn.Module):
     """
     6-layer GATv2 encoder with residual connections, LayerNorm, and GELU.
-    Input: 1280-dim ESM-2 features, projected to 256-dim.
-    Output: 256-dim per-residue embeddings.
+    When input_dim != hidden_dim: projects input to hidden_dim first (for ESM-2 1280-dim).
+    When input_dim == hidden_dim or input_dim is small: first GATv2Conv takes input directly.
+    Output: hidden_dim per-residue embeddings.
     """
     def __init__(
         self,
@@ -55,12 +56,19 @@ class GCNEncoderV3(nn.Module):
         super().__init__()
         assert hidden_dim % num_heads == 0, "hidden_dim must be divisible by num_heads"
 
-        self.input_proj = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout)
-        )
+        # Only use input projection when input_dim > hidden_dim (e.g., ESM-2 1280 -> 256)
+        self.use_input_proj = (input_dim > hidden_dim)
+        if self.use_input_proj:
+            self.input_proj = nn.Sequential(
+                nn.Linear(input_dim, hidden_dim),
+                nn.LayerNorm(hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout)
+            )
+            first_layer_in = hidden_dim
+        else:
+            # No projection: first GATv2Conv takes raw input_dim directly
+            first_layer_in = input_dim
 
         head_dim = hidden_dim // num_heads
         self.drop = nn.Dropout(dropout)
@@ -70,26 +78,37 @@ class GCNEncoderV3(nn.Module):
         self.norms = nn.ModuleList()
 
         for i in range(num_layers):
+            # Determine input dimension for this layer
+            in_dim = first_layer_in if i == 0 else hidden_dim
+
             if i == num_layers - 1:
                 self.convs.append(
-                    GATv2Conv(hidden_dim, hidden_dim, heads=1, edge_dim=edge_dim, dropout=dropout, concat=False)
+                    GATv2Conv(in_dim, hidden_dim, heads=1, edge_dim=edge_dim, dropout=dropout, concat=False)
                 )
             else:
                 self.convs.append(
-                    GATv2Conv(hidden_dim, head_dim, heads=num_heads, edge_dim=edge_dim, dropout=dropout, concat=True)
+                    GATv2Conv(in_dim, head_dim, heads=num_heads, edge_dim=edge_dim, dropout=dropout, concat=True)
                 )
                 self.norms.append(nn.LayerNorm(hidden_dim))
 
     def forward(self, x, edge_index, edge_attr):
-        h = self.input_proj(x)
+        if self.use_input_proj:
+            h = self.input_proj(x)
+        else:
+            h = x
         for i, conv in enumerate(self.convs):
             h_new = conv(h, edge_index, edge_attr)
             if i < self.num_layers - 1:
                 h_new = F.gelu(self.norms[i](h_new))
-                h_new = h_new + h
+                # Residual only when dims match (skip for first layer if input_dim != hidden_dim)
+                if h.size(-1) == h_new.size(-1):
+                    h_new = h_new + h
                 h = self.drop(h_new)
             else:
-                h = h_new + h
+                if h.size(-1) == h_new.size(-1):
+                    h = h_new + h
+                else:
+                    h = h_new
         return h
 
 

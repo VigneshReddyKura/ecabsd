@@ -85,7 +85,7 @@ Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Poolin
 | **Precision** | `0.6396` |
 | **Accuracy** | `0.8989` |
 | **MCC** | `0.6452` |
-| **ECE (Calibration)** | `0.0542` |
+| **ECE (Calibration)** | `0.0622` |
 
 ### Homology-filtered results (MMseqs2, ≤30% identity — publication standard)
 

@@ -168,35 +168,37 @@ def run_benchmark(
 
 
 def _print_and_save(ecabsd_metrics, output_path, per_structure, report_only=False):
-    mode_note = " (homology-filtered, honest estimate)" if report_only else ""
+    mode_note = " (homology-filtered split)" if report_only else " (live inference)"
 
-    print(f"\n{'='*75}")
-    print(f"  ECABSD vs Baseline Methods — Binding Site Prediction Benchmark")
-    print(f"{'='*75}")
-    print(f"  {'Method':<18s} {'Precision':>10s} {'Recall':>10s} {'F1':>10s} {'MCC':>10s} {'ROC-AUC':>10s}")
-    print(f"  {'─'*65}")
+    print(f"\n{'='*85}")
+    print(f"  ECABSD vs Baseline Methods -- Binding Site Prediction Benchmark")
+    print(f"  NOTE: Baselines are literature-reported on their own datasets, NOT re-run on ours.")
+    print(f"{'='*85}")
+    print(f"  {'Method':<28s} {'Precision':>10s} {'Recall':>10s} {'F1':>10s} {'MCC':>10s} {'ROC-AUC':>10s}")
+    print(f"  {'-'*75}")
 
     for method, scores in BASELINE_RESULTS.items():
         roc = f"{scores['roc_auc']:.4f}" if scores["roc_auc"] else "  n/a  "
-        print(f"  {method:<18s} {scores['precision']:>10.4f} {scores['recall']:>10.4f} "
+        label = f"{method} (literature)"
+        print(f"  {label:<28s} {scores['precision']:>10.4f} {scores['recall']:>10.4f} "
               f"{scores['f1']:>10.4f} {scores['mcc']:>10.4f} {roc:>10s}")
 
-    print(f"  {'─'*65}")
+    print(f"  {'-'*75}")
     roc_str = f"{ecabsd_metrics['roc_auc']:.4f}" if ecabsd_metrics.get("roc_auc") else "  n/a  "
-    label = f"ECABSD V3{mode_note}"
-    print(f"  {'ECABSD V3 (ours)':<18s} {ecabsd_metrics['precision']:>10.4f} "
+    label = f"ECABSD V3 (ours){mode_note}"
+    print(f"  {label:<28s} {ecabsd_metrics['precision']:>10.4f} "
           f"{ecabsd_metrics['recall']:>10.4f} {ecabsd_metrics['f1']:>10.4f} "
           f"{ecabsd_metrics['mcc']:>10.4f} {roc_str:>10s}")
-    print(f"{'='*75}")
+    print(f"{'='*85}")
 
     # Also print the kfold honest estimate
     kf = ECABSD_V3_KNOWN["kfold_mean"]
     kf_std = ECABSD_V3_KNOWN["kfold_std"]
     print(f"\n  5-Fold CV (homology-aware, most conservative):")
-    print(f"  F1 = {kf['f1']:.4f} ± {kf_std['f1']:.4f}  |  "
-          f"ROC-AUC = {kf['roc_auc']:.4f} ± {kf_std['roc_auc']:.4f}  |  "
-          f"MCC = {kf['mcc']:.4f} ± {kf_std['mcc']:.4f}")
-    print(f"  (20-epoch budget; full 80-epoch expected F1 ≈ 0.58)\n")
+    print(f"  F1 = {kf['f1']:.4f} +/- {kf_std['f1']:.4f}  |  "
+          f"ROC-AUC = {kf['roc_auc']:.4f} +/- {kf_std['roc_auc']:.4f}  |  "
+          f"MCC = {kf['mcc']:.4f} +/- {kf_std['mcc']:.4f}")
+    print(f"  (20-epoch budget; full 80-epoch expected F1 ~ 0.58)\n")
 
     # Save CSV
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)

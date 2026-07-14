@@ -14,21 +14,21 @@ conditions, and planned validation steps for ECABSD.
 **Split type:** Random train/val/test (70/15/15) by PDB complex ID  
 **Optimal threshold:** Determined by PR-curve sweep on validation set  
 
-| Metric | Score |
-|---|---|
-| **F1 Score** | `0.7616` |
-| **ROC-AUC** | `0.9149` |
-| **PR-AUC** | `0.6117` |
-| **Recall** | `0.7756` |
-| **Precision** | `0.6396` |
-| **Accuracy** | `0.8989` |
-| **MCC** | `0.6452` |
-| **ECE (Calibration)** | `0.0542` |
-| **Wilcoxon p-value** | `0.000` (p < 0.05) |
-| **Grad-CAM Pearson r** | `-0.955` (vs. residue distance) |
+| Metric | Random Split | Homology-Filtered (≤30% ID) |
+|---|---|---|
+| **F1 Score** | `0.7010` | `0.5797` |
+| **ROC-AUC** | `0.9373` | `0.8928` |
+| **PR-AUC** | `0.7462` | `0.6077` |
+| **Recall** | `0.7756` | `0.6389` |
+| **Precision** | `0.6396` | `0.5305` |
+| **Accuracy** | `0.8989` | `0.8828` |
+| **MCC** | `0.6452` | `0.5152` |
+| **ECE (Calibration)** | `0.0622` | — |
+| **Wilcoxon p-value** | `< 0.05` (vs. noise baseline) | — |
+| **Grad-CAM Pearson r** | `-0.955` (vs. residue distance) | — |
 
-> **Limitation:** The above metrics are on a random split. Homology-filtered
-> metrics (MMseqs2, ≤30% identity) are reported below — use those for paper claims.
+> **Limitation:** Random-split metrics are inflated due to potential homology leakage.
+> **Use the homology-filtered column for any paper/publication claims.**
 
 ---
 
@@ -44,23 +44,29 @@ python scripts/benchmark_crossPPI.py --checkpoint checkpoints/best_model_v3.pt -
 
 ### Per-residue binding site prediction — comparison against published methods
 
-| Method | Precision | Recall | F1 | MCC | ROC-AUC | Notes |
-|---|---|---|---|---|---|---|
-| SPPIDER | 0.45 | 0.52 | 0.48 | 0.25 | n/a | Porollo & Meller, 2007 |
-| ProMate | 0.42 | 0.48 | 0.45 | 0.22 | n/a | Neuvirth et al., 2004 |
-| PSIVER | 0.50 | 0.45 | 0.47 | 0.24 | n/a | Murakami & Mizuguchi, 2010 |
-| PAIRpred | 0.55 | 0.50 | 0.52 | 0.30 | n/a | Minhas et al., 2014 |
-| DELPHI | 0.58 | 0.53 | 0.55 | 0.33 | n/a | Li et al., 2021 |
-| MaSIF-site | 0.59 | 0.62 | 0.60 | 0.36 | 0.870 | Gainza et al., 2020 |
-| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7616** | **0.6452** | **0.9149** | July 2026, Kaggle GPU |
-| **ECABSD V3 (ours, homology-filtered)** | **0.5305** | **0.6389** | **0.5797** | **0.5152** | **0.8928** | Honest estimate |
-| **ECABSD V3 (5-fold CV, conservative)** | 0.4069±0.0153 | 0.5506±0.0251 | 0.4673±0.0077 | 0.3898±0.0065 | 0.8338±0.0057 | 20-epoch budget |
+> ⚠️ **Important — Evaluation Transparency:** Baseline numbers (SPPIDER through MaSIF-site) are
+> **literature-reported values** from their original papers, evaluated on **their own respective
+> benchmark datasets**. They are **not** re-run by us on our dataset. Direct numerical comparison
+> is therefore indicative, not definitive. ECABSD is evaluated on our own homology-filtered
+> PDBbind+DIPS test split.
 
-> **Key takeaway:** ECABSD V3 outperforms all listed baselines on both random and
-> homology-filtered splits. The homology-filtered F1 (0.5797) is the most honest
-> comparison since baselines were also evaluated on non-homology-filtered sets.
-> The 5-fold CV F1 (0.4673) is a conservative lower bound due to the 20-epoch
-> training budget; full 80-epoch retraining is expected to yield F1 ≈ 0.58.
+| Method | Precision | Recall | F1 | MCC | ROC-AUC | Evaluation Source |
+|---|---|---|---|---|---|---|
+| SPPIDER | 0.45 | 0.52 | 0.48 | 0.25 | n/a | Porollo & Meller, 2007 — literature |
+| ProMate | 0.42 | 0.48 | 0.45 | 0.22 | n/a | Neuvirth et al., 2004 — literature |
+| PSIVER | 0.50 | 0.45 | 0.47 | 0.24 | n/a | Murakami & Mizuguchi, 2010 — literature |
+| PAIRpred | 0.55 | 0.50 | 0.52 | 0.30 | n/a | Minhas et al., 2014 — literature |
+| DELPHI | 0.58 | 0.53 | 0.55 | 0.33 | n/a | Li et al., 2021 — literature |
+| MaSIF-site | 0.59 | 0.62 | 0.60 | 0.36 | 0.870 | Gainza et al., 2020 — literature |
+| **ECABSD V3 (ours, homology-filtered)** | **0.5305** | **0.6389** | **0.5797** | **0.5152** | **0.8928** | This work — our test split |
+| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7010** | **0.6452** | **0.9373** | This work — inflated, for reference only |
+| **ECABSD V3 (5-fold CV, 20-epoch)** | 0.4069±0.0153 | 0.5506±0.0251 | 0.4673±0.0077 | 0.3898±0.0065 | 0.8338±0.0057 | This work — conservative lower bound |
+
+> **Key takeaway:** The homology-filtered F1 (0.5797) is the scientifically honest
+> metric to report in any paper, as it controls for sequence similarity between
+> train and test sets. The 5-fold CV result (0.4673 ± 0.0077) provides a
+> conservative lower bound using only a 20-epoch budget per fold; full 80-epoch
+> retraining is expected to yield F1 ≈ 0.58.
 
 ---
 
@@ -297,7 +303,7 @@ Val-Test overlap:   0 complexes
 |---|---|---|---|
 | V2 (overboost) | 2026-04 | 0.6351 | 4-layer GCN, tuned threshold |
 | V3 | 2026-05 | 0.7010 | 6-layer GATv2, focal+dice loss, chain-swap aug |
-| **V3-kaggle** | **2026-07** | **0.7616** | **Focal+Dice loss, ESM-2 650M, Kaggle GPU T4, ECE=0.0542** |
+| **V3-kaggle** | **2026-07** | **0.7010** (random) / **0.5797** (homology) | Focal+Dice loss, ESM-2 8M, Kaggle GPU T4, ECE=0.0622 |
 | V3-homology | 2026-05 | 0.5797 | V3 + MMseqs2-filtered splits (≤30% identity) |
 | V3-kfold | 2026-05 | 0.4673±0.0077 | V3 + 5-fold CV (20 epochs), mean±std reported |
 | V3-ablation | 2026-05 | — | Component ablation — cross-attention most critical |

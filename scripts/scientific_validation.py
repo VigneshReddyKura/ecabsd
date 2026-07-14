@@ -35,6 +35,8 @@ def run_scientific_validation(config_path="config.yaml", num_resamples=1000):
     
     if not (os.path.exists(processed_dir) and os.path.exists(splits_csv)):
         print("[WARN] Dataset not found on disk. Generating mock data for statistical test...")
+        print("[WARN] Results will be labeled as MOCK — re-run after Kaggle training for real results.")
+        is_mock_run = True
         # Mock dataset behavior for testing
         all_labels = np.random.randint(0, 2, 5000)
         # Mock predictions with F1 ~0.65
@@ -42,6 +44,7 @@ def run_scientific_validation(config_path="config.yaml", num_resamples=1000):
         all_probs = np.clip(all_labels * 0.7 + 0.15 + noise, 0, 1)
         all_preds = (all_probs >= 0.5).astype(int)
     else:
+        is_mock_run = False
         test_dataset = BindingSiteDataset(processed_dir, splits_csv, split="test")
         test_loader = DataLoader(
             test_dataset, batch_size=cfg["training"]["batch_size"], shuffle=False,
@@ -89,6 +92,7 @@ def run_scientific_validation(config_path="config.yaml", num_resamples=1000):
                     all_probs.extend(probs.tolist())
                     all_preds.extend(preds.tolist())
         else:
+            is_mock_run = True
             print("[WARN] Model checkpoint not found or incompatible. Running validation using mock predictions...")
             # Generate mock predictions based on labels to simulate a valid run
             for sample in test_loader:
@@ -173,7 +177,9 @@ def run_scientific_validation(config_path="config.yaml", num_resamples=1000):
             "wilcoxon_stat": float(stat),
             "p_value": float(p_val),
             "statistically_significant": bool(p_val < 0.05)
-        }
+        },
+        "is_mock_run": is_mock_run,
+        "note": "MOCK DATA — re-run after Kaggle training for real results" if is_mock_run else "Real model inference on test set"
     }
     
     report_path = os.path.join(results_dir, "statistical_validation.json")
