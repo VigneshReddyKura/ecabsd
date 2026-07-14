@@ -383,8 +383,25 @@ def get_model(config_path: str = "config.yaml"):
         _config = load_config(config_path)
         _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        ckpt_path = os.path.join(root, "checkpoints", "best_model_v3.pt")
+        detected_dim = _config["model"].get("esm_dim", 1280)
+        state_dict = None
+        
+        if os.path.exists(ckpt_path):
+            try:
+                ckpt = torch.load(ckpt_path, map_location=_device, weights_only=False)
+                state_dict = ckpt["model_state_dict"]
+                if "gcn_encoder.input_proj.0.weight" in state_dict:
+                    detected_dim = state_dict["gcn_encoder.input_proj.0.weight"].shape[1]
+                else:
+                    detected_dim = state_dict["gcn_encoder.convs.0.lin_l.weight"].shape[1]
+                print(f"[Web] Dynamically detected input_dim={detected_dim} from checkpoint.")
+            except Exception as e:
+                print(f"[Web] WARNING: Failed to inspect checkpoint: {e}")
+
         _model = ECABSDModel(
-            input_dim=_config["model"].get("esm_dim", 1280),
+            input_dim=detected_dim,
             hidden_dim=_config["model"]["hidden_dim"],
             num_heads=_config["model"]["num_heads"],
             dropout=_config["model"]["dropout"],
@@ -392,11 +409,8 @@ def get_model(config_path: str = "config.yaml"):
             num_gcn_layers=_config["model"].get("num_gcn_layers", 6),
         ).to(_device)
 
-        root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        ckpt_path = os.path.join(root, "checkpoints", "best_model_v3.pt")
-        if os.path.exists(ckpt_path):
-            ckpt = torch.load(ckpt_path, map_location=_device, weights_only=False)
-            _model.load_state_dict(ckpt["model_state_dict"], strict=False)
+        if state_dict is not None:
+            _model.load_state_dict(state_dict)
             _model.best_threshold = ckpt.get("best_threshold", 0.52)
             print(f"[Web] V3 model loaded from: {ckpt_path}")
         else:

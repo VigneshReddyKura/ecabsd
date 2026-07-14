@@ -119,9 +119,24 @@ def run_calibration_analysis():
                 num_workers=0, collate_fn=collate_fn
             )
             
+            ckpt_path = os.path.join(cfg["paths"]["checkpoints_dir"], "best_model_v3.pt")
+            detected_dim = cfg["model"].get("esm_dim", 1280)
+            state_dict = None
+            if os.path.exists(ckpt_path):
+                try:
+                    ckpt = torch.load(ckpt_path, map_location=device)
+                    state_dict = ckpt["model_state_dict"]
+                    if "gcn_encoder.input_proj.0.weight" in state_dict:
+                        detected_dim = state_dict["gcn_encoder.input_proj.0.weight"].shape[1]
+                    else:
+                        detected_dim = state_dict["gcn_encoder.convs.0.lin_l.weight"].shape[1]
+                    print(f"[ECABSD] Dynamically detected input_dim={detected_dim} from checkpoint.")
+                except Exception as e:
+                    print(f"[WARN] Failed to inspect checkpoint: {e}. Using config dimension.")
+
             # Load model
             model = ECABSDModel(
-                input_dim=cfg["model"].get("esm_dim", 1280),
+                input_dim=detected_dim,
                 hidden_dim=cfg["model"]["hidden_dim"],
                 num_heads=cfg["model"]["num_heads"],
                 dropout=0.0,
@@ -129,13 +144,11 @@ def run_calibration_analysis():
                 num_gcn_layers=cfg["model"].get("num_gcn_layers", 6),
             ).to(device)
             
-            ckpt_path = os.path.join(cfg["paths"]["checkpoints_dir"], "best_model_v3.pt")
-            if os.path.exists(ckpt_path):
-                ckpt = torch.load(ckpt_path, map_location=device)
-                model.load_state_dict(ckpt["model_state_dict"], strict=False)
+            if state_dict is not None:
+                model.load_state_dict(state_dict)
                 print(f"[ECABSD] Loaded model from: {ckpt_path}")
             else:
-                print("[WARN] Checkpoint not found. Using randomly initialized model.")
+                print("[WARN] Checkpoint not found or failed to load. Using randomly initialized model.")
                 
             model.eval()
             with torch.no_grad():

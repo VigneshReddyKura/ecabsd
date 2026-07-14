@@ -72,17 +72,6 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
     print(f"[ECABSD] Evaluating on device: {device}")
 
     # Load model — must match training architecture exactly (V3)
-    model = ECABSDModel(
-        input_dim=mcfg.get("esm_dim", 33),
-        hidden_dim=mcfg["hidden_dim"],
-        num_heads=mcfg["num_heads"],
-        dropout=0.0,  # No dropout during evaluation
-        edge_dim=mcfg.get("edge_feature_dim", 5),
-        num_gcn_layers=mcfg.get("num_gcn_layers", 6),
-    ).to(device)
-
-    # Load checkpoint and recover saved threshold
-    saved_threshold = cfg["prediction"].get("threshold", 0.5)
     norm_path = os.path.normpath(checkpoint_path)
     default_norm_path = os.path.normpath("checkpoints/best_model_v3.pt")
     if not os.path.exists(norm_path) and norm_path == default_norm_path:
@@ -93,15 +82,39 @@ def run_evaluation(config_path: str = "config.yaml", checkpoint_path: str = "che
         except Exception as e:
             print(f"[ECABSD] WARNING: Failed to automatically download checkpoint: {e}")
 
+    detected_dim = mcfg.get("esm_dim", 1280)
+    state_dict = None
+    saved_threshold = cfg["prediction"].get("threshold", 0.5)
+    
     if os.path.exists(norm_path):
-        checkpoint = torch.load(norm_path, map_location=device)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        saved_threshold = checkpoint.get("best_threshold", saved_threshold)
+        try:
+            checkpoint = torch.load(norm_path, map_location=device)
+            state_dict = checkpoint["model_state_dict"]
+            if "gcn_encoder.input_proj.0.weight" in state_dict:
+                detected_dim = state_dict["gcn_encoder.input_proj.0.weight"].shape[1]
+            else:
+                detected_dim = state_dict["gcn_encoder.convs.0.lin_l.weight"].shape[1]
+            saved_threshold = checkpoint.get("best_threshold", saved_threshold)
+            print(f"[ECABSD] Dynamically detected input_dim={detected_dim} from checkpoint.")
+        except Exception as e:
+            print(f"[ECABSD] WARNING: Failed to inspect checkpoint: {e}")
+
+    # Load model — must match training architecture exactly (V3)
+    model = ECABSDModel(
+        input_dim=detected_dim,
+        hidden_dim=mcfg["hidden_dim"],
+        num_heads=mcfg["num_heads"],
+        dropout=0.0,  # No dropout during evaluation
+        edge_dim=mcfg.get("edge_feature_dim", 5),
+        num_gcn_layers=mcfg.get("num_gcn_layers", 6),
+    ).to(device)
+
+    if state_dict is not None:
+        model.load_state_dict(state_dict)
         print(f"[ECABSD] Loaded checkpoint from: {norm_path}")
         print(f"[ECABSD] Using saved threshold: {saved_threshold:.4f}")
     else:
-        print(f"[ECABSD] WARNING: No checkpoint found at {norm_path}")
-        print(f"[ECABSD] Running with random weights for demonstration.")
+        print(f"[ECABSD] WARNING: No checkpoint found at {norm_path} or failed to load. Using random weights.")
 
     model.eval()
 

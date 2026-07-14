@@ -81,16 +81,24 @@ def run_hotspot_validation(config_path="config.yaml"):
     
     if os.path.exists(checkpoint_path):
         try:
+            ckpt = torch.load(checkpoint_path, map_location=device)
+            state_dict = ckpt["model_state_dict"]
+            # Dynamically detect input_dim from checkpoint state_dict
+            if "gcn_encoder.input_proj.0.weight" in state_dict:
+                detected_dim = state_dict["gcn_encoder.input_proj.0.weight"].shape[1]
+            else:
+                detected_dim = state_dict["gcn_encoder.convs.0.lin_l.weight"].shape[1]
+            print(f"[Hotspot] Dynamically detected input_dim={detected_dim} from checkpoint.")
+            
             model = ECABSDModel(
-                input_dim=cfg["model"].get("esm_dim", 1280),
+                input_dim=detected_dim,
                 hidden_dim=cfg["model"]["hidden_dim"],
                 num_heads=cfg["model"]["num_heads"],
                 dropout=cfg["model"]["dropout"],
                 edge_dim=cfg["model"].get("edge_feature_dim", 5),
                 num_gcn_layers=cfg["model"].get("num_gcn_layers", 6),
             ).to(device)
-            ckpt = torch.load(checkpoint_path, map_location=device)
-            model.load_state_dict(ckpt["model_state_dict"])
+            model.load_state_dict(state_dict)
             model.eval()
             
             data_a = build_residue_graph(pdb_path, 'A')

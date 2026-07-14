@@ -70,8 +70,26 @@ def run_prediction(
         except Exception as e:
             print(f"[ECABSD] WARNING: Failed to automatically download checkpoint: {e}")
 
+    detected_dim = mcfg.get("esm_dim", 1280)
+    state_dict = None
+    cfg_threshold = cfg["prediction"].get("threshold", 0.5)
+    ckpt_threshold = cfg_threshold
+    
+    if os.path.exists(checkpoint_path):
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            state_dict = checkpoint["model_state_dict"]
+            if "gcn_encoder.input_proj.0.weight" in state_dict:
+                detected_dim = state_dict["gcn_encoder.input_proj.0.weight"].shape[1]
+            else:
+                detected_dim = state_dict["gcn_encoder.convs.0.lin_l.weight"].shape[1]
+            ckpt_threshold = checkpoint.get("best_threshold", cfg_threshold)
+            print(f"[ECABSD] Dynamically detected input_dim={detected_dim} from checkpoint.")
+        except Exception as e:
+            print(f"[ECABSD] WARNING: Failed to inspect checkpoint: {e}")
+
     model = ECABSDModel(
-        input_dim=mcfg.get("input_dim", mcfg.get("esm_dim", 33)),
+        input_dim=detected_dim,
         hidden_dim=mcfg["hidden_dim"],
         num_heads=mcfg["num_heads"],
         dropout=0.0,
@@ -79,21 +97,12 @@ def run_prediction(
         num_gcn_layers=mcfg.get("num_gcn_layers", 6)
     ).to(device)
 
-    # Resolve threshold: CLI arg > checkpoint value > config value
-    cfg_threshold = cfg["prediction"].get("threshold", 0.5)
-    if os.path.exists(checkpoint_path):
-        try:
-            checkpoint = torch.load(checkpoint_path, map_location=device)
-            model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-            ckpt_threshold = checkpoint.get("best_threshold", cfg_threshold)
-            print(f"[ECABSD] Loaded model from: {checkpoint_path}")
-            print(f"[ECABSD] Checkpoint threshold: {ckpt_threshold:.4f}")
-        except (RuntimeError, ValueError) as e:
-            print(f"[ECABSD] WARNING: Incompatible checkpoint at {checkpoint_path} ({e}). Using random weights.")
-            ckpt_threshold = cfg_threshold
+    if state_dict is not None:
+        model.load_state_dict(state_dict)
+        print(f"[ECABSD] Loaded model from: {checkpoint_path}")
+        print(f"[ECABSD] Checkpoint threshold: {ckpt_threshold:.4f}")
     else:
-        print(f"[ECABSD] WARNING: No checkpoint at {checkpoint_path}. Using random weights.")
-        ckpt_threshold = cfg_threshold
+        print(f"[ECABSD] WARNING: No checkpoint at {checkpoint_path} or failed to load. Using random weights.")
 
     if threshold is None:
         threshold = ckpt_threshold
