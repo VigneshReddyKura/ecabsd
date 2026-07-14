@@ -54,6 +54,7 @@ class GCNEncoderV3(nn.Module):
         num_layers: int = 6,
     ):
         super().__init__()
+        self.input_dim = input_dim
         assert hidden_dim % num_heads == 0, "hidden_dim must be divisible by num_heads"
 
         # Only use input projection when input_dim > hidden_dim (e.g., ESM-2 1280 -> 256)
@@ -195,10 +196,17 @@ class ECABSDModelV3(nn.Module):
         logits   : (N_a, 1) raw logits per residue
         attn_list: list of attention weight tensors per sample in batch
         """
+        # Dynamically select node features: if model expects 33-dim inputs (legacy checkpoint)
+        # and structural features are attached, use those; otherwise use default data.x
+        use_structural = (self.gcn_encoder.input_dim == 33)
+        
+        x_a = data_a.x_structural if (use_structural and hasattr(data_a, "x_structural") and data_a.x_structural is not None) else data_a.x
+        x_b = data_b.x_structural if (use_structural and data_b is not None and hasattr(data_b, "x_structural") and data_b.x_structural is not None) else (data_b.x if data_b is not None else None)
+
         # Encode both chains through shared GATv2 encoder
-        h_a = self.encode_chain(data_a.x, data_a.edge_index, data_a.edge_attr)
-        h_b = self.encode_chain(data_b.x, data_b.edge_index, data_b.edge_attr) \
-              if data_b is not None else h_a
+        h_a = self.encode_chain(x_a, data_a.edge_index, data_a.edge_attr)
+        h_b = self.encode_chain(x_b, data_b.edge_index, data_b.edge_attr) \
+              if x_b is not None else h_a
 
         # Handle batching
         batch_a = data_a.batch if hasattr(data_a, 'batch') and data_a.batch is not None \
