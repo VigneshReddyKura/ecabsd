@@ -48,6 +48,8 @@ Click **Run All** and wait. Full pipeline takes ~6–8 hours.
 | 9 | **Train V3 model** (main step) | ~3–5 hours |
 | 10 | Evaluate best checkpoint | ~5 min |
 | 11 | **5-fold cross-validation** | ~4–6 hours |
+| 11a | **Ablation Study** (Component Validation) | ~15–30 min |
+| 11b | **Hyperparameter Optimization** (HPO Sweep) | ~30–60 min |
 | 12 | Print final results summary | ~5s |
 | 13 | Save outputs for download | ~30s |
 | 14 | Push results to GitHub (optional) | ~30s |
