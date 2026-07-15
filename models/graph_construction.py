@@ -241,7 +241,17 @@ def get_esm_embeddings(sequence: str) -> torch.Tensor:
 
         from transformers import EsmModel, AutoTokenizer
         _esm_tokenizer = AutoTokenizer.from_pretrained(model_name)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        import sys
+        script_name = os.path.basename(sys.argv[0]) if len(sys.argv) > 0 else ""
+        is_prep = ("prepare" in script_name or "dips" in script_name)
+        
+        if is_prep:
+            device = torch.device("cpu")
+            torch.set_num_threads(1)
+            print(f"[ECABSD] Preprocessing mode: forcing CPU execution for ESM on worker.")
+        else:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            
         _esm_model = EsmModel.from_pretrained(model_name).to(device)
         _esm_model.eval()
 
