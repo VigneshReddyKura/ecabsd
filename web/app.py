@@ -169,12 +169,12 @@ def get_heatmap_plot_base64(probs, title, residues=None):
                 
         ax2.set_ylim(-0.05, 1.10)
         
-        threshold_val = 0.52
+        threshold_val = 0.5907
         ax2.axhline(y=threshold_val, color="#f43f5e", linestyle="--", linewidth=1.5, alpha=0.85, zorder=4,
                     label=f"Decision Threshold ({threshold_val:.2f})")
         
         # Highlight sites above threshold
-        binding_idxs = np.where(probs_np >= threshold_val)[0]
+        binding_idxs = np.where(probs_np >= threshold_val)[0]  # threshold_val = 0.5907
         if len(binding_idxs) > 0:
             ax2.scatter(binding_idxs, probs_np[binding_idxs], color="#10b981", s=30, zorder=5, edgecolors='#080b14', linewidth=1, label="Predicted Binding Sites")
             
@@ -411,11 +411,15 @@ def get_model(config_path: str = "config.yaml"):
 
         if state_dict is not None:
             _model.load_state_dict(state_dict)
-            _model.best_threshold = ckpt.get("best_threshold", 0.52)
-            print(f"[Web] V3 model loaded from: {ckpt_path}")
+            # Use threshold from config.yaml (PR-curve optimized: 0.5907); fallback to checkpoint value
+            config_threshold = _config.get("prediction", {}).get("threshold", None)
+            ckpt_threshold = ckpt.get("best_threshold", None)
+            _model.best_threshold = config_threshold or ckpt_threshold or 0.5907
+            print(f"[Web] V3 model loaded from: {ckpt_path}. Threshold: {_model.best_threshold}")
         else:
-            _model.best_threshold = 0.52
-            print(f"[Web] WARNING: V3 checkpoint not found at {ckpt_path}")
+            config_threshold = _config.get("prediction", {}).get("threshold", 0.5907)
+            _model.best_threshold = config_threshold
+            print(f"[Web] WARNING: V3 checkpoint not found at {ckpt_path}. Using config threshold: {_model.best_threshold}")
         _model.eval()
     return _model, _device, _config
 
