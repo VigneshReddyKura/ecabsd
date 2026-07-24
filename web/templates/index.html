@@ -56,13 +56,13 @@
         using interpretable deep learning and structural biology.
       </p>
       <div class="hero-stats">
-        <div class="stat"><span class="stat-val">23</span><span class="stat-lbl">Node Features</span></div>
+        <div class="stat"><span class="stat-val">33</span><span class="stat-lbl">Node Features</span></div>
         <div class="stat-divider"></div>
-        <div class="stat"><span class="stat-val">8Å</span><span class="stat-lbl">Graph Cutoff</span></div>
+        <div class="stat"><span class="stat-val">10Å</span><span class="stat-lbl">Graph Cutoff</span></div>
         <div class="stat-divider"></div>
-        <div class="stat"><span class="stat-val">128</span><span class="stat-lbl">Hidden Dim</span></div>
+        <div class="stat"><span class="stat-val">256</span><span class="stat-lbl">Hidden Dim</span></div>
         <div class="stat-divider"></div>
-        <div class="stat"><span class="stat-val">8</span><span class="stat-lbl">Attn Heads</span></div>
+        <div class="stat"><span class="stat-val">4</span><span class="stat-lbl">Attn Heads</span></div>
       </div>
     </div>
   </section>
@@ -147,27 +147,27 @@
             <div class="arch-arrow">↓</div>
             <div class="arch-node">
               <div class="arch-node-icon">🔗</div>
-              <div class="arch-node-label">Graph Construction<br/><small>8Å cutoff · 23 features</small></div>
+              <div class="arch-node-label">Graph Construction<br/><small>10Å cutoff · 33 features (ESM-2)</small></div>
             </div>
             <div class="arch-arrow">↓</div>
             <div class="arch-node">
               <div class="arch-node-icon">🌐</div>
-              <div class="arch-node-label">GCN Encoder<br/><small>4 layers · 128-dim</small></div>
+              <div class="arch-node-label">GATv2 Encoder<br/><small>6 layers · 256-dim · residual</small></div>
             </div>
             <div class="arch-arrow">↓</div>
             <div class="arch-node">
               <div class="arch-node-icon">✨</div>
-              <div class="arch-node-label">SE(3) Refinement<br/><small>Equivariant</small></div>
+              <div class="arch-node-label">Global Context Pooling<br/><small>SE(3)-aware · chain summary</small></div>
             </div>
             <div class="arch-arrow">↓</div>
             <div class="arch-node attn-node">
               <div class="arch-node-icon">🎯</div>
-              <div class="arch-node-label">Cross-Attention<br/><small>8 heads</small></div>
+              <div class="arch-node-label">Cross-Attention<br/><small>4 heads · 256-dim</small></div>
             </div>
             <div class="arch-arrow">↓</div>
             <div class="arch-node output-node">
               <div class="arch-node-icon">📊</div>
-              <div class="arch-node-label">Per-residue Classifier<br/><small>Binding Probability</small></div>
+              <div class="arch-node-label">Per-residue Classifier<br/><small>3-layer MLP · Sigmoid</small></div>
             </div>
           </div>
         </div>
