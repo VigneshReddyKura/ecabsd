@@ -1162,16 +1162,19 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         if grad_tensor.ndim == 1:
                             grad_tensor = grad_tensor.unsqueeze(0)
 
-                        grads = grad_tensor.detach().cpu().numpy()
-                        features = data_a_grad.x.detach().cpu().numpy()
+                        grads    = grad_tensor.detach().cpu().numpy()          # (N, F)
+                        features = grad_input_ref.detach().cpu().numpy()        # (N, F) — SAME tensor as grads
 
-                        # Gradient-based Grad-CAM calculation
-                        weights = np.mean(grads, axis=0)
-                        saliency_raw = np.sum(features * weights, axis=1)
-                        saliency_raw = np.maximum(saliency_raw, 0) # ReLU positive contribution
+                        print(f"[Web] Grad-CAM shapes — grads: {grads.shape}, features: {features.shape}")
+
+                        # Gradient-based Grad-CAM: weight each feature by its mean gradient
+                        weights = np.mean(grads, axis=0)                        # (F,)
+                        saliency_raw = np.sum(features * weights, axis=1)       # (N,)
+                        saliency_raw = np.maximum(saliency_raw, 0)              # ReLU
 
                         if np.all(saliency_raw == 0) or np.max(saliency_raw) == 0:
-                            saliency_raw = np.abs(np.sum(features * grads, axis=1))
+                            # Fallback: use absolute gradient magnitude per residue
+                            saliency_raw = np.linalg.norm(grads, axis=1)       # (N,)
 
                         denom = (saliency_raw.max() - saliency_raw.min() + 1e-8)
                         saliency_gradcam = ((saliency_raw - saliency_raw.min()) / denom).tolist()
