@@ -73,14 +73,28 @@ function handleFile(file) {
   predictBtn.disabled = false;
 }
 
+const PDB_PRESETS = {
+  '1AY7': { a: 'A', b: 'B' },
+  '1BRS': { a: 'A', b: 'D' },
+  '2PTC': { a: 'E', b: 'I' },
+  '1CGI': { a: 'E', b: 'I' },
+  '2SNI': { a: 'E', b: 'I' }
+};
+
 // PDB ID Input Listener — fires on type, paste, and change
 function checkInputReady() {
-  const val = pdbId.value.trim();
+  const val = pdbId.value.trim().toUpperCase();
   if (val.length === 4) {
     selectedFile = null;
     dropzone.classList.remove('has-file');
-    fileNameDisplay.textContent = `PDB ID: ${val.toUpperCase()}`;
+    fileNameDisplay.textContent = `PDB ID: ${val}`;
     predictBtn.disabled = false;
+    
+    // Auto-populate chains for known PDB presets
+    if (PDB_PRESETS[val]) {
+      chainA.value = PDB_PRESETS[val].a;
+      chainB.value = PDB_PRESETS[val].b;
+    }
   } else if (!selectedFile) {
     predictBtn.disabled = true;
     if (!val.length) fileNameDisplay.textContent = 'No file selected';

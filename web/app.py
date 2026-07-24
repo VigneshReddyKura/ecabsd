@@ -625,11 +625,24 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             valid_chains = [c.get_id() for c in model_obj]
             print(f"[Web] Valid chains in PDB: {valid_chains}")
 
+            # Chain A validation (must exist)
             if chain_a not in valid_chains:
-                raise ValueError(f"Chain A '{chain_a}' not found in PDB file. Available chains: {', '.join(valid_chains) or 'None'}")
-            
+                if valid_chains:
+                    chain_a = valid_chains[0]
+                    print(f"[Web] Chain A auto-adjusted to first available chain: {chain_a}")
+                else:
+                    raise ValueError("No valid chains found in PDB file.")
+
+            # Chain B validation (optional — auto-recover if requested chain is missing)
             if chain_b and chain_b not in valid_chains:
-                raise ValueError(f"Chain B '{chain_b}' not found in PDB file. Available chains: {', '.join(valid_chains) or 'None'}")
+                other_chains = [c for c in valid_chains if c != chain_a]
+                if other_chains:
+                    old_b = chain_b
+                    chain_b = other_chains[0]
+                    print(f"[Web] Requested Chain B '{old_b}' not in PDB. Auto-selected available partner chain: {chain_b}")
+                else:
+                    print(f"[Web] Requested Chain B '{chain_b}' not in PDB and no partner chain available. Falling back to single-chain mode.")
+                    chain_b = None
 
             # 2. Extract residue lists to count total residues before building GNN graph
             try:
