@@ -1094,8 +1094,25 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 try:
                     print(f"[Web] Attempting Grad-CAM on CPU ({free_mb:.0f} MB free, {num_nodes} residues).")
                     data_a_grad = data_a.clone()
-                    data_a_grad.x = data_a_grad.x.float().detach().clone()
-                    data_a_grad.x.requires_grad_(True)
+
+                    # The model uses x_structural for 33-dim checkpoints (not x).
+                    # We must set requires_grad on whichever tensor the forward() actually reads.
+                    use_structural = (
+                        hasattr(model, "gcn_encoder") and
+                        model.gcn_encoder.input_dim == 33 and
+                        hasattr(data_a_grad, "x_structural") and
+                        data_a_grad.x_structural is not None
+                    )
+                    if use_structural:
+                        data_a_grad.x_structural = data_a_grad.x_structural.float().detach().clone()
+                        data_a_grad.x_structural.requires_grad_(True)
+                        grad_input_ref = data_a_grad.x_structural
+                        print("[Web] Grad-CAM: using x_structural for gradient tracking (33-dim checkpoint).")
+                    else:
+                        data_a_grad.x = data_a_grad.x.float().detach().clone()
+                        data_a_grad.x.requires_grad_(True)
+                        grad_input_ref = data_a_grad.x
+                        print("[Web] Grad-CAM: using x for gradient tracking.")
 
                     model.zero_grad(set_to_none=True)
 
@@ -1140,8 +1157,8 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                             if name in orig_requires_grad:
                                 param.requires_grad = orig_requires_grad[name]
 
-                    if data_a_grad.x.grad is not None:
-                        grad_tensor = data_a_grad.x.grad
+                    if grad_input_ref.grad is not None:
+                        grad_tensor = grad_input_ref.grad
                         if grad_tensor.ndim == 1:
                             grad_tensor = grad_tensor.unsqueeze(0)
 
