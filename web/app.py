@@ -82,41 +82,62 @@ _config   = None
 import io
 import base64
 
-def get_heatmap_plot_base64(probs, title, residues=None):
+def get_heatmap_plot_base64(probs, title, residues=None, threshold=0.5907):
     try:
         probs_np = np.array(probs)
         n_residues = len(probs_np)
-        
-        # Premium Styling: Dark Theme matching `--bg` (#080b14) & `--surface` (#0f1420)
+
+        p_min  = float(probs_np.min())
+        p_max  = float(probs_np.max())
+        p_mean = float(probs_np.mean())
+        p_std  = float(probs_np.std())
+        p_range = p_max - p_min
+
+        # ── Adaptive color range ──────────────────────────────────────────
+        # Center the colorbar at the threshold, expand to cover data range
+        margin     = max(p_range * 0.15, 0.02)
+        cmap_vmin  = max(0.0,  min(p_min  - margin, threshold - 0.05))
+        cmap_vmax  = min(1.0,  max(p_max  + margin, threshold + 0.05))
+
+        # Adaptive y-axis: zoom into actual data range with small padding
+        y_pad   = max(p_range * 0.25, 0.03)
+        y_lo    = max(0.0, p_min - y_pad)
+        y_hi    = min(1.0, p_max + y_pad)
+        # Ensure threshold line is always visible
+        y_lo = min(y_lo, threshold - 0.02)
+        y_hi = max(y_hi, threshold + 0.02)
+
+        # Premium Styling: Dark Theme
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 6.0), sharex=True,
                                        gridspec_kw={'height_ratios': [0.8, 3.2]})
         fig.patch.set_facecolor('#080b14')
         ax1.set_facecolor('#0f1420')
         ax2.set_facecolor('#0f1420')
-        
-        # Title of figure (vibrant & bold)
+
         fig.suptitle(title, fontsize=14, fontweight="bold", color='#ffffff', y=0.98)
-        
-        # Top subplot: 1D Heatmap
+
+        # Top subplot: 1D Heatmap — diverging RdYlGn centered at threshold
         heatmap = probs_np.reshape(1, -1)
-        im = ax1.imshow(heatmap, aspect="auto", cmap="viridis", vmin=0, vmax=1)
+        im = ax1.imshow(heatmap, aspect="auto", cmap="RdYlGn",
+                        vmin=cmap_vmin, vmax=cmap_vmax)
         ax1.set_yticks([])
         ax1.set_ylabel("Heatmap", color='#94a3b8', fontsize=9, labelpad=8)
         ax1.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
         for spine in ax1.spines.values():
             spine.set_visible(False)
-            
+
         cb = fig.colorbar(im, ax=ax1, orientation="horizontal", pad=0.3, aspect=60)
         cb.outline.set_visible(False)
         cb.ax.xaxis.set_tick_params(color='#94a3b8', labelcolor='#94a3b8', labelsize=8)
-        cb.set_label("Binding Probability", color='#94a3b8', fontsize=8, labelpad=2)
-        
+        cb.set_label("Binding Probability  (red = below threshold · green = above)",
+                     color='#94a3b8', fontsize=8, labelpad=2)
+
         # Resolve residue labels
         three_to_one = {
-            'ALA':'A', 'ARG':'R', 'ASN':'N', 'ASP':'D', 'CYS':'C',
-            'GLN':'Q', 'GLU':'E', 'GLY':'G', 'HIS':'H', 'ILE':'I',
-            'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P',
-            'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'
+            'ALA':'A','ARG':'R','ASN':'N','ASP':'D','CYS':'C',
+            'GLN':'Q','GLU':'E','GLY':'G','HIS':'H','ILE':'I',
+            'LEU':'L','LYS':'K','MET':'M','PHE':'F','PRO':'P',
+            'SER':'S','THR':'T','TRP':'W','TYR':'Y','VAL':'V'
         }
         res_labels = []
         if residues:
@@ -129,15 +150,20 @@ def get_heatmap_plot_base64(probs, title, residues=None):
                 res_labels.append(f"{one_letter}{num}")
         else:
             res_labels = [str(i) for i in range(1, n_residues + 1)]
-            
-        # Bottom subplot: Line/Area plot
-        color_main = "#06b6d4"  # beautiful cyan
-        
-        # Main line and shaded area
-        ax2.plot(np.arange(n_residues), probs_np, color=color_main, linewidth=2.5, zorder=3, label="Probability")
-        ax2.plot(np.arange(n_residues), probs_np, color=color_main, linewidth=6.0, alpha=0.3, zorder=2) # subtle glow
-        ax2.fill_between(np.arange(n_residues), probs_np, color=color_main, alpha=0.12, zorder=1)
-        
+
+        # Bottom subplot: Line/Area plot — colour below/above threshold differently
+        xs = np.arange(n_residues)
+        color_above = "#10b981"   # green  — above threshold
+        color_below = "#06b6d4"   # cyan   — below threshold
+
+        ax2.plot(xs, probs_np, color='#e2e8f0', linewidth=1.8, zorder=3, label="Probability")
+        ax2.fill_between(xs, threshold, probs_np,
+                         where=(probs_np >= threshold),
+                         color=color_above, alpha=0.35, zorder=2, label="Above Threshold")
+        ax2.fill_between(xs, threshold, probs_np,
+                         where=(probs_np < threshold),
+                         color=color_below, alpha=0.18, zorder=2)
+
         # Dynamic ticks
         if n_residues <= 60:
             tick_step = 1
@@ -149,36 +175,46 @@ def get_heatmap_plot_base64(probs, title, residues=None):
             tick_step = 10
         else:
             tick_step = 20
-            
+
         tick_indices = np.arange(0, n_residues, tick_step)
-        tick_labels = [res_labels[i] for i in tick_indices]
-        
+        tick_labels  = [res_labels[i] for i in tick_indices]
         ax2.set_xticks(tick_indices)
         ax2.set_xticklabels(tick_labels, rotation=45, ha='right', fontsize=9, color='#94a3b8')
-        
+
         ax2.set_ylabel("Binding Probability", color='#e2e8f0', fontsize=11, fontweight="bold", labelpad=8)
-        ax2.set_xlabel("Residue Index", color='#e2e8f0', fontsize=11, fontweight="bold", labelpad=8)
+        ax2.set_xlabel("Residue Index",        color='#e2e8f0', fontsize=11, fontweight="bold", labelpad=8)
         ax2.grid(True, which="both", color="#1e2640", linestyle=":", linewidth=0.6, alpha=0.6)
-        
-        for name, spine in ax2.spines.items():
-            if name in ['top', 'right']:
+
+        for sp_name, spine in ax2.spines.items():
+            if sp_name in ['top', 'right']:
                 spine.set_visible(False)
             else:
                 spine.set_color('#1e2640')
                 spine.set_linewidth(1.0)
-                
-        ax2.set_ylim(-0.05, 1.10)
-        
-        threshold_val = 0.5907
-        ax2.axhline(y=threshold_val, color="#f43f5e", linestyle="--", linewidth=1.5, alpha=0.85, zorder=4,
-                    label=f"Decision Threshold ({threshold_val:.2f})")
-        
-        # Highlight sites above threshold
-        binding_idxs = np.where(probs_np >= threshold_val)[0]  # threshold_val = 0.5907
+
+        # ── Adaptive y-axis zoom ──────────────────────────────────────────
+        ax2.set_ylim(y_lo, y_hi)
+
+        # Threshold line
+        ax2.axhline(y=threshold, color="#f43f5e", linestyle="--", linewidth=1.8,
+                    alpha=0.90, zorder=4, label=f"Threshold ({threshold:.4f})")
+
+        # Scatter binding sites
+        binding_idxs = np.where(probs_np >= threshold)[0]
         if len(binding_idxs) > 0:
-            ax2.scatter(binding_idxs, probs_np[binding_idxs], color="#10b981", s=30, zorder=5, edgecolors='#080b14', linewidth=1, label="Predicted Binding Sites")
-            
-        legend = ax2.legend(loc="upper right", frameon=True, fontsize=9.5)
+            ax2.scatter(binding_idxs, probs_np[binding_idxs],
+                        color="#10b981", s=35, zorder=5,
+                        edgecolors='#080b14', linewidth=1,
+                        label=f"Binding Sites ({len(binding_idxs)})")
+
+        # Stats annotation
+        stats_text = (f"μ={p_mean:.3f}  σ={p_std:.3f}  "
+                      f"min={p_min:.3f}  max={p_max:.3f}")
+        ax2.text(0.01, 0.97, stats_text, transform=ax2.transAxes,
+                 fontsize=8, color='#64748b', va='top', ha='left',
+                 fontfamily='monospace')
+
+        legend = ax2.legend(loc="upper right", frameon=True, fontsize=9.0)
         if legend:
             frame = legend.get_frame()
             frame.set_facecolor('#0f1420')
@@ -186,9 +222,9 @@ def get_heatmap_plot_base64(probs, title, residues=None):
             frame.set_linewidth(0.8)
             for text in legend.get_texts():
                 text.set_color('#e2e8f0')
-                
+
         plt.tight_layout()
-        
+
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=180)
         buf.seek(0)
@@ -202,6 +238,7 @@ def get_heatmap_plot_base64(probs, title, residues=None):
 
 
 def get_gradcam_plot_base64(saliency, title, residues=None):
+
     try:
         saliency_np = np.array(saliency)
         n_residues = len(saliency_np)
@@ -790,7 +827,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             if total_count > 0:
                 # Generate in-memory Heatmap (Base64 data URL)
                 try:
-                    heatmap_url = get_heatmap_plot_base64(probs_np, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}", residue_list)
+                    heatmap_url = get_heatmap_plot_base64(probs_np, f"Binding Probability Heatmap - {pdb_name} Chain {chain_a}", residue_list, threshold=threshold_val)
                 except Exception as e:
                     print(f"[Web] Error generating Heatmap: {e}")
 
