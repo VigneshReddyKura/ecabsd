@@ -357,8 +357,10 @@ function renderResults(data) {
   if (viewerCard) {
     viewerCard.style.display = 'block';
     
-    // Load structure
-    if (selectedFile) {
+    if (data.pdb_content) {
+      receptorPdbString = data.pdb_content;
+      init3DViewer(receptorPdbString, data.chain_a, data.chain_b, data.residues);
+    } else if (selectedFile) {
       let reader = new FileReader();
       reader.onload = function(e) {
         receptorPdbString = e.target.result;
@@ -366,20 +368,22 @@ function renderResults(data) {
       };
       reader.readAsText(selectedFile);
     } else {
-      const pid = pdbId.value.trim().toUpperCase();
-      fetch(`https://files.rcsb.org/download/${pid}.pdb`)
-        .then(res => {
-          if (!res.ok) throw new Error("Failed to fetch PDB from RCSB");
-          return res.text();
-        })
-        .then(text => {
-          receptorPdbString = text;
-          init3DViewer(receptorPdbString, data.chain_a, data.chain_b, data.residues);
-        })
-        .catch(err => {
-          console.error("3D Viewer PDB fetch failed:", err);
-          showError("Could not fetch structure from RCSB for 3D Molecular Viewer.");
-        });
+      const pid = (pdbId ? pdbId.value.trim().toUpperCase() : '');
+      if (pid) {
+        fetch(`https://files.rcsb.org/download/${pid}.pdb`)
+          .then(res => {
+            if (!res.ok) throw new Error("Failed to fetch PDB from RCSB");
+            return res.text();
+          })
+          .then(text => {
+            receptorPdbString = text;
+            init3DViewer(receptorPdbString, data.chain_a, data.chain_b, data.residues);
+          })
+          .catch(err => {
+            console.error("3D Viewer PDB fetch failed:", err);
+            showError("Could not fetch structure from RCSB for 3D Molecular Viewer.");
+          });
+      }
     }
   }
 }
@@ -744,15 +748,31 @@ let dockedLigandPdbString = null;
 
 function init3DViewer(pdbString, chainAId, chainBId, residues) {
   const container = document.getElementById('3d-viewer');
-  if (!container) return;
+  if (!container || !pdbString) return;
+  if (typeof $3Dmol === 'undefined') {
+    console.error("3Dmol library not loaded");
+    return;
+  }
+  
   container.innerHTML = '';
   
-  viewer3D = $3Dmol.createViewer($(container), { backgroundColor: '#0b0f19' });
-  viewer3D.addModel(pdbString, 'pdb');
-  
-  applyViewerStyle('cartoon', chainAId, chainBId, residues);
-  viewer3D.zoomTo();
-  viewer3D.render();
+  try {
+    viewer3D = $3Dmol.createViewer(container, { backgroundColor: '#0b0f19' });
+    viewer3D.addModel(pdbString, 'pdb');
+    
+    applyViewerStyle('cartoon', chainAId, chainBId, residues);
+    
+    // Ensure WebGL canvas adjusts to non-zero container width/height after unhide
+    setTimeout(() => {
+      if (viewer3D) {
+        viewer3D.resize();
+        viewer3D.zoomTo();
+        viewer3D.render();
+      }
+    }, 100);
+  } catch (err) {
+    console.error("Failed to initialize 3Dmol viewer:", err);
+  }
   
   // Reset Docking Controls
   const dockLigandInput = document.getElementById('dock-ligand-input');

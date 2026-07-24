@@ -877,9 +877,19 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             elif quality in ["Broad Interface / Needs Review", "Overprediction"]:
                 recommendation = "Recommendation: Inspect Grad-CAM visualization because the predicted interface is unusually large. Consider increasing the probability threshold."
 
+            # Read PDB file string content for direct 3D viewer rendering
+            pdb_content = ""
+            try:
+                if os.path.exists(tmp_path):
+                    with open(tmp_path, "r", encoding="utf-8", errors="ignore") as pf:
+                        pdb_content = pf.read()
+            except Exception as pf_err:
+                print(f"[Web] Warning: Could not read PDB file for 3D viewer: {pf_err}")
+
             response_payload = {
                 "status": "success",
                 "pdb_file": filename,
+                "pdb_content": pdb_content,
                 "chain_a": chain_a,
                 "chain_b": chain_b,
                 "threshold": threshold_val,
