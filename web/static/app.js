@@ -786,6 +786,12 @@ function init3DViewer(pdbString, chainAId, chainBId, residues) {
   }
   if (dockStatus) dockStatus.textContent = '';
   dockedLigandPdbString = null;
+  isSpinning = false;
+  const spinBtn = document.getElementById('spin-btn');
+  if (spinBtn) {
+    spinBtn.classList.remove('active');
+    spinBtn.textContent = '🔄 Auto-Rotate';
+  }
   setActiveStyleButton('style-cartoon-btn');
 }
 
@@ -834,6 +840,28 @@ function setActiveStyleButton(styleId) {
       if (id === styleId) btn.classList.add('active');
       else btn.classList.remove('active');
     }
+  });
+}
+
+// Event Listeners for 3D Viewer spin & camera controls
+let isSpinning = false;
+const spinBtn = document.getElementById('spin-btn');
+if (spinBtn) {
+  spinBtn.addEventListener('click', () => {
+    if (!viewer3D) return;
+    isSpinning = !isSpinning;
+    viewer3D.spin(isSpinning, 1.0);
+    spinBtn.classList.toggle('active', isSpinning);
+    spinBtn.textContent = isSpinning ? '⏸ Pause Rotate' : '🔄 Auto-Rotate';
+  });
+}
+
+const resetViewBtn = document.getElementById('reset-view-btn');
+if (resetViewBtn) {
+  resetViewBtn.addEventListener('click', () => {
+    if (!viewer3D) return;
+    viewer3D.zoomTo();
+    viewer3D.render();
   });
 }
 

@@ -298,6 +298,8 @@
           <div class="card-icon" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">👁️</div>
           <h3 class="card-title">Interactive 3D Molecular Structure</h3>
           <div class="viewer-controls" style="margin-left: auto; display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-outline" id="spin-btn" style="padding: 4px 8px; font-size: 0.75rem;">🔄 Auto-Rotate</button>
+            <button class="btn btn-sm btn-outline" id="reset-view-btn" style="padding: 4px 8px; font-size: 0.75rem;">🎯 Reset View</button>
             <button class="btn btn-sm btn-outline" id="style-cartoon-btn" style="padding: 4px 8px; font-size: 0.75rem;">Cartoon</button>
             <button class="btn btn-sm btn-outline" id="style-sphere-btn" style="padding: 4px 8px; font-size: 0.75rem;">Sphere</button>
             <button class="btn btn-sm btn-outline" id="style-stick-btn" style="padding: 4px 8px; font-size: 0.75rem;">Stick</button>
@@ -312,7 +314,7 @@
           </div>
           <span id="dock-status" style="font-size: 0.8rem; color: var(--green); font-weight: 500;"></span>
         </div>
-        <div id="3d-viewer" style="width: 100%; height: 500px; position: relative; background: #0b0f19;"></div>
+        <div id="3d-viewer" style="width: 100%; height: 500px; position: relative; background: #0b0f19; touch-action: none; user-select: none; cursor: grab;"></div>
         <div style="padding: 12px 20px; background: rgba(0,0,0,0.15); font-size: 0.8rem; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
           <span><strong>Color Legend:</strong> <span style="color: #ef4444; font-weight: bold;">■ Predicted Binding Sites</span> | <span style="color: #4b5563; font-weight: bold;">■ Target Chain</span> | <span style="color: #0d9488; font-weight: bold;">■ Partner Chain</span> | <span style="color: #fbbf24; font-weight: bold;">■ Docked Ligand</span></span>
           <button class="btn btn-sm btn-primary" id="download-bfactor-pdb-btn" style="padding: 4px 12px; font-size: 0.8rem;">⬇ Download B-factor PDB</button>
