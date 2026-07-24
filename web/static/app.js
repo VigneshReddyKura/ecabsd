@@ -73,8 +73,8 @@ function handleFile(file) {
   predictBtn.disabled = false;
 }
 
-// PDB ID Input Listener
-pdbId.addEventListener('input', () => {
+// PDB ID Input Listener — fires on type, paste, and change
+function checkInputReady() {
   const val = pdbId.value.trim();
   if (val.length === 4) {
     selectedFile = null;
@@ -83,9 +83,14 @@ pdbId.addEventListener('input', () => {
     predictBtn.disabled = false;
   } else if (!selectedFile) {
     predictBtn.disabled = true;
-    fileNameDisplay.textContent = 'No file selected';
+    if (!val.length) fileNameDisplay.textContent = 'No file selected';
   }
-});
+}
+
+pdbId.addEventListener('input',  checkInputReady);
+pdbId.addEventListener('paste',  () => setTimeout(checkInputReady, 0));
+pdbId.addEventListener('change', checkInputReady);
+
 
 // Auto-capitalize chain inputs on typing
 chainA.addEventListener('input', () => {
