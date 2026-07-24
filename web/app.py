@@ -678,7 +678,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                     threshold_val = 0.5
 
             if is_auto:
-                default_thresh = getattr(model, "best_threshold", 0.52)
+                default_thresh = getattr(model, "best_threshold", 0.5907)
                 if max_prob < default_thresh:
                     # Adaptive threshold for low-probability samples to highlight relative peaks
                     threshold_val = max(0.005, max_prob * 0.75)
@@ -688,7 +688,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             # Apply mode logic
             if mode == "topk":
                 k = max(1, int(len(probs_np) * (top_k_percent / 100.0)))
-                # Get top k indices
                 top_indices = np.argsort(probs_np)[::-1][:k].tolist()
                 labels_np = [0] * len(probs_np)
                 for idx in top_indices:
@@ -696,6 +695,20 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 threshold_val = min([probs_np[i] for i in top_indices]) if len(top_indices) > 0 else threshold_val
             else:
                 labels_np = [1 if p >= threshold_val else 0 for p in probs_np]
+
+            # --- SMART ADAPTIVE THRESHOLD (Anti-Overprediction) ---
+            # If >35% of residues flagged AND we're in auto mode → model output is flat/uniform
+            # Switch to percentile-based threshold: flag only top 20% highest-probability residues
+            if is_auto and mode != "topk":
+                quick_ratio = sum(labels_np) / max(len(labels_np), 1)
+                if quick_ratio > 0.35:
+                    probs_arr = np.array(probs_np)
+                    # Target: top 20% flagged (biologically realistic interface size)
+                    adaptive_thresh = float(np.percentile(probs_arr, 80))
+                    labels_np = [1 if p >= adaptive_thresh else 0 for p in probs_np]
+                    threshold_val = adaptive_thresh
+                    print(f"[Web] Overprediction detected ({quick_ratio:.1%} flagged). "
+                          f"Switched to adaptive threshold: {adaptive_thresh:.4f} (80th percentile)")
 
             # Get residue info for labelling results
             parser = PDBParser(QUIET=True)
