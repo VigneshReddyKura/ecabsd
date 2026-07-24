@@ -832,6 +832,14 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                         "actual_binding_count": int(np.sum(true_labels_np))
                     }
 
+            # Map is_interface into results for frontend 3D ground truth comparison
+            if true_labels and len(true_labels) == len(results):
+                for idx, r_item in enumerate(results):
+                    r_item["is_interface"] = bool(true_labels[idx] == 1)
+            else:
+                for r_item in results:
+                    r_item["is_interface"] = False
+
             clean_filename = os.path.basename(filename)
             pdb_name = os.path.splitext(clean_filename)[0]
             

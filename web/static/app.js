@@ -809,46 +809,181 @@ function init3DViewer(pdbString, chainAId, chainBId, residues) {
   setActiveStyleButton('style-cartoon-btn');
 }
 
+let currentOpacity = 0.5; // Default 50% opacity for backbone/non-binding residues
+let show5AInterface = false; // Toggle state for 5Å contact interface comparison
+let currentStyleType = 'cartoon';
+
 function applyViewerStyle(styleType, chainAId, chainBId, residues) {
   if (!viewer3D) return;
+  currentStyleType = styleType;
   
-  let styleObj = {};
-  if (styleType === 'cartoon') styleObj = { cartoon: { color: '#4b5563' } };
-  else if (styleType === 'sphere') styleObj = { sphere: { color: '#4b5563', scale: 0.8 } };
-  else if (styleType === 'stick') styleObj = { stick: { color: '#4b5563', radius: 0.3 } };
-  
-  viewer3D.setStyle({ model: 0 }, styleObj);
-  
-  // Style partner chain B
+  // Clear any existing surfaces and labels
+  viewer3D.removeAllSurfaces();
+  viewer3D.removeAllLabels();
+
+  const opacity = parseFloat(currentOpacity);
+
+  // 1. Style Target Chain A (Default 50% semi-transparent)
+  let styleA = {};
+  if (styleType === 'cartoon') styleA = { cartoon: { color: '#6366f1', opacity: opacity } };
+  else if (styleType === 'sphere') styleA = { sphere: { color: '#64748b', opacity: opacity, scale: 0.7 } };
+  else if (styleType === 'stick') styleA = { stick: { color: '#64748b', opacity: opacity, radius: 0.25 } };
+
+  viewer3D.setStyle({ model: 0, chain: chainAId }, styleA);
+
+  // 2. Style Partner Chain B (Default 50% semi-transparent)
   if (chainBId) {
-    let partnerStyle = {};
-    if (styleType === 'cartoon') partnerStyle = { cartoon: { color: '#0d9488' } };
-    else if (styleType === 'sphere') partnerStyle = { sphere: { color: '#0d9488', scale: 0.8 } };
-    else if (styleType === 'stick') partnerStyle = { stick: { color: '#0d9488', radius: 0.3 } };
-    viewer3D.setStyle({ model: 0, chain: chainBId }, partnerStyle);
+    let styleB = {};
+    if (styleType === 'cartoon') styleB = { cartoon: { color: '#0d9488', opacity: opacity } };
+    else if (styleType === 'sphere') styleB = { sphere: { color: '#0d9488', opacity: opacity, scale: 0.7 } };
+    else if (styleType === 'stick') styleB = { stick: { color: '#0d9488', opacity: opacity, radius: 0.25 } };
+    viewer3D.setStyle({ model: 0, chain: chainBId }, styleB);
   }
-  
-  // Style predicted binding residues
-  residues.forEach(res => {
-    if (res.is_binding) {
-      let activeStyle = {};
-      if (styleType === 'cartoon') activeStyle = { cartoon: { color: '#ef4444' } };
-      else if (styleType === 'sphere') activeStyle = { sphere: { color: '#ef4444', scale: 1.0 } };
-      else if (styleType === 'stick') activeStyle = { stick: { color: '#ef4444', radius: 0.4 } };
-      viewer3D.setStyle({ model: 0, chain: res.chain, resi: res.resid }, activeStyle);
+
+  // 3. Highlight Actual 5Å Contact Interface Residues if comparison mode is enabled
+  if (show5AInterface && residues) {
+    residues.forEach(res => {
+      if (res.is_interface) {
+        let interfaceStyle = {};
+        if (styleType === 'cartoon') interfaceStyle = { cartoon: { color: '#3b82f6', opacity: 0.9 }, stick: { color: '#3b82f6', radius: 0.35, opacity: 0.9 } };
+        else if (styleType === 'sphere') interfaceStyle = { sphere: { color: '#3b82f6', opacity: 0.9, scale: 0.85 } };
+        else if (styleType === 'stick') interfaceStyle = { stick: { color: '#3b82f6', opacity: 0.9, radius: 0.4 } };
+        viewer3D.setStyle({ model: 0, chain: res.chain, resi: res.resid }, interfaceStyle);
+      }
+    });
+  }
+
+  // 4. Highlight Predicted Binding Residues in FULL 100% SOLID BRIGHT RED (#ef4444)
+  if (residues) {
+    residues.forEach(res => {
+      if (res.is_binding) {
+        let activeStyle = {};
+        if (styleType === 'cartoon') activeStyle = { cartoon: { color: '#ef4444', opacity: 1.0 }, stick: { color: '#ef4444', radius: 0.45, opacity: 1.0 } };
+        else if (styleType === 'sphere') activeStyle = { sphere: { color: '#ef4444', opacity: 1.0, scale: 1.0 } };
+        else if (styleType === 'stick') activeStyle = { stick: { color: '#ef4444', opacity: 1.0, radius: 0.5 } };
+        
+        viewer3D.setStyle({ model: 0, chain: res.chain, resi: res.resid }, activeStyle);
+      }
+    });
+  }
+
+  // 5. Molecular Surface Rendering Mode
+  if (styleType === 'surface') {
+    try {
+      // Set underlying cartoon at low opacity for shape outline
+      viewer3D.setStyle({ model: 0, chain: chainAId }, { cartoon: { color: '#6366f1', opacity: 0.3 } });
+      if (chainBId) {
+        viewer3D.setStyle({ model: 0, chain: chainBId }, { cartoon: { color: '#0d9488', opacity: 0.3 } });
+      }
+
+      const predictedResids = new Set(residues ? residues.filter(r => r.is_binding).map(r => r.resid) : []);
+      const interfaceResids = new Set(residues ? residues.filter(r => r.is_interface).map(r => r.resid) : []);
+
+      // Add VDW surface with per-residue color mapping: predicted=RED, interface=BLUE, rest=SLATE/TEAL
+      viewer3D.addSurface($3Dmol.SurfaceType.VDW, {
+        opacity: opacity,
+        colorscheme: {
+          prop: 'resi',
+          map: (atom) => {
+            if (atom.chain === chainAId) {
+              if (predictedResids.has(atom.resi)) return '#ef4444'; // Red for predicted
+              if (show5AInterface && interfaceResids.has(atom.resi)) return '#3b82f6'; // Blue for 5A contact
+              return '#475569'; // Slate for rest of Chain A
+            }
+            if (chainBId && atom.chain === chainBId) return '#0d9488'; // Teal for Chain B
+            return '#64748b';
+          }
+        }
+      }, { chain: [chainAId, chainBId].filter(Boolean) });
+
+      // Highlight predicted sticks inside surface
+      if (residues) {
+        residues.forEach(res => {
+          if (res.is_binding) {
+            viewer3D.setStyle({ model: 0, chain: res.chain, resi: res.resid }, { stick: { color: '#ef4444', radius: 0.45, opacity: 1.0 } });
+          }
+        });
+      }
+    } catch (surfErr) {
+      console.warn("Surface rendering fallback:", surfErr);
     }
-  });
-  
-  // Style Model 1 (Docked Ligand) if present
-  if (viewer3D.models && viewer3D.models[1]) {
-    viewer3D.setStyle({ model: 1 }, { stick: { color: '#fbbf24', radius: 0.35 } });
   }
-  
+
+  // 6. Style Model 1 (Docked Ligand) if present
+  if (viewer3D.models && viewer3D.models[1]) {
+    viewer3D.setStyle({ model: 1 }, { stick: { color: '#fbbf24', radius: 0.35, opacity: 1.0 } });
+  }
+
+  // 7. Update overlay legend text & 3D text labels
+  updateViewerLegend(chainAId, chainBId, opacity);
+  addChainLabels3D(chainAId, chainBId);
+
   viewer3D.render();
 }
 
+function updateViewerLegend(chainAId, chainBId, opacity) {
+  const pct = Math.round(opacity * 100);
+  const legendA = document.getElementById('legend-chain-a-text');
+  const legendB = document.getElementById('legend-chain-b-text');
+  const legendBRow = document.getElementById('legend-chain-b-row');
+  const legendInterfaceRow = document.getElementById('legend-interface-row');
+
+  if (legendA) legendA.textContent = `Target Chain (${chainAId}) — ${pct}% Opacity`;
+  if (legendBRow) {
+    if (chainBId) {
+      legendBRow.style.display = 'flex';
+      if (legendB) legendB.textContent = `Partner Chain (${chainBId}) — ${pct}% Opacity`;
+    } else {
+      legendBRow.style.display = 'none';
+    }
+  }
+  if (legendInterfaceRow) {
+    legendInterfaceRow.style.display = show5AInterface ? 'flex' : 'none';
+  }
+}
+
+function addChainLabels3D(chainAId, chainBId) {
+  if (!viewer3D) return;
+  
+  try {
+    const atoms = viewer3D.selectedAtoms({ model: 0 });
+    if (!atoms || !atoms.length) return;
+
+    let atomA = atoms.find(a => a.chain === chainAId && a.atom === 'CA') || atoms.find(a => a.chain === chainAId);
+    let atomB = chainBId ? (atoms.find(a => a.chain === chainBId && a.atom === 'CA') || atoms.find(a => a.chain === chainBId)) : null;
+
+    if (atomA) {
+      viewer3D.addLabel(`Chain ${chainAId} (Target)`, {
+        position: { x: atomA.x, y: atomA.y, z: atomA.z },
+        backgroundColor: '#1e1b4b',
+        backgroundOpacity: 0.85,
+        fontColor: '#a5b4fc',
+        fontSize: 11,
+        fontFamily: 'Inter, sans-serif',
+        borderThickness: 1,
+        borderColor: '#6366f1'
+      });
+    }
+
+    if (atomB) {
+      viewer3D.addLabel(`Chain ${chainBId} (Partner)`, {
+        position: { x: atomB.x, y: atomB.y, z: atomB.z },
+        backgroundColor: '#042f2e',
+        backgroundOpacity: 0.85,
+        fontColor: '#5eead4',
+        fontSize: 11,
+        fontFamily: 'Inter, sans-serif',
+        borderThickness: 1,
+        borderColor: '#0d9488'
+      });
+    }
+  } catch (lblErr) {
+    console.warn("3D label addition error:", lblErr);
+  }
+}
+
 function setActiveStyleButton(styleId) {
-  ['style-cartoon-btn', 'style-sphere-btn', 'style-stick-btn'].forEach(id => {
+  ['style-cartoon-btn', 'style-surface-btn', 'style-sphere-btn', 'style-stick-btn'].forEach(id => {
     const btn = document.getElementById(id);
     if (btn) {
       if (id === styleId) btn.classList.add('active');
@@ -876,6 +1011,41 @@ if (resetViewBtn) {
     if (!viewer3D) return;
     viewer3D.zoomTo();
     viewer3D.render();
+  });
+}
+
+// Opacity Dropdown Selector
+const opacitySelect = document.getElementById('opacity-select');
+if (opacitySelect) {
+  opacitySelect.addEventListener('change', (e) => {
+    currentOpacity = parseFloat(e.target.value);
+    if (currentResults) {
+      applyViewerStyle(currentStyleType, currentResults.chain_a, currentResults.chain_b, currentResults.residues);
+    }
+  });
+}
+
+// 5Å Interface Toggle Button
+const toggleInterfaceBtn = document.getElementById('toggle-interface-btn');
+if (toggleInterfaceBtn) {
+  toggleInterfaceBtn.addEventListener('click', () => {
+    if (!currentResults) return;
+    show5AInterface = !show5AInterface;
+    toggleInterfaceBtn.classList.toggle('active', show5AInterface);
+    toggleInterfaceBtn.style.background = show5AInterface ? 'rgba(59, 130, 246, 0.25)' : '';
+    toggleInterfaceBtn.style.borderColor = show5AInterface ? '#3b82f6' : '';
+    toggleInterfaceBtn.style.color = show5AInterface ? '#60a5fa' : '';
+    applyViewerStyle(currentStyleType, currentResults.chain_a, currentResults.chain_b, currentResults.residues);
+  });
+}
+
+// Surface Style Button
+const styleSurfaceBtn = document.getElementById('style-surface-btn');
+if (styleSurfaceBtn) {
+  styleSurfaceBtn.addEventListener('click', () => {
+    if (!currentResults) return;
+    setActiveStyleButton('style-surface-btn');
+    applyViewerStyle('surface', currentResults.chain_a, currentResults.chain_b, currentResults.residues);
   });
 }
 

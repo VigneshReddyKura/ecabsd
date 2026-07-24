@@ -7,7 +7,7 @@
   <meta name="description" content="Equivariant Cross-Attention for Protein-Protein Binding Site Detection. Upload a PDB file and predict per-residue binding sites using deep learning." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=3.0.1" />
+  <link rel="stylesheet" href="/static/style.css?v=3.0.2" />
 </head>
 <body>
   <!-- Background blobs -->
@@ -294,18 +294,30 @@
 
       <!-- 3D Molecular Viewer -->
       <div class="card viewer-card" id="viewer-card" style="margin-bottom: 24px; display: none;">
-        <div class="card-header">
+        <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
           <div class="card-icon" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">👁️</div>
           <h3 class="card-title">Interactive 3D Molecular Structure</h3>
-          <div class="viewer-controls" style="margin-left: auto; display: flex; gap: 8px;">
+          <div class="viewer-controls" style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+            <!-- Opacity Selector -->
+            <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-dim); background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border);">
+              <span>Opacity:</span>
+              <select id="opacity-select" style="background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer;">
+                <option value="0.4">40%</option>
+                <option value="0.5" selected>50% (Default)</option>
+                <option value="0.7">70%</option>
+                <option value="1.0">100% (Solid)</option>
+              </select>
+            </div>
+            <button class="btn btn-sm btn-outline" id="toggle-interface-btn" style="padding: 4px 10px; font-size: 0.75rem;">🔬 Compare 5Å Interface</button>
             <button class="btn btn-sm btn-outline" id="spin-btn" style="padding: 4px 8px; font-size: 0.75rem;">🔄 Auto-Rotate</button>
             <button class="btn btn-sm btn-outline" id="reset-view-btn" style="padding: 4px 8px; font-size: 0.75rem;">🎯 Reset View</button>
             <button class="btn btn-sm btn-outline" id="style-cartoon-btn" style="padding: 4px 8px; font-size: 0.75rem;">Cartoon</button>
+            <button class="btn btn-sm btn-outline" id="style-surface-btn" style="padding: 4px 8px; font-size: 0.75rem;">🌐 Surface</button>
             <button class="btn btn-sm btn-outline" id="style-sphere-btn" style="padding: 4px 8px; font-size: 0.75rem;">Sphere</button>
             <button class="btn btn-sm btn-outline" id="style-stick-btn" style="padding: 4px 8px; font-size: 0.75rem;">Stick</button>
           </div>
         </div>
-        <div style="padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; background: rgba(0,0,0,0.15); border-bottom: 1px solid var(--border);">
+        <div style="padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; background: rgba(0,0,0,0.15); border-bottom: 1px solid var(--border);">
           <!-- Docking file upload -->
           <div class="form-group" style="margin: 0; display: flex; align-items: center; gap: 8px;">
             <label class="form-label" for="dock-ligand-input" style="margin: 0; font-size: 0.8rem; color: var(--text-dim);">Overlay Ligand PDB:</label>
@@ -314,9 +326,35 @@
           </div>
           <span id="dock-status" style="font-size: 0.8rem; color: var(--green); font-weight: 500;"></span>
         </div>
-        <div id="3d-viewer" style="width: 100%; height: 500px; position: relative; background: #0b0f19; touch-action: none; user-select: none; cursor: grab;"></div>
+
+        <div id="3d-viewer-container" style="position: relative; width: 100%; height: 520px; overflow: hidden;">
+          <div id="3d-viewer" style="width: 100%; height: 100%; position: absolute; top:0; left:0; background: #0b0f19; touch-action: none; user-select: none; cursor: grab;"></div>
+          <!-- Floating Canvas Overlay Legend -->
+          <div id="viewer-overlay-legend" style="position: absolute; top: 14px; left: 14px; z-index: 5; background: rgba(15, 20, 32, 0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: #e2e8f0; pointer-events: none; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+            <div style="font-weight: 700; color: #ffffff; font-size: 0.82rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px;">
+              <span>🧬</span> <span id="legend-chain-title">Protein Chains & Predictions</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #6366f1; opacity: 0.7;"></span>
+              <span id="legend-chain-a-text">Target Chain (Chain A)</span>
+            </div>
+            <div id="legend-chain-b-row" style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #0d9488; opacity: 0.7;"></span>
+              <span id="legend-chain-b-text">Partner Chain (Chain B)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #ef4444;"></span>
+              <span>🔴 Predicted Binding Sites (Solid Red)</span>
+            </div>
+            <div id="legend-interface-row" style="display: none; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #3b82f6;"></span>
+              <span>🔵 Actual 5Å Contact Interface</span>
+            </div>
+          </div>
+        </div>
+
         <div style="padding: 12px 20px; background: rgba(0,0,0,0.15); font-size: 0.8rem; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
-          <span><strong>Color Legend:</strong> <span style="color: #ef4444; font-weight: bold;">■ Predicted Binding Sites</span> | <span style="color: #4b5563; font-weight: bold;">■ Target Chain</span> | <span style="color: #0d9488; font-weight: bold;">■ Partner Chain</span> | <span style="color: #fbbf24; font-weight: bold;">■ Docked Ligand</span></span>
+          <span><strong>Color Legend:</strong> <span style="color: #ef4444; font-weight: bold;">■ Predicted Binding Sites</span> | <span style="color: #6366f1; font-weight: bold;">■ Target Chain</span> | <span style="color: #0d9488; font-weight: bold;">■ Partner Chain</span> | <span style="color: #3b82f6; font-weight: bold;" id="legend-5a-badge">■ 5Å Contact Interface</span> | <span style="color: #fbbf24; font-weight: bold;">■ Docked Ligand</span></span>
           <button class="btn btn-sm btn-primary" id="download-bfactor-pdb-btn" style="padding: 4px 12px; font-size: 0.8rem;">⬇ Download B-factor PDB</button>
         </div>
       </div>
@@ -367,7 +405,7 @@
   <!-- jQuery & 3Dmol.js CDN -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
-  <script src="/static/app.js?v=3.0.1"></script>
+  <script src="/static/app.js?v=3.0.2"></script>
 </body>
 </html>
 
