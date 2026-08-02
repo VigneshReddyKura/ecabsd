@@ -690,7 +690,7 @@ If you use ECABSD in your research, please cite:
 
 ```bibtex
 @software{ecabsd2026,
-  author    = {Greeva, Amani},
+  author    = {Manigreeva, Anumala and Nayaneesh, D. and Sai Reddy, Kantam Pavan and Vignesh Reddy, Kura and Karthikeya, Vitta},
   title     = {ECABSD: Explainable Cross Attention Model for Binding Site Discovery},
   year      = {2026},
   version   = {3.0.0},

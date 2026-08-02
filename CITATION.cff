@@ -9,10 +9,16 @@ abstract: >
   explainability via attention rollout and Grad-CAM, as well as
   downstream docking integration with AutoDock Vina.
 authors:
-  - family-names: "Greeva"
-    given-names: "Amani"
-    email: ""
-    orcid: ""
+  - family-names: "Manigreeva"
+    given-names: "Anumala"
+  - family-names: "Nayaneesh"
+    given-names: "D."
+  - family-names: "Sai Reddy"
+    given-names: "Kantam Pavan"
+  - family-names: "Vignesh Reddy"
+    given-names: "Kura"
+  - family-names: "Karthikeya"
+    given-names: "Vitta"
 version: "3.0.0"
 date-released: "2026-05-28"
 license: MIT
