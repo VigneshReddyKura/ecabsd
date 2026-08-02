@@ -7,7 +7,7 @@
   <meta name="description" content="Equivariant Cross-Attention for Protein-Protein Binding Site Detection. Upload a PDB file and predict per-residue binding sites using deep learning." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=3.0.2" />
+  <link rel="stylesheet" href="/static/style.css?v=4.2.0" />
 </head>
 <body>
   <!-- Background blobs -->
@@ -128,6 +128,10 @@
           <button class="btn btn-primary" id="predict-btn" disabled>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Run Prediction
+          </button>
+          
+          <button class="btn btn-outline" id="demo-btn" style="margin-top: 10px; width: 100%; border-color: #6366f1; color: #818cf8; font-weight: 600; background: rgba(99, 102, 241, 0.1); cursor: pointer;">
+            ⚡ Try Instant Demo (1AY7 Complex)
           </button>
         </div>
 
@@ -293,70 +297,117 @@
       </div>
 
       <!-- 3D Molecular Viewer -->
-      <div class="card viewer-card" id="viewer-card" style="margin-bottom: 24px; display: none;">
-        <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
-          <div class="card-icon" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">👁️</div>
-          <h3 class="card-title">Interactive 3D Molecular Structure</h3>
+      <div class="card viewer-card" id="viewer-card" style="margin-bottom: 24px; display: none; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+        <!-- Top Toolbar -->
+        <div class="card-header" style="padding: 14px 20px; background: rgba(10, 15, 28, 0.9); border-bottom: 1px solid rgba(255, 255, 255, 0.08); flex-wrap: wrap; gap: 12px; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="card-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 1.1rem;">👁️</div>
+            <h3 class="card-title" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0; letter-spacing: -0.01em;">Interactive 3D Molecular Structure</h3>
+          </div>
           <div class="viewer-controls" style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
             <!-- Opacity Selector -->
-            <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-dim); background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border);">
+            <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #94a3b8; background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
               <span>Opacity:</span>
-              <select id="opacity-select" style="background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer;">
+              <select id="opacity-select" style="background: #0f172a; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer;">
                 <option value="0.4">40%</option>
                 <option value="0.5" selected>50% (Default)</option>
                 <option value="0.7">70%</option>
                 <option value="1.0">100% (Solid)</option>
               </select>
             </div>
-            <button class="btn btn-sm btn-outline" id="toggle-interface-btn" style="padding: 4px 10px; font-size: 0.75rem;">🔬 Compare 5Å Interface</button>
-            <button class="btn btn-sm btn-outline" id="spin-btn" style="padding: 4px 8px; font-size: 0.75rem;">🔄 Auto-Rotate</button>
-            <button class="btn btn-sm btn-outline" id="reset-view-btn" style="padding: 4px 8px; font-size: 0.75rem;">🎯 Reset View</button>
-            <button class="btn btn-sm btn-outline" id="style-cartoon-btn" style="padding: 4px 8px; font-size: 0.75rem;">Cartoon</button>
-            <button class="btn btn-sm btn-outline" id="style-surface-btn" style="padding: 4px 8px; font-size: 0.75rem;">🌐 Surface</button>
-            <button class="btn btn-sm btn-outline" id="style-sphere-btn" style="padding: 4px 8px; font-size: 0.75rem;">Sphere</button>
-            <button class="btn btn-sm btn-outline" id="style-stick-btn" style="padding: 4px 8px; font-size: 0.75rem;">Stick</button>
-          </div>
-        </div>
-        <div style="padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; background: rgba(0,0,0,0.15); border-bottom: 1px solid var(--border);">
-          <!-- Docking file upload -->
-          <div class="form-group" style="margin: 0; display: flex; align-items: center; gap: 8px;">
-            <label class="form-label" for="dock-ligand-input" style="margin: 0; font-size: 0.8rem; color: var(--text-dim);">Overlay Ligand PDB:</label>
-            <input type="file" id="dock-ligand-input" accept=".pdb,.pdbqt" style="font-size: 0.8rem; color: var(--text-muted); background: transparent; border: none;" />
-            <button class="btn btn-sm btn-primary" id="run-dock-btn" style="padding: 4px 10px; font-size: 0.75rem;" disabled>⚡ Run Docking</button>
-          </div>
-          <span id="dock-status" style="font-size: 0.8rem; color: var(--green); font-weight: 500;"></span>
-        </div>
-
-        <div id="3d-viewer-container" style="position: relative; width: 100%; height: 520px; overflow: hidden;">
-          <div id="3d-viewer" style="width: 100%; height: 100%; position: absolute; top:0; left:0; background: #0b0f19; touch-action: none; user-select: none; cursor: grab;"></div>
-          <!-- Floating Canvas Overlay Legend -->
-          <div id="viewer-overlay-legend" style="position: absolute; top: 14px; left: 14px; z-index: 5; background: rgba(15, 20, 32, 0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: #e2e8f0; pointer-events: none; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
-            <div style="font-weight: 700; color: #ffffff; font-size: 0.82rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px;">
-              <span>🧬</span> <span id="legend-chain-title">Protein Chains & Predictions</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #6366f1; opacity: 0.7;"></span>
-              <span id="legend-chain-a-text">Target Chain (Chain A)</span>
-            </div>
-            <div id="legend-chain-b-row" style="display: flex; align-items: center; gap: 8px;">
-              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #0d9488; opacity: 0.7;"></span>
-              <span id="legend-chain-b-text">Partner Chain (Chain B)</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #ef4444;"></span>
-              <span>🔴 Predicted Binding Sites (Solid Red)</span>
-            </div>
-            <div id="legend-interface-row" style="display: none; align-items: center; gap: 8px;">
-              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #3b82f6;"></span>
-              <span>🔵 Actual 5Å Contact Interface</span>
-            </div>
+            <button class="btn btn-sm btn-outline" id="toggle-interface-btn" style="padding: 5px 12px; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; font-weight: 500;">🔬 Compare 5Å Interface</button>
+            <button class="btn btn-sm btn-outline" id="spin-btn" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; font-weight: 500;">🔄 Auto-Rotate</button>
+            <button class="btn btn-sm btn-outline" id="reset-view-btn" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; font-weight: 500;">🎯 Reset View</button>
+            <button class="btn btn-sm btn-outline" id="style-cartoon-btn" style="padding: 5px 12px; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; font-weight: 500;">Cartoon</button>
+            <button class="btn btn-sm btn-outline" id="style-surface-btn" style="padding: 5px 12px; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; font-weight: 500;">Surface</button>
+            <button class="btn btn-sm btn-outline" id="style-sphere-btn" style="padding: 5px 12px; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; font-weight: 500;">Sphere</button>
+            <button class="btn btn-sm btn-outline" id="style-stick-btn" style="padding: 5px 12px; font-size: 0.75rem; border-radius: 8px; background: rgba(99,102,241,0.2); border: 1px solid #6366f1; color: #ffffff; font-weight: 600;">Stick</button>
           </div>
         </div>
 
-        <div style="padding: 12px 20px; background: rgba(0,0,0,0.15); font-size: 0.8rem; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
-          <span><strong>Color Legend:</strong> <span style="color: #ef4444; font-weight: bold;">■ Predicted Binding Sites</span> | <span style="color: #6366f1; font-weight: bold;">■ Target Chain</span> | <span style="color: #0d9488; font-weight: bold;">■ Partner Chain</span> | <span style="color: #3b82f6; font-weight: bold;" id="legend-5a-badge">■ 5Å Contact Interface</span> | <span style="color: #fbbf24; font-weight: bold;">■ Docked Ligand</span></span>
-          <button class="btn btn-sm btn-primary" id="download-bfactor-pdb-btn" style="padding: 4px 12px; font-size: 0.8rem;">⬇ Download B-factor PDB</button>
+        <!-- Split Dashboard Body -->
+        <div style="display: flex; height: 560px; max-height: 560px; position: relative; overflow: hidden;">
+          
+          <!-- Left Glass Sidebar (Fixed Height, Scrollable Table) -->
+          <div style="width: 290px; height: 100%; max-height: 560px; background: rgba(8, 12, 22, 0.95); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 14px; display: flex; flex-direction: column; gap: 12px; shrink: 0; z-index: 10; box-sizing: border-box;">
+            
+            <!-- Panel 1: Overlay Ligand -->
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 10px; shrink: 0;">
+              <div style="font-size: 0.70rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 6px;">OVERLAY LIGAND PDB:</div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <input type="file" id="dock-ligand-input" accept=".pdb,.pdbqt" style="font-size: 0.75rem; color: #cbd5e1; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); width: 100%;" />
+                <button class="btn btn-sm btn-primary" id="run-dock-btn" style="width: 100%; padding: 6px; font-size: 0.78rem; font-weight: 600; background: linear-gradient(135deg, #0284c7, #06b6d4); border: none; border-radius: 6px; cursor: pointer;" disabled>⚡ Run Docking</button>
+              </div>
+              <span id="dock-status" style="font-size: 0.72rem; color: #34d399; font-weight: 500; display: block; margin-top: 4px;"></span>
+            </div>
+
+            <!-- Panel 2: Chains & Legend Badges -->
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; shrink: 0;">
+              <div style="font-size: 0.72rem; font-weight: 700; color: #cbd5e1; display: flex; align-items: center; gap: 6px;">
+                <span>🧬</span> <span id="legend-chain-title">Protein Chains & Predictions</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: #cbd5e1;">
+                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: #6366f1;"></span>
+                <span id="legend-chain-a-text">Target Chain (E) — 50% Opacity</span>
+              </div>
+              <div id="legend-chain-b-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: #cbd5e1;">
+                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: #0d9488;"></span>
+                <span id="legend-chain-b-text">Partner Chain (I) — 50% Opacity</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: #f87171;">
+                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: #ef4444;"></span>
+                <span>Predicted Binding Sites (Solid Red)</span>
+              </div>
+            </div>
+
+            <!-- Panel 3: Fixed-Height Scrollable Binding Site Residues Table -->
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 10px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+              <div style="font-size: 0.72rem; font-weight: 700; color: #f87171; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; shrink: 0;">
+                <span>🔴</span> <span id="sidebar-table-title">Binding Site Residues (Chain E)</span>
+              </div>
+              
+              <!-- Sticky Header Scrollable Table Container -->
+              <div style="overflow-y: auto; flex: 1; min-height: 0; border-radius: 6px; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.05);">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left;">
+                  <thead style="position: sticky; top: 0; background: #0f172a; z-index: 5; border-bottom: 1px solid rgba(255,255,255,0.12);">
+                    <tr style="color: #94a3b8;">
+                      <th style="padding: 6px 8px; font-weight: 600;">Residue</th>
+                      <th style="padding: 6px 8px; font-weight: 600;">AA</th>
+                      <th style="padding: 6px 8px; font-weight: 600; text-align: right;">Prob.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sidebar-residues-tbody">
+                    <!-- Populated dynamically by JS -->
+                  </tbody>
+                </table>
+              </div>
+              
+              <div style="font-size: 0.65rem; color: #64748b; margin-top: 6px; line-height: 1.3; shrink: 0;">
+                💡 Scroll table to view all binding positions.<br/>
+                💡 Click any row to focus/zoom in 3D.
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right 3D Viewport Area -->
+          <div id="3d-viewer-container" style="flex: 1; position: relative; width: 100%; height: 560px; overflow: hidden; background: #070a12;">
+            <div id="3d-viewer" style="width: 100%; height: 100%; position: absolute; top:0; left:0; background: #070a12; touch-action: none; user-select: none; cursor: grab;"></div>
+          </div>
+
         </div>
+
+        <!-- Bottom Color Legend & Action Bar -->
+        <div style="padding: 12px 20px; background: rgba(10, 15, 28, 0.95); font-size: 0.78rem; color: #94a3b8; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(255,255,255,0.08);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <span><strong>Color Legend:</strong> <span style="color: #ef4444; font-weight: bold;">■ Predicted Binding Sites</span> | <span style="color: #818cf8; font-weight: bold;">■ Target Chain</span> | <span style="color: #14b8a6; font-weight: bold;">■ Partner Chain</span> | <span style="color: #3b82f6; font-weight: bold;" id="legend-5a-badge">■ 5Å Contact Interface</span> | <span style="color: #fbbf24; font-weight: bold;">■ Docked Ligand</span></span>
+          </div>
+          
+          <button class="btn btn-primary" id="download-bfactor-pdb-btn" style="width: 100%; padding: 10px; font-size: 0.85rem; font-weight: 700; background: linear-gradient(135deg, #4f46e5, #0284c7); border: none; border-radius: 8px; color: #ffffff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4); transition: transform 0.15s, box-shadow 0.15s;">
+            <span>↓ Download B-factor PDB</span>
+          </button>
+        </div>
+
       </div>
 
       <!-- Results Table -->
@@ -405,7 +456,7 @@
   <!-- jQuery & 3Dmol.js CDN -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
-  <script src="/static/app.js?v=3.0.2"></script>
+  <script src="/static/app.js?v=4.2.0"></script>
 </body>
 </html>
 

@@ -131,6 +131,19 @@ dropzone.addEventListener('drop', (e) => {
 // ── Predict ────────────────────────────────────
 predictBtn.addEventListener('click', runPrediction);
 
+const demoBtn = document.getElementById('demo-btn');
+if (demoBtn) {
+  demoBtn.addEventListener('click', () => {
+    selectedFile = null;
+    fileNameDisplay.textContent = 'No file selected';
+    pdbId.value = '1AY7';
+    chainA.value = 'E';
+    chainB.value = 'I';
+    checkInputReady();
+    runPrediction();
+  });
+}
+
 async function runPrediction() {
   if (!selectedFile && !pdbId.value.trim()) return;
 
@@ -775,6 +788,7 @@ function init3DViewer(pdbString, chainAId, chainBId, residues) {
     viewer3D.addModel(pdbString, 'pdb');
     
     applyViewerStyle('cartoon', chainAId, chainBId, residues);
+    renderSidebarTable(residues, chainAId);
     
     // Ensure WebGL canvas adjusts to non-zero container width/height after unhide
     setTimeout(() => {
@@ -977,8 +991,89 @@ function addChainLabels3D(chainAId, chainBId) {
         borderColor: '#0d9488'
       });
     }
+
+    // Add 3D Atom Callout Badges for Top 10 Highest Confidence Binding Residues
+    if (currentResults && currentResults.residues) {
+      const topBindingResidues = currentResults.residues
+        .filter(r => r.is_binding)
+        .sort((a, b) => b.probability - a.probability)
+        .slice(0, 10);
+
+      topBindingResidues.forEach(r => {
+        const resAtom = atoms.find(a => a.chain === r.chain && a.resi == r.resid && (a.atom === 'CA' || a.atom === 'CB')) ||
+                        atoms.find(a => a.chain === r.chain && a.resi == r.resid);
+        if (resAtom) {
+          const aa1 = get1LetterCode(r.resname);
+          const labelText = `${r.resname} ${r.resid} ${aa1}`;
+          viewer3D.addLabel(labelText, {
+            position: { x: resAtom.x, y: resAtom.y, z: resAtom.z },
+            backgroundColor: '#0f172a',
+            backgroundOpacity: 0.90,
+            fontColor: '#ffffff',
+            fontSize: 10,
+            fontFamily: 'JetBrains Mono, monospace',
+            borderThickness: 1,
+            borderColor: '#f87171',
+            inFront: true
+          });
+        }
+      });
+    }
   } catch (lblErr) {
     console.warn("3D label addition error:", lblErr);
+  }
+}
+
+// 1-Letter Amino Acid Code Helper
+function get1LetterCode(res3) {
+  const map = {
+    'ALA':'A','ARG':'R','ASN':'N','ASP':'D','CYS':'C',
+    'GLN':'Q','GLU':'E','GLY':'G','HIS':'H','ILE':'I',
+    'LEU':'L','LYS':'K','MET':'M','PHE':'F','PRO':'P',
+    'SER':'S','THR':'T','TRP':'W','TYR':'Y','VAL':'V'
+  };
+  return map[(res3 || '').toUpperCase()] || '?';
+}
+
+// Render Left Sidebar Residues Table
+function renderSidebarTable(residues, chainId) {
+  const tbody = document.getElementById('sidebar-residues-tbody');
+  const title = document.getElementById('sidebar-table-title');
+  if (!tbody) return;
+
+  if (title) title.textContent = `Binding Site Residues (Chain ${chainId})`;
+
+  const topResidues = (residues || [])
+    .filter(r => r.is_binding)
+    .sort((a, b) => b.probability - a.probability);
+
+  if (topResidues.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" style="padding:12px;text-align:center;color:#64748b;">No binding residues predicted above threshold</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = topResidues.map((r, idx) => {
+    const aa1 = get1LetterCode(r.resname);
+    return `
+      <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.15s;" 
+          onmouseover="this.style.background='rgba(99,102,241,0.15)'" 
+          onmouseout="this.style.background='transparent'"
+          onclick="focusResidue3D('${r.chain}', ${r.resid})">
+        <td style="padding: 6px 8px; color: #f87171; font-weight: 700;">${r.resname} ${r.resid}</td>
+        <td style="padding: 6px 8px; color: #94a3b8; font-weight: 600;">${aa1}</td>
+        <td style="padding: 6px 8px; text-align: right; color: #f87171; font-weight: 700;">${r.probability.toFixed(2)}</td>
+      </tr>`;
+  }).join('');
+}
+
+// Focus / Zoom to specific residue in 3Dmol viewer
+function focusResidue3D(chain, resid) {
+  if (!viewer3D) return;
+  try {
+    viewer3D.zoomTo({ chain: chain, resi: resid }, 1000);
+    viewer3D.render();
+  } catch (err) {
+    console.warn("Focus residue 3D failed:", err);
   }
 }
 
