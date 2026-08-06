@@ -42,3 +42,11 @@ This document outlines the known limitations, failure modes, and scientific boun
 ## 6. Web Interface RAM Supervision & Saliency Fallback
 * **The Drawback**: Grad-CAM saliency mapping is memory-intensive. In constrained cloud environments (Render free tier ≤512MB RAM), full gradient calculation is dynamically redirected to attention rollout when free RAM drops below 250MB.
 * **Defense / Solution**: Ensures 100% web uptime without OOM container crashes.
+
+---
+
+## 7. ESM-2 650M Model Feature Extraction Latency
+* **The Drawback**: ECABSD utilizes the 650M-parameter ESM-2 language model (`esm2_t33_650M_UR50D`, 1280-dimensional per-residue embeddings) for deep evolutionary sequence representation.
+* **Why it's a drawback**: Extracting 1280-dim sequence embeddings introduces feature extraction latency (~1.2s per protein on GPU) and requires higher GPU VRAM during dataset generation and online prediction.
+* **Defense / Solution**: An automated fallback mechanism dynamically redirects to `esm2_t6_8M_UR50D` (320-dim zero-padded to 1280-dim) in low-memory compute environments (<2.0 GB RAM), maintaining high uptime without container memory crashes.
+

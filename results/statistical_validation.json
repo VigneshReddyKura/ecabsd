@@ -1,0 +1,41 @@
+{
+  "metrics": {
+    "f1": {
+      "mean": 0.7013377254682226,
+      "ci_95": [
+        0.6969428851053572,
+        0.7066928096745622
+      ]
+    },
+    "mcc": {
+      "mean": 0.6455603991161944,
+      "ci_95": [
+        0.6405316947786237,
+        0.6517598899565115
+      ]
+    },
+    "roc_auc": {
+      "mean": 0.9373233378489458,
+      "ci_95": [
+        0.935874848042879,
+        0.9389206979569801
+      ]
+    },
+    "pr_auc": {
+      "mean": 0.7459375556181042,
+      "ci_95": [
+        0.7386638496867893,
+        0.7519178580675581
+      ]
+    }
+  },
+  "significance_test": {
+    "baseline_compared": "synthetic_noise_baseline (label-correlated random probabilities, approx F1 ~ 0.50)",
+    "wilcoxon_stat": 1598322396.5,
+    "p_value": 0.0,
+    "p_value_note": "Underflows to 0.0 in float64; reported as p < 0.001 in manuscript",
+    "statistically_significant": true
+  },
+  "is_mock_run": false,
+  "note": "Real model inference on test set"
+}

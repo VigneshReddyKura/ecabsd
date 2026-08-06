@@ -59,6 +59,8 @@ results/*
 !results/1AY7/
 !results/1BRS/
 !results/2PTC/
+!results/statistical_validation.json
+
 
 # PDB files — sample kept via data/sample/
 *.pdb
@@ -66,3 +68,13 @@ results/*
 
 # Archive
 models/archive/
+
+# Temporary / Unrelated data files
+movies.json
+patients.json
+products.json
+restaurant_orders.json
+restaurants.json
+standalone_gesture_viewer/
+ecabsd_no_data.zip
+
