@@ -182,7 +182,21 @@ def main():
     checkpoint_path = cfg["web"]["checkpoint"]
     processed_dir = cfg["data"]["processed_dir"]
     splits_csv = cfg["data"]["splits_csv"]
-    input_dim = cfg["model"].get("esm_dim", 33)
+    # Dynamically detect input_dim from checkpoint state_dict or default to 1280
+    if os.path.exists(checkpoint_path):
+        try:
+            ckpt_temp = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+            sd_temp = ckpt_temp.get("model_state_dict", ckpt_temp)
+            if "gcn_encoder.input_proj.0.weight" in sd_temp:
+                input_dim = sd_temp["gcn_encoder.input_proj.0.weight"].shape[1]
+            elif "gcn_encoder.convs.0.lin_l.weight" in sd_temp:
+                input_dim = sd_temp["gcn_encoder.convs.0.lin_l.weight"].shape[1]
+            else:
+                input_dim = 1280
+        except Exception:
+            input_dim = 1280
+    else:
+        input_dim = 1280
 
     model, ckpt_ok = verify_checkpoint(checkpoint_path, device, input_dim=input_dim)
     labels_ok = verify_bilateral_labels(processed_dir, splits_csv)

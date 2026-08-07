@@ -53,9 +53,9 @@ The ECABSD framework consists of three main modules: a protein feature extractio
 ```
 Input PDB Structures (Chain A + Chain B)
         ↓
-Graph Construction + ESM-2 Residue Feature Vector (33-dim input)
+Graph Construction + ESM-2 Residue Feature Vector (1280-dim input)
         ↓
-Linear Feature Projection (33-dim → 256-dim hidden space)
+Linear Feature Projection (1280-dim → 256-dim hidden space)
         ↓
 GATv2 Structural Encoder (6 layers, 256-dim, residual connections)
         ↓
@@ -73,7 +73,7 @@ Per-residue Binding Probabilities + Explainability Heatmaps
 
 Protein structures are converted into spatial graphs where nodes represent residues. A distance-threshold approach (10.0 Å Cα–Cα cutoff) is used to draw edges between structurally adjacent amino acids. ECABSD extracts 5-dimensional edge features encoding normalized Cα–Cα Euclidean distances, 3D unit direction vectors, and inter-residue spatial orientation angles (aligning with Fig. 1). Edge features are z-score normalized using training set statistics. Six layers of GATv2 [8] provide dynamic attention weighting in which the attention coefficient is jointly conditioned on query and key nodes, overcoming the static attention limitations of standard GATs. Residual connections, LayerNorm, and GELU activations prevent oversmoothing.
 
-Node features are instantiated as a feature vector derived from pre-trained ESM-2 [7] sequence representations (`esm2_t33_650M_UR50D`, 650M parameters, 1280-dimensional embeddings) projected into the 256-dimensional GNN hidden space via linear projection layer `node_proj` ($1280 \times 256 + 256 = 327,936$ parameters), maintaining the model's compact trainable parameter footprint at exactly **1,381,889**.
+Node features are instantiated as a feature vector derived from pre-trained ESM-2 [7] sequence representations (`esm2_t33_650M_UR50D`, 650M parameters, 1280-dimensional embeddings) projected into the 256-dimensional GNN hidden space via linear projection layer `node_proj` ($1280 \times 256 + 256 = 327,936$ parameters), maintaining the model's total trainable parameter footprint at exactly **1,824,513**.
 
 ### 3.3 Cross-Fusion Module
 
@@ -112,7 +112,7 @@ To ensure 100% scientific reproducibility across independent compute environment
 
 | Metric / Parameter | Value | Benchmark Description |
 |:---|:---:|:---|
-| **Total Model Parameters** | `1,381,889` | 100% trainable parameters across GATv2, Cross-Attention, and MLP head |
+| **Total Model Parameters** | `1,824,513` | 100% trainable parameters across GATv2, Cross-Attention, and MLP head |
 | **Peak GPU VRAM Footprint** | `1.2 GB` | Mini-batch training & inference peak memory allocation |
 | **GPU Inference Latency** | `12.4 ms / complex` | Measured using `torch.cuda.Event` across 100 complexes (NVIDIA T4) |
 | **CPU Inference Latency** | `45.2 ms / complex` | Measured using `time.perf_counter` (Intel Xeon @ 2.20 GHz, single-thread) |

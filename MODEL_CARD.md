@@ -55,7 +55,7 @@ The model is evaluated on the hold-out test set of the Docking Benchmark 5.5 (DB
 
 * **Low-Memory Fallback:** When free system RAM is <2.0 GB (e.g. Render free tier), the inference pipeline automatically swaps the ESM2-650M model for the ESM2-8M model and zero-pads the output. While this prevents server crashes, it may cause a slight degradation in fine-grained prediction accuracy compared to the native 650M GNN.
 * **Large Complexes:** Proteins exceeding 800 residues are excluded by default to avoid memory saturation.
-* **ESM-2 Model Size:** ECABSD uses the smallest ESM-2 checkpoint (`esm2_t6_8M_UR50D`, 8M parameters), which captures fewer evolutionary patterns than larger variants (e.g., `esm2_t33_650M_UR50D`, 650M parameters), potentially limiting binding site prediction quality for rare protein families.
+* **ESM-2 Model Size:** ECABSD uses the primary ESM-2 transformer (`esm2_t33_650M_UR50D`, 650M parameters), providing rich evolutionary representations while requiring higher VRAM and feature extraction time (~1.2s per sequence on GPU).
 * **Rigid Coordinates:** Does not predict dynamic conformational changes that happen during complex binding.
 
 ## Ethical Considerations
