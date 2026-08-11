@@ -1,6 +1,7 @@
 [build-system]
 requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
+
 [project]
 name = "ecabsd"
 version = "3.0.0"
@@ -8,7 +9,7 @@ description = "Explainable Cross-Attention Model for Binding Site Discovery"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Amani Greeva", email = "" }
+    { name = "Amani Greeva", email = "a.manigreeva@gmail.com" }
 ]
 keywords = ["protein", "binding site", "graph neural network", "cross-attention", "bioinformatics"]
 classifiers = [
