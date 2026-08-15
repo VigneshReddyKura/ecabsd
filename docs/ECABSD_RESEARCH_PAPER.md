@@ -131,7 +131,7 @@ To ensure 100% scientific reproducibility across independent compute environment
 
 | Metric | Random Split Baseline | Homology-Filtered (≤30% ID) |
 |:---|:---:|:---:|
-| Accuracy | 0.8989 | 0.8828 |
+| Accuracy | 0.8989 | 0.8888 |
 | Precision | 0.6396 | 0.5305 |
 | Recall | 0.7756 | 0.6389 |
 | **F1-Score** | **0.7010** | **0.5797** |

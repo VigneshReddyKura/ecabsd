@@ -21,7 +21,7 @@ conditions, and planned validation steps for ECABSD.
 | **PR-AUC** | `0.7462` | `0.6077` | `0.7462` *(Exact Match)* |
 | **Recall** | `0.7756` | `0.6389` | `0.7582` |
 | **Precision** | `0.6396` | `0.5305` | `0.6532` |
-| **Accuracy** | `0.8989` | `0.8828` | `0.9015` |
+| **Accuracy** | `0.8989` | `0.8888` | `0.9015` |
 | **MCC** | `0.6452` | `0.5152` | `0.6458` *(Exact Match)* |
 | **ECE (Calibration)** | `0.0622` | — | — |
 | **Wilcoxon p-value** | `< 0.05` (vs. noise baseline) | — | — |
@@ -246,7 +246,7 @@ python scripts/generate_homology_splits.py \
 | PR-AUC | 0.7462 | `0.6077` |
 | Recall | 0.7756 | `0.6389` |
 | Precision | 0.6396 | `0.5305` |
-| Accuracy | 0.8989 | `0.8828` |
+| Accuracy | 0.8989 | `0.8888` |
 | MCC | 0.6452 | `0.5152` |
 
 ### 2. 5-Fold Cross-Validation ✅

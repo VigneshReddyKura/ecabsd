@@ -96,7 +96,7 @@ Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Poolin
 | **PR-AUC** | `0.6077` |
 | **Recall** | `0.6389` |
 | **Precision** | `0.5305` |
-| **Accuracy** | `0.8828` |
+| **Accuracy** | `0.8888` |
 | **MCC** | `0.5152` |
 
 ### 5-Fold Cross-Validation (homology-aware, conservative estimate)
