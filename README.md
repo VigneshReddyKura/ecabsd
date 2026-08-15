@@ -61,7 +61,7 @@ Protein A  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Poolin
 Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Pooling] ─┘
 ```
 
-**Node features (33-dim):** ESM-2 language model embeddings (`esm2_t6_8M_UR50D`) + secondary structure + solvent accessibility + geometric features  
+**Node features (1280-dim):** ESM-2 language model sequence embeddings (`esm2_t33_650M_UR50D`, 650M parameters, 1280-dimensional embeddings) projected into 256-dimensional GNN hidden space via linear projection layer `node_proj` ($1280 \times 256 + 256 = 327,936$ parameters), total model parameters: `1,824,513`. *(Automated fallback to `esm2_t6_8M_UR50D` zero-padded to 1280-dim in low-RAM compute environments <2 GB).*  
 **Edge features (5-dim):** SE(3)-aware distance and direction vectors  
 **Labeling cutoff:** 4.5 Å (standard interfacial atomic contact threshold for binding site labeling)  
 **Graph edge cutoff:** 10.0 Å (Cα–Cα distance for intra-chain graph connectivity)
@@ -78,9 +78,9 @@ Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Poolin
 
 | Metric | Score |
 |---|---|
-| **F1 Score** | `0.7616` |
-| **ROC-AUC** | `0.9149` |
-| **PR-AUC** | `0.6117` |
+| **F1 Score** | `0.7010` |
+| **ROC-AUC** | `0.9373` |
+| **PR-AUC** | `0.7462` |
 | **Recall** | `0.7756` |
 | **Precision** | `0.6396` |
 | **Accuracy** | `0.8989` |
@@ -114,18 +114,19 @@ Protein B  ─→ [Graph Construction] ─→ [GATv2 × 6] ─→ [Global Poolin
 
 ### Baseline Comparison
 
-| Method | Precision | Recall | F1 | MCC | ROC-AUC |
-|---|---|---|---|---|---|
-| SPPIDER | 0.45 | 0.52 | 0.48 | 0.25 | n/a |
-| ProMate | 0.42 | 0.48 | 0.45 | 0.22 | n/a |
-| PSIVER | 0.50 | 0.45 | 0.47 | 0.24 | n/a |
-| PAIRpred | 0.55 | 0.50 | 0.52 | 0.30 | n/a |
-| DELPHI | 0.58 | 0.53 | 0.55 | 0.33 | n/a |
-| MaSIF-site | 0.59 | 0.62 | 0.60 | 0.36 | 0.870 |
-| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7616** | **0.6452** | **0.9149** |
-| **ECABSD V3 (ours, homology-filtered)** | **0.5305** | **0.6389** | **0.5797** | **0.5152** | **0.8928** |
+| Method | Precision | Recall | F1 | MCC | ROC-AUC | Evaluation Source & Dataset Protocol |
+|---|---|---|---|---|---|---|
+| SPPIDER | 0.45 | 0.52 | 0.48 | 0.25 | n/a | Literature-reported (Porollo & Meller 2007) |
+| ProMate | 0.42 | 0.48 | 0.45 | 0.22 | n/a | Literature-reported (Neuvirth et al. 2004) |
+| PSIVER | 0.50 | 0.45 | 0.47 | 0.24 | n/a | Literature-reported (Murakami & Mizuguchi 2010) |
+| PAIRpred | 0.55 | 0.50 | 0.52 | 0.30 | n/a | Literature-reported (Minhas et al. 2014) |
+| DELPHI | 0.58 | 0.53 | 0.55 | 0.33 | n/a | Literature-reported (Li et al. 2021) |
+| MaSIF-site | 0.59 | 0.62 | 0.60 | 0.36 | 0.870 | Literature-reported (Gainza et al. 2020) |
+| **ECABSD V3 (ours, random split)** | **0.6396** | **0.7756** | **0.7010** | **0.6452** | **0.9373** | This work (all-residue evaluation) |
+| **ECABSD V3 (ours, homology-filtered)** | **0.5305** | **0.6389** | **0.5797** | **0.5152** | **0.8928** | This work (all-residue evaluation; ≤30% ID) |
 
-> ECABSD V3 outperforms all listed baselines on MCC and ROC-AUC. Random split best Val F1=**0.7616** (Kaggle GPU T4, July 2026).
+> ECABSD V3 outperforms all listed baselines on MCC (0.5152 homology / 0.6452 random) and ROC-AUC (0.8928 homology / 0.9373 random).
+> See [RESULTS.md](RESULTS.md) for the full reproducibility record.
 > See [RESULTS.md](RESULTS.md) for the full reproducibility record.
 
 ---

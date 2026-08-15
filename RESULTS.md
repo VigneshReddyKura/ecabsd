@@ -183,7 +183,7 @@ python train.py --config config.yaml --ablation sequence_only --output checkpoin
 
 | Component | Details |
 |---|---|
-| Node features | 33-dim (ESM-2 `esm2_t6_8M_UR50D` + geometry) |
+| Node features | 1280-dim (ESM-2 `esm2_t33_650M_UR50D` projected to 256-dim hidden space) |
 | Edge features | 5-dim (SE(3)-aware distance + direction) |
 | GATv2 layers | 6 layers, 256 hidden dim, residual connections |
 | Attention heads (cross) | 4 heads, 256 dim |
