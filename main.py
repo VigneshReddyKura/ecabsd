@@ -7,7 +7,7 @@ Usage:
     python main.py --help
 """
 
-from cli import app
+from cli import  app
 
 if __name__ == "__main__":
     app()

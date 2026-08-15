@@ -1,5 +1,5 @@
 """
-Graph construction for ECABSD.
+Graph construction for ECABSD
 
 Node features (33-dim):
     0-19  : amino acid one-hot (20)
@@ -358,4 +358,4 @@ def compute_binding_labels(pdb_path: str, target_chain_id: str, partner_chain_id
                 is_binding = True
                 break
         labels.append(1 if is_binding else 0)
-    return labels
+    return labels
